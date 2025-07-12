@@ -1,7 +1,7 @@
 local Jumppack = {}
 local H = {}
 
-Jumppack.setup = function(config)
+function Jumppack.setup(config)
   config = H.setup_config(config)
   H.apply_config(config)
   H.create_autocommands()
@@ -32,7 +32,7 @@ Jumppack.config = {
   },
 }
 
-Jumppack.start = function(opts)
+function Jumppack.start(opts)
   H.cache = {}
 
   -- Handle jumplist-specific options
@@ -61,7 +61,7 @@ Jumppack.start = function(opts)
   return H.advance(instance)
 end
 
-Jumppack.stop = function()
+function Jumppack.stop()
   if not Jumppack.is_active() then
     return
   end
@@ -71,14 +71,14 @@ Jumppack.stop = function()
   end
 end
 
-Jumppack.refresh = function()
+function Jumppack.refresh()
   if not Jumppack.is_active() then
     return
   end
   H.update(H.instance, true)
 end
 
-Jumppack.default_show = function(buf_id, items, opts)
+function Jumppack.default_show(buf_id, items, opts)
   local default_icons = { directory = ' ', file = ' ', none = '  ' }
   opts = vim.tbl_deep_extend('force', { show_icons = true, icons = default_icons }, opts or {})
 
@@ -120,7 +120,7 @@ Jumppack.default_show = function(buf_id, items, opts)
   end
 end
 
-Jumppack.default_preview = function(buf_id, item, opts)
+function Jumppack.default_preview(buf_id, item, opts)
   opts = vim.tbl_deep_extend('force', { n_context_lines = 2 * vim.o.lines, line_position = 'center' }, opts or {})
   local item_data = H.parse_item(item)
 
@@ -140,7 +140,7 @@ Jumppack.default_preview = function(buf_id, item, opts)
   H.preview_set_lines(buf_id, lines, item_data)
 end
 
-Jumppack.default_choose = function(item)
+function Jumppack.default_choose(item)
   vim.schedule(function()
     if item.direction == 'back' then
       vim.cmd(string.format([[execute "normal\! %d\<C-o>"]], item.distance))
@@ -153,11 +153,11 @@ Jumppack.default_choose = function(item)
   end)
 end
 
-Jumppack.get_opts = function()
+function Jumppack.get_opts()
   return vim.deepcopy((H.instance or {}).opts)
 end
 
-Jumppack.get_state = function()
+function Jumppack.get_state()
   if not Jumppack.is_active() then
     return
   end
@@ -170,7 +170,7 @@ Jumppack.get_state = function()
   })
 end
 
-Jumppack.set_items = function(items)
+function Jumppack.set_items(items)
   if not vim.islist(items) then
     H.error('`items` should be an array.')
   end
@@ -180,7 +180,7 @@ Jumppack.set_items = function(items)
   H.set_items(H.instance, items)
 end
 
-Jumppack.set_opts = function(opts)
+function Jumppack.set_opts(opts)
   if not Jumppack.is_active() then
     return
   end
@@ -193,7 +193,7 @@ Jumppack.set_opts = function(opts)
   H.update(instance, true)
 end
 
-Jumppack.set_target_wingow = function(win_id)
+function Jumppack.set_target_wingow(win_id)
   if not Jumppack.is_active() then
     return
   end
@@ -203,7 +203,7 @@ Jumppack.set_target_wingow = function(win_id)
   H.instance.windows.target = win_id
 end
 
-Jumppack.is_active = function()
+function Jumppack.is_active()
   return H.instance ~= nil
 end
 
@@ -231,7 +231,7 @@ H.cache = {}
 
 -- Helper functionality =======================================================
 -- Settings -------------------------------------------------------------------
-H.setup_config = function(config)
+function H.setup_config(config)
   H.check_type('config', config, 'table', true)
   config = vim.tbl_deep_extend('force', vim.deepcopy(H.default_config), config or {})
 
@@ -256,15 +256,15 @@ H.setup_config = function(config)
   return config
 end
 
-H.apply_config = function(config)
+function H.apply_config(config)
   Jumppack.config = config
 end
 
-H.get_config = function(config)
+function H.get_config(config)
   return vim.tbl_deep_extend('force', Jumppack.config, vim.b.minipick_config or {}, config or {})
 end
 
-H.create_autocommands = function()
+function H.create_autocommands()
   local gr = vim.api.nvim_create_augroup('Jumppack', {})
 
   local au = function(event, pattern, callback, desc)
@@ -275,7 +275,7 @@ H.create_autocommands = function()
   au('ColorScheme', '*', H.create_default_hl, 'Ensure colors')
 end
 
-H.create_default_hl = function()
+function H.create_default_hl()
   local hi = function(name, opts)
     opts.default = true
     vim.api.nvim_set_hl(0, name, opts)
@@ -292,7 +292,7 @@ H.create_default_hl = function()
   hi('JumppackMatchCurrent', { link = 'Visual' })
 end
 
-H.setup_global_mappings = function(config)
+function H.setup_global_mappings(config)
   -- Set up global keymaps for jump navigation with count support
   vim.keymap.set('n', config.mappings.jump_back, function()
     Jumppack.start({ jumplist_direction = 'back', jumplist_distance = vim.v.count1 })
@@ -303,7 +303,7 @@ H.setup_global_mappings = function(config)
   end, { desc = 'Jump forward', silent = true })
 end
 
-H.validate_opts = function(opts)
+function H.validate_opts(opts)
   opts = opts or {}
   if type(opts) ~= 'table' then
     H.error('Jumppack options should be table.')
@@ -367,7 +367,7 @@ H.validate_opts = function(opts)
   return opts
 end
 
-H.new = function(opts)
+function H.new(opts)
   -- Create buffer
   local buf_id = H.new_buf()
 
@@ -400,7 +400,7 @@ H.new = function(opts)
   return instance
 end
 
-H.advance = function(instance)
+function H.advance(instance)
   vim.schedule(function()
     vim.api.nvim_exec_autocmds('User', { pattern = 'JumppackStart' })
   end)
@@ -442,7 +442,7 @@ H.advance = function(instance)
   return item
 end
 
-H.update = function(instance, update_window)
+function H.update(instance, update_window)
   if update_window then
     local config = H.compute_win_config(instance.opts.window.config)
     vim.api.nvim_win_set_config(instance.windows.main, config)
@@ -453,13 +453,13 @@ H.update = function(instance, update_window)
   H.redraw()
 end
 
-H.new_buf = function()
+function H.new_buf()
   local buf_id = H.create_scratch_buf('main')
   vim.bo[buf_id].filetype = 'minipick'
   return buf_id
 end
 
-H.new_win = function(buf_id, win_config, cwd)
+function H.new_win(buf_id, win_config, cwd)
   -- Hide cursor while instance is active (to not be visible in the window)
   -- This mostly follows a hack from 'folke/noice.nvim'
   H.cache.guicursor = vim.o.guicursor
@@ -485,7 +485,7 @@ H.new_win = function(buf_id, win_config, cwd)
   return win_id
 end
 
-H.compute_win_config = function(win_config, is_for_open)
+function H.compute_win_config(win_config, is_for_open)
   local has_tabline = vim.o.showtabline == 2 or (vim.o.showtabline == 1 and #vim.api.nvim_list_tabpages() > 1)
   local has_statusline = vim.o.laststatus > 0
   local max_height = vim.o.lines - vim.o.cmdheight - (has_tabline and 1 or 0) - (has_statusline and 1 or 0)
@@ -517,7 +517,7 @@ H.compute_win_config = function(win_config, is_for_open)
   return config
 end
 
-H.track_lost_focus = function(instance)
+function H.track_lost_focus(instance)
   local track = vim.schedule_wrap(function()
     local is_cur_win = vim.api.nvim_get_current_win() == instance.windows.main
     local is_proper_focus = is_cur_win and (H.cache.is_in_getcharstr or vim.fn.mode() ~= 'n')
@@ -532,7 +532,7 @@ H.track_lost_focus = function(instance)
   H.timers.focus:start(1000, 1000, track)
 end
 
-H.set_items = function(instance, items)
+function H.set_items(instance, items)
   instance.items = items
 
   if #items > 0 then
@@ -550,7 +550,7 @@ H.set_items = function(instance, items)
   H.update(instance)
 end
 
-H.item_to_string = function(item)
+function H.item_to_string(item)
   item = H.expand_callable(item)
   if type(item) == 'string' then
     return item
@@ -561,7 +561,7 @@ H.item_to_string = function(item)
   return vim.inspect(item, { newline = ' ', indent = '' })
 end
 
-H.set_current_ind = function(instance, ind, force_update)
+function H.set_current_ind(instance, ind, force_update)
   if instance.items == nil or #instance.items == 0 then
     instance.current_ind, instance.visible_range = nil, {}
     return
@@ -586,7 +586,7 @@ H.set_current_ind = function(instance, ind, force_update)
   instance.visible_range = { from = from, to = to }
 end
 
-H.set_lines = function(instance)
+function H.set_lines(instance)
   local buf_id, win_id = instance.buffers.main, instance.windows.main
   if not (H.is_valid_buf(buf_id) and H.is_valid_win(win_id)) then
     return
@@ -628,7 +628,7 @@ H.set_lines = function(instance)
   H.set_extmark(buf_id, ns_id, cur_line - 1, 0, cur_opts)
 end
 
-H.normalize_mappings = function(mappings)
+function H.normalize_mappings(mappings)
   local res = {}
   local add_to_res = function(char, data)
     local key = H.replace_termcodes(char)
@@ -646,7 +646,7 @@ H.normalize_mappings = function(mappings)
   return res
 end
 
-H.set_bordertext = function(instance)
+function H.set_bordertext(instance)
   local win_id = instance.windows.main
   if not H.is_valid_win(win_id) then
     return
@@ -677,7 +677,7 @@ H.set_bordertext = function(instance)
   vim.wo[win_id].list = true
 end
 
-H.compute_footer = function(instance, win_id)
+function H.compute_footer(instance, win_id)
   local info = H.get_general_info(instance)
   local source_name = string.format(' %s ', info.source_name)
   local inds = string.format(' %s|%s', info.relative_current_ind, info.n_total)
@@ -693,7 +693,7 @@ H.compute_footer = function(instance, win_id)
   return footer
 end
 
-H.stop = function(instance)
+function H.stop(instance)
   vim.tbl_map(function(timer)
     pcall(vim.loop.timer_stop, timer)
   end, H.timers)
@@ -752,7 +752,7 @@ H.actions = {
   end,
 }
 
-H.choose = function(instance, pre_command)
+function H.choose(instance, pre_command)
   local cur_item = H.get_current_item(instance)
   if cur_item == nil then
     return true
@@ -782,7 +782,7 @@ H.choose = function(instance, pre_command)
   return not (ok and res)
 end
 
-H.move_current = function(instance, by, to)
+function H.move_current(instance, by, to)
   if instance.items == nil then
     return
   end
@@ -812,19 +812,19 @@ H.move_current = function(instance, by, to)
   end
 end
 
-H.get_current_item = function(instance)
+function H.get_current_item(instance)
   if instance.items == nil then
     return nil
   end
   return instance.items[instance.current_ind]
 end
 
-H.show_main = function(instance)
+function H.show_main(instance)
   H.set_winbuf(instance.windows.main, instance.buffers.main)
   instance.view_state = 'main'
 end
 
-H.get_general_info = function(instance)
+function H.get_general_info(instance)
   local has_items = instance.items ~= nil
   return {
     source_name = instance.opts.source.name or '---',
@@ -834,7 +834,7 @@ H.get_general_info = function(instance)
   }
 end
 
-H.show_preview = function(instance)
+function H.show_preview(instance)
   local preview = instance.opts.source.preview
   local item = H.get_current_item(instance)
   if item == nil then
@@ -850,7 +850,7 @@ H.show_preview = function(instance)
 end
 
 -- Default show ---------------------------------------------------------------
-H.get_icon = function(x, icons)
+function H.get_icon(x, icons)
   local item_data = H.parse_item(x)
   local path = item_data.path or item_data.text or ''
   local path_type = H.get_fs_type(path)
@@ -877,12 +877,12 @@ H.get_icon = function(x, icons)
   return { text = icon, hl = hl or 'JumppackIconFile' }
 end
 
-H.show_with_icons = function(buf_id, items)
+function H.show_with_icons(buf_id, items)
   Jumppack.default_show(buf_id, items, { show_icons = true })
 end
 
 -- Items helpers for default functions ----------------------------------------
-H.parse_item = function(item)
+function H.parse_item(item)
   -- Try parsing table item first
   if type(item) == 'table' then
     return H.parse_item_table(item)
@@ -906,7 +906,7 @@ H.parse_item = function(item)
   return {}
 end
 
-H.parse_item_table = function(item)
+function H.parse_item_table(item)
   -- Buffer
   local buf_id = item.bufnr or item.buf_id or item.buf
   if H.is_valid_buf(buf_id) then
@@ -945,7 +945,7 @@ H.parse_item_table = function(item)
   return {}
 end
 
-H.parse_path = function(x)
+function H.parse_path(x)
   if type(x) ~= 'string' or x == '' then
     return nil
   end
@@ -970,7 +970,7 @@ H.parse_path = function(x)
   return path_type, path, tonumber(lnum), tonumber(col), rest or ''
 end
 
-H.get_fs_type = function(path)
+function H.get_fs_type(path)
   if path == '' then
     return 'none'
   end
@@ -983,7 +983,7 @@ H.get_fs_type = function(path)
   return 'none'
 end
 
-H.preview_set_lines = function(buf_id, lines, extra)
+function H.preview_set_lines(buf_id, lines, extra)
   -- Lines
   H.set_buflines(buf_id, lines)
 
@@ -1018,7 +1018,7 @@ H.preview_set_lines = function(buf_id, lines, extra)
   end)
 end
 
-H.preview_should_highlight = function(buf_id)
+function H.preview_should_highlight(buf_id)
   -- Highlight if buffer size is not too big, both in total and per line
   local buf_size = vim.api.nvim_buf_call(buf_id, function()
     return vim.fn.line2byte(vim.fn.line('$') + 1)
@@ -1026,7 +1026,7 @@ H.preview_should_highlight = function(buf_id)
   return buf_size <= 1000000 and buf_size <= 1000 * vim.api.nvim_buf_line_count(buf_id)
 end
 
-H.preview_highlight_region = function(buf_id, lnum, col, end_lnum, end_col)
+function H.preview_highlight_region(buf_id, lnum, col, end_lnum, end_col)
   -- Highlight line
   if lnum == nil then
     return
@@ -1052,26 +1052,26 @@ H.preview_highlight_region = function(buf_id, lnum, col, end_lnum, end_col)
 end
 
 -- Utilities ------------------------------------------------------------------
-H.error = function(msg)
+function H.error(msg)
   error('(jumppack) ' .. msg, 0)
 end
 
-H.check_type = function(name, val, ref, allow_nil)
+function H.check_type(name, val, ref, allow_nil)
   if type(val) == ref or (ref == 'callable' and vim.is_callable(val)) or (allow_nil and val == nil) then
     return
   end
   H.error(string.format('`%s` should be %s, not %s', name, ref, type(val)))
 end
 
-H.set_buf_name = function(buf_id, name)
+function H.set_buf_name(buf_id, name)
   vim.api.nvim_buf_set_name(buf_id, 'jumppack://' .. buf_id .. '/' .. name)
 end
 
-H.notify = function(msg, level_name)
+function H.notify(msg, level_name)
   vim.notify('(jumppack) ' .. msg, vim.log.levels[level_name])
 end
 
-H.edit = function(path, win_id)
+function H.edit(path, win_id)
   if type(path) ~= 'string' then
     return
   end
@@ -1088,15 +1088,15 @@ H.edit = function(path, win_id)
   return buf_id
 end
 
-H.is_valid_buf = function(buf_id)
+function H.is_valid_buf(buf_id)
   return type(buf_id) == 'number' and vim.api.nvim_buf_is_valid(buf_id)
 end
 
-H.is_valid_win = function(win_id)
+function H.is_valid_win(win_id)
   return type(win_id) == 'number' and vim.api.nvim_win_is_valid(win_id)
 end
 
-H.create_scratch_buf = function(name)
+function H.create_scratch_buf(name)
   local buf_id = vim.api.nvim_create_buf(false, true)
   H.set_buf_name(buf_id, name)
   vim.bo[buf_id].matchpairs = ''
@@ -1105,7 +1105,7 @@ H.create_scratch_buf = function(name)
   return buf_id
 end
 
-H.get_first_valid_normal_window = function()
+function H.get_first_valid_normal_window()
   for _, win_id in ipairs(vim.api.nvim_tabpage_list_wins(0)) do
     if vim.api.nvim_win_get_config(win_id).relative == '' then
       return win_id
@@ -1113,23 +1113,23 @@ H.get_first_valid_normal_window = function()
   end
 end
 
-H.set_buflines = function(buf_id, lines)
+function H.set_buflines(buf_id, lines)
   pcall(vim.api.nvim_buf_set_lines, buf_id, 0, -1, false, lines)
 end
 
-H.set_winbuf = function(win_id, buf_id)
+function H.set_winbuf(win_id, buf_id)
   vim.api.nvim_win_set_buf(win_id, buf_id)
 end
 
-H.set_extmark = function(...)
+function H.set_extmark(...)
   pcall(vim.api.nvim_buf_set_extmark, ...)
 end
 
-H.set_cursor = function(win_id, lnum, col)
+function H.set_cursor(win_id, lnum, col)
   pcall(vim.api.nvim_win_set_cursor, win_id, { lnum or 1, (col or 1) - 1 })
 end
 
-H.set_curwin = function(win_id)
+function H.set_curwin(win_id)
   if not H.is_valid_win(win_id) then
     return
   end
@@ -1140,31 +1140,31 @@ H.set_curwin = function(win_id)
   H.set_cursor(win_id, cursor[1], cursor[2] + 1)
 end
 
-H.clear_namespace = function(buf_id, ns_id)
+function H.clear_namespace(buf_id, ns_id)
   pcall(vim.api.nvim_buf_clear_namespace, buf_id, ns_id, 0, -1)
 end
 
-H.replace_termcodes = function(x)
+function H.replace_termcodes(x)
   if x == nil then
     return nil
   end
   return vim.api.nvim_replace_termcodes(x, true, true, true)
 end
 
-H.expand_callable = function(x, ...)
+function H.expand_callable(x, ...)
   if vim.is_callable(x) then
     return x(...)
   end
   return x
 end
 
-H.redraw = function()
+function H.redraw()
   vim.cmd('redraw')
 end
 
 H.redraw_scheduled = vim.schedule_wrap(H.redraw)
 
-H.getcharstr = function(delay_async)
+function H.getcharstr(delay_async)
   H.timers.getcharstr:start(0, delay_async, H.redraw_scheduled)
   H.cache.is_in_getcharstr = true
   local ok, char = pcall(vim.fn.getcharstr)
@@ -1182,7 +1182,7 @@ H.getcharstr = function(delay_async)
   return char
 end
 
-H.win_update_hl = function(win_id, new_from, new_to)
+function H.win_update_hl(win_id, new_from, new_to)
   if not H.is_valid_win(win_id) then
     return
   end
@@ -1197,12 +1197,12 @@ H.win_update_hl = function(win_id, new_from, new_to)
   vim.wo[win_id].winhighlight = new_winhighlight
 end
 
-H.fit_to_width = function(text, width)
+function H.fit_to_width(text, width)
   local t_width = vim.fn.strchars(text)
   return t_width <= width and text or ('…' .. vim.fn.strcharpart(text, t_width - width + 1, width - 1))
 end
 
-H.win_get_bottom_border = function(win_id)
+function H.win_get_bottom_border(win_id)
   local border = vim.api.nvim_win_get_config(win_id).border or {}
   local res = border[6]
   if type(res) == 'table' then
@@ -1211,7 +1211,7 @@ H.win_get_bottom_border = function(win_id)
   return res or ' '
 end
 
-H.win_set_cwd = function(win_id, cwd)
+function H.win_set_cwd(win_id, cwd)
   -- Avoid needlessly setting cwd as it has side effects (like for `:buffers`)
   if cwd == nil or vim.fn.getcwd(win_id or 0) == cwd then
     return
@@ -1225,7 +1225,7 @@ H.win_set_cwd = function(win_id, cwd)
   vim.api.nvim_win_call(win_id, f)
 end
 
-H.get_next_char_bytecol = function(line_str, col)
+function H.get_next_char_bytecol(line_str, col)
   if type(line_str) ~= 'string' then
     return col
   end
@@ -1233,7 +1233,7 @@ H.get_next_char_bytecol = function(line_str, col)
   return vim.str_byteindex(line_str, utf_index)
 end
 
-H.full_path = function(path)
+function H.full_path(path)
   return (vim.fn.fnamemodify(path, ':p'):gsub('(.)/$', '%1'))
 end
 
@@ -1308,7 +1308,7 @@ local function get_all_jumps()
 end
 
 -- Helper function to create jumplist source configuration
-H.create_jumplist_source = function(direction, distance)
+function H.create_jumplist_source(direction, distance)
   local all_jumps, _ = get_all_jumps()
 
   if #all_jumps == 0 then
