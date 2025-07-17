@@ -37,9 +37,10 @@ function Jumppack.start(opts)
 
   -- Handle jumplist-specific options
   if opts.jumplist_direction or opts.jumplist_distance then
-    local direction = opts.jumplist_direction
-    local distance = opts.jumplist_distance
-    local jumplist_source = H.create_jumplist_source(direction, distance)
+    local jumplist_source = H.create_jumplist_source({
+      direction = opts.jumplist_direction,
+      distance = opts.jumplist_distance
+    })
     if not jumplist_source then
       return -- No jumps available
     end
@@ -47,28 +48,14 @@ function Jumppack.start(opts)
   end
 
   opts = H.validate_opts(opts)
-  local instance = H.new(opts)
-  H.instance = instance
+  H.instance = H.new(opts)
 
-  local items = H.expand_callable(opts.source.items)
-  if vim.islist(items) then
-    vim.schedule(function()
-      Jumppack.set_items(items)
-    end)
+  if vim.islist(opts.source.items) then
+    H.set_items(H.instance, opts.source.items)
   end
 
-  H.track_lost_focus(instance)
-  return H.advance(instance)
-end
-
-function Jumppack.stop()
-  if not Jumppack.is_active() then
-    return
-  end
-  H.cache.is_force_stop_advance = true
-  if H.cache.is_in_getcharstr then
-    vim.api.nvim_feedkeys('\3', 't', true)
-  end
+  H.track_lost_focus(H.instance)
+  return H.advance(H.instance)
 end
 
 function Jumppack.refresh()
@@ -79,7 +66,7 @@ function Jumppack.refresh()
 end
 
 function Jumppack.default_show(buf_id, items, opts)
-  local default_icons = { directory = ' ', file = ' ', none = '  ' }
+  local default_icons = { file = ' ', none = '  ' }
   opts = vim.tbl_deep_extend('force', { show_icons = true, icons = default_icons }, opts or {})
 
   -- Compute and set lines. Compute prefix based on the whole items to allow
@@ -121,23 +108,35 @@ function Jumppack.default_show(buf_id, items, opts)
 end
 
 function Jumppack.default_preview(buf_id, item, opts)
+  if not item or not item.bufnr then
+    return
+  end
+
   opts = vim.tbl_deep_extend('force', { n_context_lines = 2 * vim.o.lines, line_position = 'center' }, opts or {})
-  local item_data = H.parse_item(item)
 
   -- NOTE: ideally just setting target buffer to window would be enough, but it
   -- has side effects. See https://github.com/neovim/neovim/issues/24973 .
   -- Reading lines and applying custom styling is a passable alternative.
-  local buf_id_source = item_data.buf_id
+  local buf_id_source = item.bufnr
 
   -- Get lines from buffer ensuring it is loaded without important consequences
   local cache_eventignore = vim.o.eventignore
   vim.o.eventignore = 'BufEnter'
   vim.fn.bufload(buf_id_source)
   vim.o.eventignore = cache_eventignore
-  local lines = vim.api.nvim_buf_get_lines(buf_id_source, 0, (item_data.lnum or 1) + opts.n_context_lines, false)
+  local lines = vim.api.nvim_buf_get_lines(buf_id_source, 0, (item.lnum or 1) + opts.n_context_lines, false)
 
-  item_data.filetype, item_data.line_position = vim.bo[buf_id_source].filetype, opts.line_position
-  H.preview_set_lines(buf_id, lines, item_data)
+  -- Prepare data for preview_set_lines
+  local preview_data = {
+    lnum = item.lnum,
+    col = item.col,
+    end_lnum = item.end_lnum,
+    end_col = item.end_col,
+    filetype = vim.bo[buf_id_source].filetype,
+    path = item.path,
+    line_position = opts.line_position,
+  }
+  H.preview_set_lines(buf_id, lines, preview_data)
 end
 
 function Jumppack.default_choose(item)
@@ -151,56 +150,6 @@ function Jumppack.default_choose(item)
       print('Already at current position')
     end
   end)
-end
-
-function Jumppack.get_opts()
-  return vim.deepcopy((H.instance or {}).opts)
-end
-
-function Jumppack.get_state()
-  if not Jumppack.is_active() then
-    return
-  end
-  local instance = H.instance
-  return vim.deepcopy({
-    buffers = instance.buffers,
-    windows = instance.windows,
-    caret = instance.caret,
-    is_busy = instance.is_busy,
-  })
-end
-
-function Jumppack.set_items(items)
-  if not vim.islist(items) then
-    H.error('`items` should be an array.')
-  end
-  if not Jumppack.is_active() then
-    return
-  end
-  H.set_items(H.instance, items)
-end
-
-function Jumppack.set_opts(opts)
-  if not Jumppack.is_active() then
-    return
-  end
-  local instance, cur_cwd = H.instance, H.instance.opts.source.cwd
-  instance.opts = vim.tbl_deep_extend('force', instance.opts, opts or {})
-  instance.action_keys = H.normalize_mappings(instance.opts.mappings)
-  if cur_cwd ~= instance.opts.source.cwd then
-    H.win_set_cwd(instance.windows.main, instance.opts.source.cwd)
-  end
-  H.update(instance, true)
-end
-
-function Jumppack.set_target_wingow(win_id)
-  if not Jumppack.is_active() then
-    return
-  end
-  if not H.is_valid_win(win_id) then
-    H.error('`win_id` is not a valid window identifier.')
-  end
-  H.instance.windows.target = win_id
 end
 
 function Jumppack.is_active()
@@ -369,7 +318,7 @@ end
 
 function H.new(opts)
   -- Create buffer
-  local buf_id = H.new_buf()
+  local buf_id = H.new_buf(opts)
 
   -- Create window
   local win_target = vim.api.nvim_get_current_win()
@@ -407,16 +356,9 @@ function H.advance(instance)
 
   local is_aborted = false
   for _ = 1, 1000000 do
-    if H.cache.is_force_stop_advance then
-      break
-    end
     H.update(instance)
 
     local char = H.getcharstr(10)
-    if H.cache.is_force_stop_advance then
-      break
-    end
-
     is_aborted = char == nil
     if is_aborted then
       break
@@ -437,7 +379,6 @@ function H.advance(instance)
   if not is_aborted then
     item = H.get_current_item(instance)
   end
-  H.cache.is_force_stop_advance = nil
   H.stop(instance)
   return item
 end
@@ -525,6 +466,7 @@ function H.track_lost_focus(instance)
       return
     end
     if H.cache.is_in_getcharstr then
+      -- sends <C-c>
       return vim.api.nvim_feedkeys('\3', 't', true)
     end
     H.stop(instance)
@@ -551,14 +493,27 @@ function H.set_items(instance, items)
 end
 
 function H.item_to_string(item)
-  item = H.expand_callable(item)
-  if type(item) == 'string' then
-    return item
+  -- For jump items, construct the display text
+  if item.direction and item.lnum then
+    local filename = vim.fn.fnamemodify(item.path, ':.')
+    local line_content = ''
+    if vim.fn.bufloaded(item.bufnr) == 1 then
+      local lines = vim.fn.getbufline(item.bufnr, item.lnum)
+      if #lines > 0 then
+        line_content = vim.trim(lines[1])
+      end
+    end
+
+    if item.direction == 'back' then
+      return string.format('← %d  %s:%d %s', item.distance, filename, item.lnum, line_content)
+    elseif item.direction == 'current' then
+      return string.format('[CURRENT] %s:%d %s', filename, item.lnum, line_content)
+    elseif item.direction == 'forward' then
+      return string.format('→ %d  %s:%d %s', item.distance, filename, item.lnum, line_content)
+    end
   end
-  if type(item) == 'table' and type(item.text) == 'string' then
-    return item.text
-  end
-  return vim.inspect(item, { newline = ' ', indent = '' })
+
+  return item.text
 end
 
 function H.set_current_ind(instance, ind, force_update)
@@ -850,9 +805,8 @@ function H.show_preview(instance)
 end
 
 -- Default show ---------------------------------------------------------------
-function H.get_icon(x, icons)
-  local item_data = H.parse_item(x)
-  local path = item_data.path or item_data.text or ''
+function H.get_icon(item, icons)
+  local path = item.path or ''
   local path_type = H.get_fs_type(path)
   if path_type == 'none' then
     return { text = icons.none, hl = 'JumppackNormal' }
@@ -864,9 +818,6 @@ function H.get_icon(x, icons)
     return { text = icon .. ' ', hl = hl }
   end
 
-  if path_type == 'directory' then
-    return { text = icons.directory, hl = 'JumppackIconDirectory' }
-  end
   local has_devicons, devicons = pcall(require, 'nvim-web-devicons')
   if not has_devicons then
     return { text = icons.file, hl = 'JumppackIconFile' }
@@ -877,99 +828,7 @@ function H.get_icon(x, icons)
   return { text = icon, hl = hl or 'JumppackIconFile' }
 end
 
-function H.show_with_icons(buf_id, items)
-  Jumppack.default_show(buf_id, items, { show_icons = true })
-end
-
 -- Items helpers for default functions ----------------------------------------
-function H.parse_item(item)
-  -- Try parsing table item first
-  if type(item) == 'table' then
-    return H.parse_item_table(item)
-  end
-
-  -- Parse item's string representation
-  local stritem = H.item_to_string(item)
-
-  -- - Buffer
-  local ok, numitem = pcall(tonumber, stritem)
-  if ok and H.is_valid_buf(numitem) then
-    return { type = 'buffer', buf_id = numitem }
-  end
-
-  -- File or Directory
-  local path_type, path, lnum, col, rest = H.parse_path(stritem)
-  if path_type ~= 'none' then
-    return { type = path_type, path = path, lnum = lnum, col = col, text = rest }
-  end
-
-  return {}
-end
-
-function H.parse_item_table(item)
-  -- Buffer
-  local buf_id = item.bufnr or item.buf_id or item.buf
-  if H.is_valid_buf(buf_id) then
-    return {
-      type = 'buffer',
-      buf_id = buf_id,
-      path = item.path or vim.api.nvim_buf_get_name(buf_id),
-      lnum = item.lnum,
-      end_lnum = item.end_lnum,
-      col = item.col,
-      end_col = item.end_col,
-      text = item.text,
-    }
-  end
-
-  -- File or Directory
-  if type(item.path) == 'string' then
-    local path_type = H.get_fs_type(item.path)
-    if path_type == 'file' then
-      return {
-        type = path_type,
-        path = item.path,
-        lnum = item.lnum,
-        end_lnum = item.end_lnum,
-        col = item.col,
-        end_col = item.end_col,
-        text = item.text,
-      }
-    end
-
-    if path_type == 'directory' then
-      return { type = 'directory', path = item.path }
-    end
-  end
-
-  return {}
-end
-
-function H.parse_path(x)
-  if type(x) ~= 'string' or x == '' then
-    return nil
-  end
-  -- Allow inputs like 'aa/bb', 'aa-5'. Also allow inputs for line/position
-  -- separated by null character:
-  -- - 'aa/bb\00010' (line 10).
-  -- - 'aa/bb\00010\0005' (line 10, col 5).
-  -- - 'aa/bb\00010\0005\000xx' (line 10, col 5, with "xx" description).
-  local location_pattern = '()%z(%d+)%z?(%d*)%z?(.*)$'
-  local from, lnum, col, rest = x:match(location_pattern)
-  local path = x:sub(1, (from or 0) - 1)
-  path = path:sub(1, 1) == '~' and ((vim.loop.os_homedir() or '~') .. path:sub(2)) or path
-
-  -- Verify that path is real
-  local path_type = H.get_fs_type(path)
-  if path_type == 'none' and path ~= '' then
-    local cwd = H.instance == nil and vim.fn.getcwd() or H.instance.opts.source.cwd
-    path = string.format('%s/%s', cwd, path)
-    path_type = H.get_fs_type(path)
-  end
-
-  return path_type, path, tonumber(lnum), tonumber(col), rest or ''
-end
-
 function H.get_fs_type(path)
   if path == '' then
     return 'none'
@@ -1251,17 +1110,9 @@ local function get_all_jumps()
     if jump.bufnr > 0 and vim.fn.buflisted(jump.bufnr) == 1 then
       local bufname = vim.fn.bufname(jump.bufnr)
       if bufname ~= '' then
-        local filename = vim.fn.fnamemodify(bufname, ':.')
-        local line_content = ''
-        if vim.fn.bufloaded(jump.bufnr) == 1 then
-          local lines = vim.fn.getbufline(jump.bufnr, jump.lnum)
-          if #lines > 0 then
-            line_content = vim.trim(lines[1])
-          end
-        end
-
         local jump_item = {
           bufnr = jump.bufnr,
+          path = bufname,
           lnum = jump.lnum,
           col = jump.col + 1,
           jump_index = i,
@@ -1273,18 +1124,15 @@ local function get_all_jumps()
           -- Older jump (go back with <C-o>)
           jump_item.direction = 'back'
           jump_item.distance = current - i + 1
-          jump_item.text = string.format('← %d  %s:%d %s', jump_item.distance, filename, jump.lnum, line_content)
         elseif i == current + 1 then
           -- Current position
           jump_item.direction = 'current'
           jump_item.distance = 0
-          jump_item.text = string.format('[CURRENT] %s:%d %s', filename, jump.lnum, line_content)
           current_jump_index = #all_jumps + 1
         else
           -- Newer jump (go forward with <C-i>)
           jump_item.direction = 'forward'
           jump_item.distance = i - current - 1
-          jump_item.text = string.format('→ %d  %s:%d %s', jump_item.distance, filename, jump.lnum, line_content)
         end
 
         table.insert(all_jumps, jump_item)
@@ -1308,7 +1156,9 @@ local function get_all_jumps()
 end
 
 -- Helper function to create jumplist source configuration
-function H.create_jumplist_source(direction, distance)
+function H.create_jumplist_source(opts)
+  opts = vim.tbl_deep_extend('force', { direction = 'backwards', distance = 1 }, opts)
+
   local all_jumps, _ = get_all_jumps()
 
   if #all_jumps == 0 then
@@ -1320,48 +1170,35 @@ function H.create_jumplist_source(direction, distance)
   local initial_selection = 1
   local found_target = false
 
-  if direction then
-    if distance then
-      -- Find jump with specific distance
-      for i, jump in ipairs(all_jumps) do
-        local jump_distance = jump.distance and tonumber(jump.distance)
-        if jump.direction == direction and jump_distance == distance then
-          initial_selection = i
-          found_target = true
-          break
-        end
-      end
+  -- Find jump with specific distance
+  for i, jump in ipairs(all_jumps) do
+    local jump_distance = jump.distance and tonumber(jump.distance)
+    if jump.direction == opts.direction and jump_distance == opts.distance then
+      initial_selection = i
+      found_target = true
+      break
+    end
+  end
 
-      -- If exact distance not found, fall back to distance 1
-      if not found_target then
-        for i, jump in ipairs(all_jumps) do
-          local jump_distance = jump.distance and tonumber(jump.distance)
-          if jump.direction == direction and jump_distance == 1 then
-            initial_selection = i
-            found_target = true
-            break
-          end
-        end
-      end
-    else
-      -- Find immediate jump (distance 1)
-      for i, jump in ipairs(all_jumps) do
-        if jump.direction == direction and jump.distance == 1 then
-          initial_selection = i
-          found_target = true
-          break
-        end
+  -- If exact distance not found, fall back to distance 1
+  if not found_target then
+    for i, jump in ipairs(all_jumps) do
+      local jump_distance = jump.distance and tonumber(jump.distance)
+      if jump.direction == opts.direction and jump_distance == 1 then
+        initial_selection = i
+        found_target = true
+        break
       end
     end
+  end
 
-    -- If no target found in direction, try current position
-    if not found_target and direction == 'forward' then
-      for i, jump in ipairs(all_jumps) do
-        if jump.direction == 'current' then
-          initial_selection = i
-          found_target = true
-          break
-        end
+  -- If no target found in direction, try current position
+  if not found_target and opts.direction == 'forward' then
+    for i, jump in ipairs(all_jumps) do
+      if jump.direction == 'current' then
+        initial_selection = i
+        found_target = true
+        break
       end
     end
   end
@@ -1382,27 +1219,9 @@ function H.create_jumplist_source(direction, distance)
   return {
     name = 'Jumplist',
     items = all_jumps,
-    show = function(buf_id, items)
-      Jumppack.default_show(buf_id, items, { show_icons = true })
-    end,
-    preview = function(buf_id, item, opts)
-      if item and item.bufnr then
-        local preview_opts = vim.tbl_extend('force', opts or {}, {
-          line_position = 'center',
-        })
-        Jumppack.default_preview(buf_id, item, preview_opts)
-      end
-    end,
-    choose = vim.schedule_wrap(function(item)
-      if item.direction == 'back' then
-        vim.cmd(string.format([[execute "normal\! %d\<C-o>"]], item.distance))
-      elseif item.direction == 'forward' then
-        vim.cmd(string.format([[execute "normal\! %d\<C-i>"]], item.distance))
-      elseif item.direction == 'current' then
-        -- Already at current position, do nothing
-        print('Already at current position')
-      end
-    end),
+    show = Jumppack.default_show,
+    preview = Jumppack.default_preview,
+    choose = Jumppack.default_choose,
   }
 end
 
