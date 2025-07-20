@@ -39,7 +39,7 @@ function Jumppack.start(opts)
   if opts.jumplist_direction or opts.jumplist_distance then
     local jumplist_source = H.create_jumplist_source({
       direction = opts.jumplist_direction,
-      distance = opts.jumplist_distance
+      distance = opts.jumplist_distance,
     })
     if not jumplist_source then
       return -- No jumps available
