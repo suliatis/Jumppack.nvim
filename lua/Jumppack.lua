@@ -156,6 +156,24 @@ function Jumppack.is_active()
   return H.instance ~= nil
 end
 
+function Jumppack.get_state()
+  if not Jumppack.is_active() then
+    return nil
+  end
+
+  local instance = H.instance
+  local state = {
+    items = instance.items,
+    selection = {
+      index = instance.current_ind,
+      item = H.get_current_item(instance),
+    },
+    general_info = H.get_general_info(instance),
+  }
+
+  return state
+end
+
 -- Helper data ================================================================
 -- Module default config
 H.default_config = vim.deepcopy(Jumppack.config)

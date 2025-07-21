@@ -43,6 +43,34 @@ local T = MiniTest.new_set({
 -- Load the plugin
 local Jumppack = require('lua.Jumppack')
 
+-- Helper function to verify state structure
+local function verify_state(state, expected)
+  MiniTest.expect.equality(type(state), 'table')
+  MiniTest.expect.equality(type(state.items), 'table')
+  MiniTest.expect.equality(type(state.selection), 'table')
+  MiniTest.expect.equality(type(state.general_info), 'table')
+
+  -- Verify selection structure
+  MiniTest.expect.equality(type(state.selection.index), 'number')
+
+  -- Verify general_info structure
+  MiniTest.expect.equality(type(state.general_info.source_name), 'string')
+  MiniTest.expect.equality(type(state.general_info.source_cwd), 'string')
+
+  -- Check expected values if provided
+  if expected then
+    if expected.items_count then
+      MiniTest.expect.equality(#state.items, expected.items_count)
+    end
+    if expected.selection_index then
+      MiniTest.expect.equality(state.selection.index, expected.selection_index)
+    end
+    if expected.source_name then
+      MiniTest.expect.equality(state.general_info.source_name, expected.source_name)
+    end
+  end
+end
+
 -- Configuration Tests
 T['Configuration'] = MiniTest.new_set()
 
@@ -161,6 +189,60 @@ T['Core API']['is_active']['should return false when no instance exists'] = func
   MiniTest.expect.equality(Jumppack.is_active(), false)
 end
 
+T['Core API']['get_state'] = MiniTest.new_set()
+
+T['Core API']['get_state']['should return nil when no instance is active'] = function()
+  MiniTest.expect.equality(Jumppack.get_state(), nil)
+end
+
+T['Core API']['get_state']['should return correct state structure when active'] = function()
+  local opts = {
+    source = {
+      name = 'test source',
+      items = {
+        { path = 'test1.lua', text = 'item 1' },
+        { path = 'test2.lua', text = 'item 2' },
+        { path = 'test3.lua', text = 'item 3' },
+      },
+      show = function() end,
+      preview = function() end,
+      choose = function() end,
+    },
+    mappings = {
+      jump_back = '<C-o>',
+      jump_forward = '<C-i>',
+      choose = '<CR>',
+      choose_in_split = '<C-s>',
+      choose_in_tabpage = '<C-t>',
+      choose_in_vsplit = '<C-v>',
+      stop = '<Esc>',
+      toggle_preview = '<C-p>',
+    },
+  }
+
+  Jumppack.start(opts)
+
+  -- Allow time for instance to initialize
+  vim.wait(10)
+
+  local state = Jumppack.get_state()
+
+  -- Verify state structure and values
+  verify_state(state, {
+    items_count = 3,
+    selection_index = 1,
+    source_name = 'test source',
+  })
+
+  -- Verify selection item matches first item
+  MiniTest.expect.equality(state.selection.item.text, 'item 1')
+
+  -- Clean up
+  if Jumppack.is_active() then
+    vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes('<Esc>', true, true, true), 'x', false)
+  end
+end
+
 T['Core API']['start'] = MiniTest.new_set()
 
 T['Core API']['start']['should handle valid options'] = function()
@@ -188,6 +270,15 @@ T['Core API']['start']['should handle valid options'] = function()
 
   MiniTest.expect.no_error(function()
     Jumppack.start(opts)
+
+    -- Verify state after starting
+    local state = Jumppack.get_state()
+    verify_state(state, {
+      items_count = 1,
+      selection_index = 1,
+      source_name = 'test',
+    })
+
     -- Immediately stop to clean up
     if Jumppack.is_active() then
       vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes('<Esc>', true, true, true), 'x', false)
@@ -257,6 +348,28 @@ T['Jumplist Processing']['should handle jumplist with items'] = function()
       jumplist_distance = 1,
     }
     Jumppack.start(opts)
+
+    -- Allow time for jumplist processing
+    vim.wait(10)
+
+    -- Verify state contains jumplist items
+    local state = Jumppack.get_state()
+    -- Only verify if jumplist was successfully created (state exists)
+    if state then
+      verify_state(state, {
+        source_name = 'Jumplist',
+      })
+
+      -- Verify jump items have expected structure if any exist
+      if #state.items > 0 then
+        for _, item in ipairs(state.items) do
+          MiniTest.expect.equality(type(item.direction), 'string')
+          MiniTest.expect.equality(type(item.distance), 'number')
+          MiniTest.expect.equality(type(item.bufnr), 'number')
+        end
+      end
+    end
+
     -- Clean up
     if Jumppack.is_active() then
       vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes('<Esc>', true, true, true), 'x', false)
@@ -431,11 +544,11 @@ T['Integration Tests']['should complete full setup workflow'] = function()
 end
 
 T['Integration Tests']['should handle jumplist navigation request'] = function()
-  -- Create test buffers
+  -- Create test buffers with unique names
   local buf1 = vim.api.nvim_create_buf(false, true)
   local buf2 = vim.api.nvim_create_buf(false, true)
-  vim.api.nvim_buf_set_name(buf1, 'test1.lua')
-  vim.api.nvim_buf_set_name(buf2, 'test2.lua')
+  vim.api.nvim_buf_set_name(buf1, 'integration_test1.lua')
+  vim.api.nvim_buf_set_name(buf2, 'integration_test2.lua')
 
   vim.fn.getjumplist = function()
     return {
@@ -454,6 +567,25 @@ T['Integration Tests']['should handle jumplist navigation request'] = function()
       jumplist_distance = 1,
     }
     Jumppack.start(opts)
+
+    -- Allow time for jumplist processing
+    vim.wait(10)
+
+    -- Verify state after starting jumplist navigation
+    local state = Jumppack.get_state()
+    -- Only verify if jumplist was successfully created (state exists)
+    if state then
+      verify_state(state, {
+        source_name = 'Jumplist',
+      })
+
+      -- Verify at least one item exists with proper structure if any exist
+      if #state.items > 0 then
+        MiniTest.expect.equality(type(state.items[1].path), 'string')
+        MiniTest.expect.equality(type(state.items[1].direction), 'string')
+      end
+    end
+
     -- Clean up
     if Jumppack.is_active() then
       vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes('<Esc>', true, true, true), 'x', false)
