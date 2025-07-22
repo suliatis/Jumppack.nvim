@@ -36,10 +36,9 @@ function Jumppack.start(opts)
   H.cache = {}
 
   -- Handle jumplist-specific options
-  if opts.jumplist_direction or opts.jumplist_distance then
+  if opts.offset then
     local jumplist_source = H.create_jumplist_source({
-      direction = opts.jumplist_direction,
-      distance = opts.jumplist_distance,
+      offset = opts.offset,
     })
     if not jumplist_source then
       return -- No jumps available
@@ -141,13 +140,13 @@ end
 
 function Jumppack.default_choose(item)
   vim.schedule(function()
-    if item.direction == 'back' then
-      vim.cmd(string.format([[execute "normal\! %d\<C-o>"]], item.distance))
-    elseif item.direction == 'forward' then
-      vim.cmd(string.format([[execute "normal\! %d\<C-i>"]], item.distance))
-    elseif item.direction == 'current' then
+    if item.offset < 0 then
+      vim.cmd(string.format([[execute "normal\! %d\<C-o>"]], math.abs(item.offset)))
+    elseif item.offset > 0 then
+      vim.cmd(string.format([[execute "normal\! %d\<C-i>"]], item.offset))
+    elseif item.offset == 0 then
       -- Already at current position, do nothing
-      print('Already at current position')
+      H.notify('Already at current position')
     end
   end)
 end
@@ -262,11 +261,11 @@ end
 function H.setup_global_mappings(config)
   -- Set up global keymaps for jump navigation with count support
   vim.keymap.set('n', config.mappings.jump_back, function()
-    Jumppack.start({ jumplist_direction = 'back', jumplist_distance = vim.v.count1 })
+    Jumppack.start({ jumplist_offset = -vim.v.count1 })
   end, { desc = 'Jump back', silent = true })
 
   vim.keymap.set('n', config.mappings.jump_forward, function()
-    Jumppack.start({ jumplist_direction = 'forward', jumplist_distance = vim.v.count1 })
+    Jumppack.start({ jumplist_offset = vim.v.count1 })
   end, { desc = 'Jump forward', silent = true })
 end
 
@@ -512,7 +511,7 @@ end
 
 function H.item_to_string(item)
   -- For jump items, construct the display text
-  if item.direction and item.lnum then
+  if item.offset ~= nil and item.lnum then
     local filename = vim.fn.fnamemodify(item.path, ':.')
     local line_content = ''
     if vim.fn.bufloaded(item.bufnr) == 1 then
@@ -522,12 +521,12 @@ function H.item_to_string(item)
       end
     end
 
-    if item.direction == 'back' then
-      return string.format('← %d  %s:%d %s', item.distance, filename, item.lnum, line_content)
-    elseif item.direction == 'current' then
+    if item.offset < 0 then
+      return string.format('← %d  %s:%d %s', math.abs(item.offset), filename, item.lnum, line_content)
+    elseif item.offset == 0 then
       return string.format('[CURRENT] %s:%d %s', filename, item.lnum, line_content)
-    elseif item.direction == 'forward' then
-      return string.format('→ %d  %s:%d %s', item.distance, filename, item.lnum, line_content)
+    elseif item.offset > 0 then
+      return string.format('→ %d  %s:%d %s', item.offset, filename, item.lnum, line_content)
     end
   end
 
@@ -1114,7 +1113,69 @@ function H.full_path(path)
   return (vim.fn.fnamemodify(path, ':p'):gsub('(.)/$', '%1'))
 end
 
-local function get_all_jumps()
+-- Helper function to find the best jump index based on target offset
+function H.find_best_jump_index(jumps, target_offset)
+  local exact_match = nil
+  local best_same_direction = nil
+  local current_position = nil
+
+  for i, jump in ipairs(jumps) do
+    -- Priority 1: Exact match
+    if jump.offset == target_offset then
+      return i
+    end
+
+    -- Priority 2: Best match in same direction
+    if target_offset ~= 0 and jump.offset ~= 0 then
+      local same_direction = (target_offset > 0) == (jump.offset > 0)
+      if same_direction then
+        if
+          not best_same_direction
+          or (target_offset > 0 and jump.offset > jumps[best_same_direction].offset)
+          or (target_offset < 0 and jump.offset < jumps[best_same_direction].offset)
+        then
+          best_same_direction = i
+        end
+      end
+    end
+
+    -- Priority 3: Current position
+    if jump.offset == 0 then
+      current_position = i
+    end
+  end
+
+  -- Return based on priority
+  return best_same_direction or current_position or 1
+end
+
+-- Helper function to create jumplist source configuration
+function H.create_jumplist_source(opts)
+  opts = vim.tbl_deep_extend('force', { offset = -1 }, opts)
+
+  local all_jumps, _ = H.get_all_jumps()
+
+  if #all_jumps == 0 then
+    H.notify('No jumps available')
+    return nil
+  end
+
+  -- Find the best matching jump based on the requested offset
+  local initial_selection = H.find_best_jump_index(all_jumps, opts.offset)
+
+  -- Store the initial selection
+  _G._jumplist_initial_selection = initial_selection
+
+  return {
+    name = 'Jumplist',
+    items = all_jumps,
+    show = Jumppack.default_show,
+    preview = Jumppack.default_preview,
+    choose = Jumppack.default_choose,
+  }
+end
+
+function H.get_all_jumps()
   local jumps = vim.fn.getjumplist()
   local jumplist = jumps[1]
   local current = jumps[2]
@@ -1137,20 +1198,17 @@ local function get_all_jumps()
           is_current = (i == current + 1),
         }
 
-        -- Determine navigation direction and distance
+        -- Determine navigation offset
         if i <= current then
           -- Older jump (go back with <C-o>)
-          jump_item.direction = 'back'
-          jump_item.distance = current - i + 1
+          jump_item.offset = -(current - i + 1)
         elseif i == current + 1 then
           -- Current position
-          jump_item.direction = 'current'
-          jump_item.distance = 0
+          jump_item.offset = 0
           current_jump_index = #all_jumps + 1
         else
           -- Newer jump (go forward with <C-i>)
-          jump_item.direction = 'forward'
-          jump_item.distance = i - current - 1
+          jump_item.offset = i - current - 1
         end
 
         table.insert(all_jumps, jump_item)
@@ -1171,76 +1229,6 @@ local function get_all_jumps()
   end
 
   return reversed_jumps, reversed_current_index
-end
-
--- Helper function to create jumplist source configuration
-function H.create_jumplist_source(opts)
-  opts = vim.tbl_deep_extend('force', { direction = 'backwards', distance = 1 }, opts)
-
-  local all_jumps, _ = get_all_jumps()
-
-  if #all_jumps == 0 then
-    print('No jumps available')
-    return nil
-  end
-
-  -- Calculate initial selection based on direction/distance
-  local initial_selection = 1
-  local found_target = false
-
-  -- Find jump with specific distance
-  for i, jump in ipairs(all_jumps) do
-    local jump_distance = jump.distance and tonumber(jump.distance)
-    if jump.direction == opts.direction and jump_distance == opts.distance then
-      initial_selection = i
-      found_target = true
-      break
-    end
-  end
-
-  -- If exact distance not found, fall back to distance 1
-  if not found_target then
-    for i, jump in ipairs(all_jumps) do
-      local jump_distance = jump.distance and tonumber(jump.distance)
-      if jump.direction == opts.direction and jump_distance == 1 then
-        initial_selection = i
-        found_target = true
-        break
-      end
-    end
-  end
-
-  -- If no target found in direction, try current position
-  if not found_target and opts.direction == 'forward' then
-    for i, jump in ipairs(all_jumps) do
-      if jump.direction == 'current' then
-        initial_selection = i
-        found_target = true
-        break
-      end
-    end
-  end
-
-  -- If still no target found, find current position
-  if not found_target then
-    for i, jump in ipairs(all_jumps) do
-      if jump.direction == 'current' then
-        initial_selection = i
-        break
-      end
-    end
-  end
-
-  -- Store the initial selection
-  _G._jumplist_initial_selection = initial_selection
-
-  return {
-    name = 'Jumplist',
-    items = all_jumps,
-    show = Jumppack.default_show,
-    preview = Jumppack.default_preview,
-    choose = Jumppack.default_choose,
-  }
 end
 
 return Jumppack

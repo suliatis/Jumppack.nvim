@@ -311,8 +311,7 @@ T['Jumplist Processing']['should handle empty jumplist'] = function()
 
   MiniTest.expect.no_error(function()
     local opts = {
-      jumplist_direction = 'back',
-      jumplist_distance = 1,
+      offset = -1,
     }
     Jumppack.start(opts)
     -- Clean up
@@ -344,8 +343,7 @@ T['Jumplist Processing']['should handle jumplist with items'] = function()
 
   MiniTest.expect.no_error(function()
     local opts = {
-      jumplist_direction = 'back',
-      jumplist_distance = 1,
+      offset = -1,
     }
     Jumppack.start(opts)
 
@@ -363,8 +361,7 @@ T['Jumplist Processing']['should handle jumplist with items'] = function()
       -- Verify jump items have expected structure if any exist
       if #state.items > 0 then
         for _, item in ipairs(state.items) do
-          MiniTest.expect.equality(type(item.direction), 'string')
-          MiniTest.expect.equality(type(item.distance), 'number')
+          MiniTest.expect.equality(type(item.offset), 'number')
           MiniTest.expect.equality(type(item.bufnr), 'number')
         end
       end
@@ -377,6 +374,80 @@ T['Jumplist Processing']['should handle jumplist with items'] = function()
   end)
   vim.api.nvim_buf_delete(buf1, { force = true })
   vim.api.nvim_buf_delete(buf2, { force = true })
+end
+
+T['Jumplist Processing']['should fallback to max/min offset when exact not found'] = function()
+  -- Create test buffers with multiple jump positions
+  local buf1 = vim.api.nvim_create_buf(false, true)
+  local buf2 = vim.api.nvim_create_buf(false, true)
+  local buf3 = vim.api.nvim_create_buf(false, true)
+  vim.api.nvim_buf_set_name(buf1, 'test_fallback1.lua')
+  vim.api.nvim_buf_set_name(buf2, 'test_fallback2.lua')
+  vim.api.nvim_buf_set_name(buf3, 'test_fallback3.lua')
+  vim.api.nvim_buf_set_lines(buf1, 0, -1, false, { 'line 1', 'line 2' })
+  vim.api.nvim_buf_set_lines(buf2, 0, -1, false, { 'line 3', 'line 4' })
+  vim.api.nvim_buf_set_lines(buf3, 0, -1, false, { 'line 5', 'line 6' })
+
+  -- Mock getjumplist with test data:
+  -- Current position at index 2 (0-based), so we have:
+  -- - 2 backward jumps (offsets -1, -2)
+  -- - 1 current position (offset 0)
+  -- - 2 forward jumps (offsets 1, 2)
+  vim.fn.getjumplist = function()
+    return {
+      {
+        { bufnr = buf1, lnum = 1, col = 0 }, -- offset -2
+        { bufnr = buf2, lnum = 1, col = 0 }, -- offset -1
+        { bufnr = buf2, lnum = 2, col = 0 }, -- offset 0 (current)
+        { bufnr = buf3, lnum = 1, col = 0 }, -- offset 1
+        { bufnr = buf3, lnum = 2, col = 0 }, -- offset 2
+      },
+      2, -- current position index (0-based)
+    }
+  end
+
+  -- Store the original getjumplist to restore later
+  local orig_getjumplist = vim.fn.getjumplist
+
+  -- Test requesting offset 99 (forward) - should select offset 2 (max forward)
+  MiniTest.expect.no_error(function()
+    Jumppack.start({ offset = 99 })
+    vim.wait(10)
+
+    local state = Jumppack.get_state()
+    if state and state.current then
+      -- The selected item should have offset 2 (the maximum forward offset)
+      MiniTest.expect.equality(state.current.offset, 2)
+    end
+
+    if Jumppack.is_active() then
+      vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes('<Esc>', true, true, true), 'x', false)
+    end
+  end)
+
+  -- Test requesting offset -99 (backward) - should select offset -2 (min backward)
+  MiniTest.expect.no_error(function()
+    Jumppack.start({ offset = -99 })
+    vim.wait(10)
+
+    local state = Jumppack.get_state()
+    if state and state.current then
+      -- The selected item should have offset -2 (the minimum backward offset)
+      MiniTest.expect.equality(state.current.offset, -2)
+    end
+
+    if Jumppack.is_active() then
+      vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes('<Esc>', true, true, true), 'x', false)
+    end
+  end)
+
+  -- Restore original getjumplist
+  vim.fn.getjumplist = orig_getjumplist
+
+  -- Clean up
+  vim.api.nvim_buf_delete(buf1, { force = true })
+  vim.api.nvim_buf_delete(buf2, { force = true })
+  vim.api.nvim_buf_delete(buf3, { force = true })
 end
 
 -- Display Functions Tests
@@ -411,8 +482,7 @@ T['Display Functions']['default_show']['should handle jump items'] = function()
   local buf = vim.api.nvim_create_buf(false, true)
   local items = {
     {
-      direction = 'back',
-      distance = 1,
+      offset = -1,
       path = 'test.lua',
       lnum = 10,
       bufnr = buf,
@@ -471,10 +541,9 @@ end
 
 T['Display Functions']['default_choose'] = MiniTest.new_set()
 
-T['Display Functions']['default_choose']['should handle back direction'] = function()
+T['Display Functions']['default_choose']['should handle negative offset (backward)'] = function()
   local item = {
-    direction = 'back',
-    distance = 2,
+    offset = -2,
   }
 
   MiniTest.expect.no_error(function()
@@ -482,10 +551,9 @@ T['Display Functions']['default_choose']['should handle back direction'] = funct
   end)
 end
 
-T['Display Functions']['default_choose']['should handle forward direction'] = function()
+T['Display Functions']['default_choose']['should handle positive offset (forward)'] = function()
   local item = {
-    direction = 'forward',
-    distance = 1,
+    offset = 1,
   }
 
   MiniTest.expect.no_error(function()
@@ -493,10 +561,9 @@ T['Display Functions']['default_choose']['should handle forward direction'] = fu
   end)
 end
 
-T['Display Functions']['default_choose']['should handle current position'] = function()
+T['Display Functions']['default_choose']['should handle zero offset (current)'] = function()
   local item = {
-    direction = 'current',
-    distance = 0,
+    offset = 0,
   }
 
   MiniTest.expect.no_error(function()
@@ -563,8 +630,7 @@ T['Integration Tests']['should handle jumplist navigation request'] = function()
   MiniTest.expect.no_error(function()
     Jumppack.setup({})
     local opts = {
-      jumplist_direction = 'back',
-      jumplist_distance = 1,
+      offset = -1,
     }
     Jumppack.start(opts)
 
