@@ -9,7 +9,6 @@ local T = MiniTest.new_set({
       -- Reset plugin state before each test
       package.loaded['lua.Jumppack'] = nil
       _G.Jumppack = nil
-      _G._jumplist_initial_selection = nil
     end,
     post_case = function()
       -- Clean up after each test

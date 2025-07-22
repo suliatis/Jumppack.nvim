@@ -50,7 +50,7 @@ function Jumppack.start(opts)
   H.instance = H.new(opts)
 
   if vim.islist(opts.source.items) then
-    H.set_items(H.instance, opts.source.items)
+    H.set_items(H.instance, opts.source.items, opts.source.initial_selection)
   end
 
   H.track_lost_focus(H.instance)
@@ -491,15 +491,13 @@ function H.track_lost_focus(instance)
   H.timers.focus:start(1000, 1000, track)
 end
 
-function H.set_items(instance, items)
+function H.set_items(instance, items, initial_selection)
   instance.items = items
 
   if #items > 0 then
-    -- Check for cached initial selection from jumplist instance
-    local initial_ind = _G._jumplist_initial_selection or 1
+    -- Use provided initial selection or default to 1
+    local initial_ind = initial_selection or 1
     H.set_current_ind(instance, initial_ind)
-    -- Clear the cache after using it
-    _G._jumplist_initial_selection = nil
     -- Force update with the new index
     H.set_current_ind(instance, initial_ind, true)
     -- Show preview by default instead of main
@@ -1163,12 +1161,10 @@ function H.create_jumplist_source(opts)
   -- Find the best matching jump based on the requested offset
   local initial_selection = H.find_best_jump_index(all_jumps, opts.offset)
 
-  -- Store the initial selection
-  _G._jumplist_initial_selection = initial_selection
-
   return {
     name = 'Jumplist',
     items = all_jumps,
+    initial_selection = initial_selection,
     show = Jumppack.default_show,
     preview = Jumppack.default_preview,
     choose = Jumppack.default_choose,
