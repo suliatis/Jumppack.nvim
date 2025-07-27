@@ -34,12 +34,20 @@ Jumppack.config = {
 
 function Jumppack.start(opts)
   H.cache = {}
+  opts = opts or {}
 
   -- Handle jumplist-specific options
-  if opts.offset then
+  if opts.jumplist_offset then
     local jumplist_source = H.create_jumplist_source({
-      offset = opts.offset,
+      offset = opts.jumplist_offset,
     })
+    if not jumplist_source then
+      return -- No jumps available
+    end
+    opts = vim.tbl_extend('force', opts, { source = jumplist_source })
+  elseif not opts.source then
+    -- Create default jumplist source if no source provided
+    local jumplist_source = H.create_jumplist_source({ offset = 0 })
     if not jumplist_source then
       return -- No jumps available
     end
@@ -286,32 +294,34 @@ function H.validate_opts(opts)
   -- Source
   local source = opts.source
 
-  local items = source.items or {}
-  local is_valid_items = vim.islist(items) or vim.is_callable(items)
-  if not is_valid_items then
-    H.error('`source.items` should be array or callable.')
+  if source then
+    local items = source.items or {}
+    local is_valid_items = vim.islist(items) or vim.is_callable(items)
+    if not is_valid_items then
+      H.error('`source.items` should be array or callable.')
+    end
+
+    source.name = tostring(source.name or '<No name>')
+
+    if type(source.cwd) == 'string' then
+      source.cwd = H.full_path(source.cwd)
+    end
+    if source.cwd == nil then
+      source.cwd = vim.fn.getcwd()
+    end
+    if vim.fn.isdirectory(source.cwd) == 0 then
+      H.error('`source.cwd` should be a valid directory path.')
+    end
+
+    source.show = source.show or Jumppack.default_show
+    validate_callable(source.show, 'source.show')
+
+    source.preview = source.preview or Jumppack.default_preview
+    validate_callable(source.preview, 'source.preview')
+
+    source.choose = source.choose or Jumppack.default_choose
+    validate_callable(source.choose, 'source.choose')
   end
-
-  source.name = tostring(source.name or '<No name>')
-
-  if type(source.cwd) == 'string' then
-    source.cwd = H.full_path(source.cwd)
-  end
-  if source.cwd == nil then
-    source.cwd = vim.fn.getcwd()
-  end
-  if vim.fn.isdirectory(source.cwd) == 0 then
-    H.error('`source.cwd` should be a valid directory path.')
-  end
-
-  source.show = source.show or Jumppack.default_show
-  validate_callable(source.show, 'source.show')
-
-  source.preview = source.preview or Jumppack.default_preview
-  validate_callable(source.preview, 'source.preview')
-
-  source.choose = source.choose or Jumppack.default_choose
-  validate_callable(source.choose, 'source.choose')
 
   -- Mappings
   for field, x in pairs(opts.mappings) do
