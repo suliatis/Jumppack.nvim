@@ -182,6 +182,78 @@ T['Core API']['setup']['should setup global mappings'] = function()
   MiniTest.expect.equality(has_jump_back, true)
 end
 
+T['Core API']['setup']['should respect global_mappings = false'] = function()
+  -- Clear any existing mappings first
+  pcall(vim.keymap.del, 'n', '<C-x>')
+  pcall(vim.keymap.del, 'n', '<C-X>')
+  pcall(vim.keymap.del, 'n', '<C-y>')
+  pcall(vim.keymap.del, 'n', '<C-Y>')
+
+  local config = {
+    options = {
+      global_mappings = false,
+    },
+    mappings = {
+      jump_back = '<C-x>',
+      jump_forward = '<C-y>',
+      choose = '<CR>',
+      choose_in_split = '<C-s>',
+      choose_in_tabpage = '<C-t>',
+      choose_in_vsplit = '<C-v>',
+      stop = '<Esc>',
+      toggle_preview = '<C-p>',
+    },
+  }
+
+  MiniTest.expect.no_error(function()
+    Jumppack.setup(config)
+  end)
+
+  -- Check that mappings do NOT exist
+  local mappings = vim.api.nvim_get_keymap('n')
+  local has_jump_back = false
+  for _, map in ipairs(mappings) do
+    if map.lhs == '<C-X>' then -- nvim_get_keymap normalizes to uppercase
+      has_jump_back = true
+      break
+    end
+  end
+  MiniTest.expect.equality(has_jump_back, false)
+end
+
+T['Core API']['setup']['should respect global_mappings = true (default)'] = function()
+  local config = {
+    options = {
+      global_mappings = true, -- explicit true
+    },
+    mappings = {
+      jump_back = '<C-z>',
+      jump_forward = '<C-q>',
+      choose = '<CR>',
+      choose_in_split = '<C-s>',
+      choose_in_tabpage = '<C-t>',
+      choose_in_vsplit = '<C-v>',
+      stop = '<Esc>',
+      toggle_preview = '<C-p>',
+    },
+  }
+
+  MiniTest.expect.no_error(function()
+    Jumppack.setup(config)
+  end)
+
+  -- Check that mappings DO exist
+  local mappings = vim.api.nvim_get_keymap('n')
+  local has_jump_back = false
+  for _, map in ipairs(mappings) do
+    if map.lhs == '<C-Z>' then -- nvim_get_keymap normalizes to uppercase
+      has_jump_back = true
+      break
+    end
+  end
+  MiniTest.expect.equality(has_jump_back, true)
+end
+
 T['Core API']['is_active'] = MiniTest.new_set()
 
 T['Core API']['is_active']['should return false when no instance exists'] = function()

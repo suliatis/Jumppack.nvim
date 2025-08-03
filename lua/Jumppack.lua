@@ -10,6 +10,10 @@ function Jumppack.setup(config)
 end
 
 Jumppack.config = {
+  options = {
+    -- Whether to set up global key mappings
+    global_mappings = true,
+  },
   -- Keys for performing actions. See `:h Jumppack-actions`.
   mappings = {
     jump_back = '<C-o>',
@@ -375,6 +379,10 @@ function H.create_default_hl()
 end
 
 function H.setup_global_mappings(config)
+  if not config.options.global_mappings then
+    return
+  end
+
   -- Set up global keymaps for jump navigation with count support
   vim.keymap.set('n', config.mappings.jump_back, function()
     Jumppack.start({ offset = -vim.v.count1 })
