@@ -34,11 +34,13 @@ vim.o.swapfile = false
 vim.o.backup = false
 vim.o.writebackup = false
 vim.o.hidden = true
-vim.o.shortmess = 'atI'
+vim.o.shortmess = 'atIFWc' -- Added F, W, c to suppress more messages
 
 -- Disable some features that might interfere with testing
 vim.o.updatetime = 10
 vim.o.cmdheight = 1
+vim.o.report = 99999 -- Don't report changes (suppresses "1L, 15B" messages)
+vim.o.verbose = 0 -- Suppress verbose messages
 
 -- Enable termguicolors for proper highlighting in tests
 if vim.fn.has('termguicolors') == 1 then
