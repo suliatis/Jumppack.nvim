@@ -961,23 +961,6 @@ function H.notify(msg, level_name)
   vim.notify('(jumppack) ' .. msg, vim.log.levels[level_name])
 end
 
-function H.edit(path, win_id)
-  if type(path) ~= 'string' then
-    return
-  end
-  local b = vim.api.nvim_win_get_buf(win_id or 0)
-  local try_mimic_buf_reuse = (vim.fn.bufname(b) == '' and vim.bo[b].buftype ~= 'quickfix' and not vim.bo[b].modified)
-    and (#vim.fn.win_findbuf(b) == 1 and vim.deep_equal(vim.fn.getbufline(b, 1, '$'), { '' }))
-  local buf_id = vim.fn.bufadd(vim.fn.fnamemodify(path, ':.'))
-  -- Showing in window also loads. Use `pcall` to not error with swap messages.
-  pcall(vim.api.nvim_win_set_buf, win_id or 0, buf_id)
-  vim.bo[buf_id].buflisted = true
-  if try_mimic_buf_reuse then
-    pcall(vim.api.nvim_buf_delete, b, { unload = false })
-  end
-  return buf_id
-end
-
 function H.is_valid_buf(buf_id)
   return type(buf_id) == 'number' and vim.api.nvim_buf_is_valid(buf_id)
 end
@@ -993,14 +976,6 @@ function H.create_scratch_buf(name)
   vim.b[buf_id].minicursorword_disable = true
   vim.b[buf_id].miniindentscope_disable = true
   return buf_id
-end
-
-function H.get_first_valid_normal_window()
-  for _, win_id in ipairs(vim.api.nvim_tabpage_list_wins(0)) do
-    if vim.api.nvim_win_get_config(win_id).relative == '' then
-      return win_id
-    end
-  end
 end
 
 function H.set_buflines(buf_id, lines)
@@ -1129,7 +1104,6 @@ end
 
 -- Helper function to find the best jump index based on target offset
 function H.find_best_jump_index(jumps, target_offset)
-  local exact_match = nil
   local best_same_direction = nil
   local current_position = nil
 
@@ -1167,7 +1141,7 @@ end
 function H.create_jumplist_source(opts)
   opts = vim.tbl_deep_extend('force', { offset = -1 }, opts)
 
-  local all_jumps, _ = H.get_all_jumps()
+  local all_jumps = H.get_all_jumps()
 
   if #all_jumps == 0 then
     H.notify('No jumps available')
@@ -1234,13 +1208,7 @@ function H.get_all_jumps()
     table.insert(reversed_jumps, all_jumps[i])
   end
 
-  -- Update current_jump_index for the reversed list
-  local reversed_current_index = nil
-  if current_jump_index then
-    reversed_current_index = #all_jumps - current_jump_index + 1
-  end
-
-  return reversed_jumps, reversed_current_index
+  return reversed_jumps
 end
 
 return Jumppack
