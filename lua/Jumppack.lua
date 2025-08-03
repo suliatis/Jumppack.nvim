@@ -43,9 +43,9 @@ function Jumppack.start(opts)
   opts = opts or {}
 
   -- Create jumplist source
-  local offset = opts.offset or 0
-  local jumplist_source = H.create_jumplist_source({ offset = offset })
+  local jumplist_source = H.create_jumplist_source(opts)
   if not jumplist_source then
+    H.notify('No jumps available')
     return -- No jumps available
   end
   opts.source = jumplist_source
@@ -175,6 +175,118 @@ function Jumppack.get_state()
   }
 
   return state
+end
+
+-- Helper jumplist ============================================================
+function H.create_jumplist_source(opts)
+  opts = vim.tbl_deep_extend('force', { offset = -1 }, opts)
+
+  local all_jumps = H.get_all_jumps()
+
+  if #all_jumps == 0 then
+    return nil
+  end
+
+  local initial_selection = H.find_best_target_offset(all_jumps, opts.offset)
+
+  return {
+    name = 'Jumplist',
+    items = all_jumps,
+    initial_selection = initial_selection,
+    show = Jumppack.default_show,
+    preview = Jumppack.default_preview,
+    choose = Jumppack.default_choose,
+  }
+end
+
+function H.get_all_jumps()
+  local jumps = vim.fn.getjumplist()
+  local jumplist = jumps[1]
+  local current = jumps[2]
+
+  local all_jumps = {}
+
+  -- Process all jumps in the jumplist
+  for i = 1, #jumplist do
+    local jump = jumplist[i]
+    if jump.bufnr > 0 and vim.fn.buflisted(jump.bufnr) == 1 then
+      local jump_item = H.create_jump_item(jump, i, current)
+      if jump_item then
+        table.insert(all_jumps, jump_item)
+      end
+    end
+  end
+
+  -- Reverse the order so most recent jumps are at the top
+  local reversed_jumps = {}
+  for i = #all_jumps, 1, -1 do
+    table.insert(reversed_jumps, all_jumps[i])
+  end
+
+  return reversed_jumps
+end
+
+function H.create_jump_item(jump, i, current)
+  local bufname = vim.fn.bufname(jump.bufnr)
+  if bufname == '' then
+    return nil
+  end
+
+  local jump_item = {
+    bufnr = jump.bufnr,
+    path = bufname,
+    lnum = jump.lnum,
+    col = jump.col + 1,
+    jump_index = i,
+    is_current = (i == current + 1),
+  }
+
+  -- Determine navigation offset
+  if i <= current then
+    -- Older jump (go back with <C-o>)
+    jump_item.offset = -(current - i + 1)
+  elseif i == current + 1 then
+    -- Current position
+    jump_item.offset = 0
+  else
+    -- Newer jump (go forward with <C-i>)
+    jump_item.offset = i - current - 1
+  end
+
+  return jump_item
+end
+
+function H.find_best_target_offset(jumps, target_offset)
+  local best_same_direction = nil
+  local current_position = nil
+
+  for i, jump in ipairs(jumps) do
+    -- Priority 1: Exact match
+    if jump.offset == target_offset then
+      return i
+    end
+
+    -- Priority 2: Best match in same direction
+    if target_offset ~= 0 and jump.offset ~= 0 then
+      local same_direction = (target_offset > 0) == (jump.offset > 0)
+      if same_direction then
+        if
+          not best_same_direction
+          or (target_offset > 0 and jump.offset > jumps[best_same_direction].offset)
+          or (target_offset < 0 and jump.offset < jumps[best_same_direction].offset)
+        then
+          best_same_direction = i
+        end
+      end
+    end
+
+    -- Priority 3: Current position
+    if jump.offset == 0 then
+      current_position = i
+    end
+  end
+
+  return best_same_direction or current_position or 1
 end
 
 -- Helper data ================================================================
@@ -1092,113 +1204,6 @@ end
 
 function H.full_path(path)
   return (vim.fn.fnamemodify(path, ':p'):gsub('(.)/$', '%1'))
-end
-
--- Helper function to find the best jump index based on target offset
-function H.find_best_jump_index(jumps, target_offset)
-  local best_same_direction = nil
-  local current_position = nil
-
-  for i, jump in ipairs(jumps) do
-    -- Priority 1: Exact match
-    if jump.offset == target_offset then
-      return i
-    end
-
-    -- Priority 2: Best match in same direction
-    if target_offset ~= 0 and jump.offset ~= 0 then
-      local same_direction = (target_offset > 0) == (jump.offset > 0)
-      if same_direction then
-        if
-          not best_same_direction
-          or (target_offset > 0 and jump.offset > jumps[best_same_direction].offset)
-          or (target_offset < 0 and jump.offset < jumps[best_same_direction].offset)
-        then
-          best_same_direction = i
-        end
-      end
-    end
-
-    -- Priority 3: Current position
-    if jump.offset == 0 then
-      current_position = i
-    end
-  end
-
-  -- Return based on priority
-  return best_same_direction or current_position or 1
-end
-
--- Helper function to create jumplist source configuration
-function H.create_jumplist_source(opts)
-  opts = vim.tbl_deep_extend('force', { offset = -1 }, opts)
-
-  local all_jumps = H.get_all_jumps()
-
-  if #all_jumps == 0 then
-    H.notify('No jumps available')
-    return nil
-  end
-
-  -- Find the best matching jump based on the requested offset
-  local initial_selection = H.find_best_jump_index(all_jumps, opts.offset)
-
-  return {
-    name = 'Jumplist',
-    items = all_jumps,
-    initial_selection = initial_selection,
-    show = Jumppack.default_show,
-    preview = Jumppack.default_preview,
-    choose = Jumppack.default_choose,
-  }
-end
-
-function H.get_all_jumps()
-  local jumps = vim.fn.getjumplist()
-  local jumplist = jumps[1]
-  local current = jumps[2]
-
-  local all_jumps = {}
-
-  -- Process all jumps in the jumplist
-  for i = 1, #jumplist do
-    local jump = jumplist[i]
-    if jump.bufnr > 0 and vim.fn.buflisted(jump.bufnr) == 1 then
-      local bufname = vim.fn.bufname(jump.bufnr)
-      if bufname ~= '' then
-        local jump_item = {
-          bufnr = jump.bufnr,
-          path = bufname,
-          lnum = jump.lnum,
-          col = jump.col + 1,
-          jump_index = i,
-          is_current = (i == current + 1),
-        }
-
-        -- Determine navigation offset
-        if i <= current then
-          -- Older jump (go back with <C-o>)
-          jump_item.offset = -(current - i + 1)
-        elseif i == current + 1 then
-          -- Current position
-          jump_item.offset = 0
-        else
-          -- Newer jump (go forward with <C-i>)
-          jump_item.offset = i - current - 1
-        end
-
-        table.insert(all_jumps, jump_item)
-      end
-    end
-  end
-
-  -- Reverse the order so most recent jumps are at the top
-  local reversed_jumps = {}
-  for i = #all_jumps, 1, -1 do
-    table.insert(reversed_jumps, all_jumps[i])
-  end
-
-  return reversed_jumps
 end
 
 return Jumppack
