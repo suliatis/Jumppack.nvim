@@ -34,6 +34,12 @@ Jumppack.config = {
 
 function Jumppack.start(opts)
   H.cache = {}
+
+  -- Validate opts type early
+  if opts ~= nil and type(opts) ~= 'table' then
+    H.error('Jumppack options should be table.')
+  end
+
   opts = opts or {}
 
   -- Handle jumplist-specific options
