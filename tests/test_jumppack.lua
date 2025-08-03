@@ -605,7 +605,7 @@ T['Display Functions Tests']['Show Function']['displays items without errors'] =
   }
 
   MiniTest.expect.no_error(function()
-    Jumppack.default_show(buf, items, {})
+    Jumppack.show_items(buf, items, {})
   end)
 
   H.cleanup_buffers({ buf })
@@ -615,7 +615,7 @@ T['Display Functions Tests']['Show Function']['handles empty items'] = function(
   local buf = H.create_test_buffer()
 
   MiniTest.expect.no_error(function()
-    Jumppack.default_show(buf, {}, {})
+    Jumppack.show_items(buf, {}, {})
   end)
 
   H.cleanup_buffers({ buf })
@@ -633,7 +633,7 @@ T['Display Functions Tests']['Show Function']['handles jump items with offsets']
   }
 
   MiniTest.expect.no_error(function()
-    Jumppack.default_show(buf, items, {})
+    Jumppack.show_items(buf, items, {})
   end)
 
   H.cleanup_buffers({ buf })
@@ -653,7 +653,7 @@ T['Display Functions Tests']['Preview Function']['handles items with bufnr'] = f
   }
 
   MiniTest.expect.no_error(function()
-    Jumppack.default_preview(preview_buf, item, {})
+    Jumppack.preview_item(preview_buf, item, {})
   end)
 
   H.cleanup_buffers({ source_buf, preview_buf })
@@ -664,7 +664,7 @@ T['Display Functions Tests']['Preview Function']['handles items without bufnr'] 
   local item = { path = 'test.lua' }
 
   MiniTest.expect.no_error(function()
-    Jumppack.default_preview(preview_buf, item, {})
+    Jumppack.preview_item(preview_buf, item, {})
   end)
 
   H.cleanup_buffers({ preview_buf })
@@ -674,7 +674,7 @@ T['Display Functions Tests']['Preview Function']['handles nil item'] = function(
   local preview_buf = H.create_test_buffer()
 
   MiniTest.expect.no_error(function()
-    Jumppack.default_preview(preview_buf, nil, {})
+    Jumppack.preview_item(preview_buf, nil, {})
   end)
 
   H.cleanup_buffers({ preview_buf })
@@ -688,7 +688,7 @@ T['Display Functions Tests']['Choose Function']['handles backward jumps'] = func
   }
 
   MiniTest.expect.no_error(function()
-    Jumppack.default_choose(item)
+    Jumppack.choose_item(item)
   end)
 end
 
@@ -698,7 +698,7 @@ T['Display Functions Tests']['Choose Function']['handles forward jumps'] = funct
   }
 
   MiniTest.expect.no_error(function()
-    Jumppack.default_choose(item)
+    Jumppack.choose_item(item)
   end)
 end
 
@@ -708,7 +708,7 @@ T['Display Functions Tests']['Choose Function']['handles current position'] = fu
   }
 
   MiniTest.expect.no_error(function()
-    Jumppack.default_choose(item)
+    Jumppack.choose_item(item)
   end)
 end
 
