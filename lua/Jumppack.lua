@@ -200,8 +200,8 @@ H.ns_id = {
 
 -- Timers
 H.timers = {
-  focus = vim.loop.new_timer(),
-  getcharstr = vim.loop.new_timer(),
+  focus = vim.uv.new_timer(),
+  getcharstr = vim.uv.new_timer(),
 }
 
 H.instance = nil
@@ -351,7 +351,7 @@ end
 
 function H.new(opts)
   -- Create buffer
-  local buf_id = H.new_buf(opts)
+  local buf_id = H.new_buf()
 
   -- Create window
   local win_target = vim.api.nvim_get_current_win()
@@ -681,7 +681,7 @@ end
 
 function H.stop(instance)
   vim.tbl_map(function(timer)
-    pcall(vim.loop.timer_stop, timer)
+    pcall(vim.uv.timer_stop, timer)
   end, H.timers)
 
   -- Show cursor (work around `guicursor=''` actually leaving cursor hidden)
@@ -843,8 +843,10 @@ function H.get_icon(item, icons)
     return { text = icons.none, hl = 'JumppackNormal' }
   end
 
+  ---@diagnostic disable-next-line: undefined-field
   if _G.MiniIcons ~= nil then
     local category = path_type == 'directory' and 'directory' or 'file'
+    ---@diagnostic disable-next-line: undefined-field
     local icon, hl = _G.MiniIcons.get(category, path)
     return { text = icon .. ' ', hl = hl }
   end
@@ -890,7 +892,7 @@ function H.preview_set_lines(buf_id, lines, extra)
     if has_parser then
       has_parser = pcall(vim.treesitter.start, buf_id, lang)
     end
-    if not has_parser then
+    if not has_parser and ft then
       vim.bo[buf_id].syntax = ft
     end
   end
@@ -1095,7 +1097,7 @@ function H.get_next_char_bytecol(line_str, col)
     return col
   end
   local utf_index = vim.str_utfindex(line_str, math.min(line_str:len(), col))
-  return vim.str_byteindex(line_str, utf_index)
+  return vim.str_byteindex(line_str, utf_index, false)
 end
 
 function H.full_path(path)
@@ -1167,7 +1169,6 @@ function H.get_all_jumps()
   local current = jumps[2]
 
   local all_jumps = {}
-  local current_jump_index = nil
 
   -- Process all jumps in the jumplist
   for i = 1, #jumplist do
@@ -1191,7 +1192,6 @@ function H.get_all_jumps()
         elseif i == current + 1 then
           -- Current position
           jump_item.offset = 0
-          current_jump_index = #all_jumps + 1
         else
           -- Newer jump (go forward with <C-i>)
           jump_item.offset = i - current - 1
