@@ -15,6 +15,8 @@ Jumppack.config = {
     global_mappings = true,
     -- Whether to include only jumps within current working directory
     cwd_only = false,
+    -- Whether to wrap around edges when navigating with <C-o>/<C-i>
+    wrap_edges = false,
   },
   -- Keys for performing actions. See `:h Jumppack-actions`.
   mappings = {
@@ -193,7 +195,7 @@ function H.create_jumplist_source(opts)
     return nil
   end
 
-  local initial_selection = H.find_best_target_offset(all_jumps, opts.offset)
+  local initial_selection = H.find_best_target_offset(all_jumps, opts.offset, Jumppack.config)
 
   return {
     name = 'Jumplist',
@@ -274,14 +276,27 @@ function H.create_jump_item(jump, i, current)
   return jump_item
 end
 
-function H.find_best_target_offset(jumps, target_offset)
+function H.find_best_target_offset(jumps, target_offset, config)
+  config = config or Jumppack.config
+  local wrap_edges = config.options and config.options.wrap_edges
+
   local best_same_direction = nil
   local current_position = nil
+  local min_backward = nil -- Most negative offset (furthest back)
+  local max_forward = nil -- Most positive offset (furthest forward)
 
   for i, jump in ipairs(jumps) do
     -- Priority 1: Exact match
     if jump.offset == target_offset then
       return i
+    end
+
+    -- Track min/max offsets for wrapping
+    if jump.offset < 0 and (not min_backward or jump.offset < jumps[min_backward].offset) then
+      min_backward = i
+    end
+    if jump.offset > 0 and (not max_forward or jump.offset > jumps[max_forward].offset) then
+      max_forward = i
     end
 
     -- Priority 2: Best match in same direction
@@ -301,6 +316,17 @@ function H.find_best_target_offset(jumps, target_offset)
     -- Priority 3: Current position
     if jump.offset == 0 then
       current_position = i
+    end
+  end
+
+  -- Priority 4: Handle wrapping if enabled and no match found
+  if wrap_edges and not best_same_direction then
+    if target_offset > 0 and min_backward then
+      -- Going forward but no forward jumps, wrap to furthest back
+      return min_backward
+    elseif target_offset < 0 and max_forward then
+      -- Going backward but no backward jumps, wrap to furthest forward
+      return max_forward
     end
   end
 
@@ -902,15 +928,23 @@ function H.move_current(instance, by, to)
   end
 
   if to == nil then
-    -- Wrap around edges only if current index is at edge
+    local wrap_edges = Jumppack.config.options and Jumppack.config.options.wrap_edges
     to = instance.current_ind
-    if to == 1 and by < 0 then
-      to = n_matches
-    elseif to == n_matches and by > 0 then
-      to = 1
+
+    if wrap_edges then
+      -- Wrap around edges when enabled
+      if to == 1 and by < 0 then
+        to = n_matches
+      elseif to == n_matches and by > 0 then
+        to = 1
+      else
+        to = to + by
+      end
     else
+      -- No wrapping when disabled - clamp to edges
       to = to + by
     end
+
     to = math.min(math.max(to, 1), n_matches)
   end
 

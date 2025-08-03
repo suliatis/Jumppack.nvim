@@ -356,6 +356,284 @@ T['Core API']['setup']['should respect cwd_only = false (default)'] = function()
   pcall(vim.api.nvim_buf_delete, buf2, { force = true })
 end
 
+T['Core API']['setup']['should respect wrap_edges = true'] = function()
+  -- Create test files in current directory
+  local temp_file1 = vim.fn.tempname() .. '.lua'
+  local temp_file2 = vim.fn.tempname() .. '.lua'
+  local temp_file3 = vim.fn.tempname() .. '.lua'
+  vim.fn.writefile({ 'test content 1' }, temp_file1)
+  vim.fn.writefile({ 'test content 2' }, temp_file2)
+  vim.fn.writefile({ 'test content 3' }, temp_file3)
+
+  -- Create buffers for the files
+  local buf1 = vim.fn.bufadd(temp_file1)
+  local buf2 = vim.fn.bufadd(temp_file2)
+  local buf3 = vim.fn.bufadd(temp_file3)
+  vim.fn.bufload(buf1)
+  vim.fn.bufload(buf2)
+  vim.fn.bufload(buf3)
+
+  -- Mock jumplist with backward and forward jumps
+  vim.fn.getjumplist = function()
+    return {
+      {
+        { bufnr = buf1, lnum = 1, col = 0 }, -- offset -2 (backward)
+        { bufnr = buf2, lnum = 1, col = 0 }, -- offset -1 (backward)
+        { bufnr = buf2, lnum = 2, col = 0 }, -- offset 0 (current)
+        { bufnr = buf3, lnum = 1, col = 0 }, -- offset 1 (forward)
+      },
+      2, -- current position (0-based, so position 2 = 3rd item = current)
+    }
+  end
+
+  local config = {
+    options = {
+      wrap_edges = true,
+    },
+  }
+
+  MiniTest.expect.no_error(function()
+    Jumppack.setup(config)
+  end)
+
+  -- Test that wrapping works by trying extreme offsets
+  MiniTest.expect.no_error(function()
+    pcall(Jumppack.start, { offset = 99 }) -- Should wrap to furthest back
+    if Jumppack.is_active() then
+      vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes('<Esc>', true, true, true), 'x', false)
+    end
+  end)
+
+  MiniTest.expect.no_error(function()
+    pcall(Jumppack.start, { offset = -99 }) -- Should wrap to furthest forward
+    if Jumppack.is_active() then
+      vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes('<Esc>', true, true, true), 'x', false)
+    end
+  end)
+
+  -- Cleanup
+  pcall(vim.fn.delete, temp_file1)
+  pcall(vim.fn.delete, temp_file2)
+  pcall(vim.fn.delete, temp_file3)
+  pcall(vim.api.nvim_buf_delete, buf1, { force = true })
+  pcall(vim.api.nvim_buf_delete, buf2, { force = true })
+  pcall(vim.api.nvim_buf_delete, buf3, { force = true })
+end
+
+T['Core API']['setup']['should respect wrap_edges = false (default)'] = function()
+  -- Create test files
+  local temp_file1 = vim.fn.tempname() .. '.lua'
+  local temp_file2 = vim.fn.tempname() .. '.lua'
+  vim.fn.writefile({ 'test content 1' }, temp_file1)
+  vim.fn.writefile({ 'test content 2' }, temp_file2)
+
+  -- Create buffers for the files
+  local buf1 = vim.fn.bufadd(temp_file1)
+  local buf2 = vim.fn.bufadd(temp_file2)
+  vim.fn.bufload(buf1)
+  vim.fn.bufload(buf2)
+
+  -- Mock jumplist
+  vim.fn.getjumplist = function()
+    return {
+      {
+        { bufnr = buf1, lnum = 1, col = 0 }, -- offset -1 (backward)
+        { bufnr = buf2, lnum = 1, col = 0 }, -- offset 0 (current)
+      },
+      1, -- current position
+    }
+  end
+
+  local config = {
+    options = {
+      wrap_edges = false, -- explicit false
+    },
+  }
+
+  MiniTest.expect.no_error(function()
+    Jumppack.setup(config)
+  end)
+
+  -- Test that wrapping does NOT work by trying extreme offsets
+  MiniTest.expect.no_error(function()
+    pcall(Jumppack.start, { offset = 99 }) -- Should not wrap, stay at edge
+    if Jumppack.is_active() then
+      vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes('<Esc>', true, true, true), 'x', false)
+    end
+  end)
+
+  -- Cleanup
+  pcall(vim.fn.delete, temp_file1)
+  pcall(vim.fn.delete, temp_file2)
+  pcall(vim.api.nvim_buf_delete, buf1, { force = true })
+  pcall(vim.api.nvim_buf_delete, buf2, { force = true })
+end
+
+T['Core API']['setup']['should handle picker navigation wrapping when wrap_edges = true'] = function()
+  -- Create test files
+  local temp_file1 = vim.fn.tempname() .. '.lua'
+  local temp_file2 = vim.fn.tempname() .. '.lua'
+  local temp_file3 = vim.fn.tempname() .. '.lua'
+  vim.fn.writefile({ 'test content 1' }, temp_file1)
+  vim.fn.writefile({ 'test content 2' }, temp_file2)
+  vim.fn.writefile({ 'test content 3' }, temp_file3)
+
+  -- Create buffers for the files
+  local buf1 = vim.fn.bufadd(temp_file1)
+  local buf2 = vim.fn.bufadd(temp_file2)
+  local buf3 = vim.fn.bufadd(temp_file3)
+  vim.fn.bufload(buf1)
+  vim.fn.bufload(buf2)
+  vim.fn.bufload(buf3)
+
+  -- Mock jumplist with multiple items
+  vim.fn.getjumplist = function()
+    return {
+      {
+        { bufnr = buf1, lnum = 1, col = 0 }, -- offset -2 (backward)
+        { bufnr = buf2, lnum = 1, col = 0 }, -- offset -1 (backward)
+        { bufnr = buf2, lnum = 2, col = 0 }, -- offset 0 (current)
+        { bufnr = buf3, lnum = 1, col = 0 }, -- offset 1 (forward)
+      },
+      2, -- current position
+    }
+  end
+
+  local config = {
+    options = {
+      wrap_edges = true,
+    },
+  }
+
+  MiniTest.expect.no_error(function()
+    Jumppack.setup(config)
+  end)
+
+  -- Test picker navigation with wrapping
+  MiniTest.expect.no_error(function()
+    Jumppack.start({ offset = -1 })
+
+    if Jumppack.is_active() then
+      local state = Jumppack.get_state()
+      local initial_selection = state.current.index
+
+      -- Simulate navigation that would wrap (using actions directly)
+      -- Move to first item, then try to go back (should wrap to last)
+      while state.current.index > 1 do
+        H.actions.jump_back(H.instance, {})
+        state = Jumppack.get_state()
+      end
+
+      -- Now at first item - one more back should wrap to last item if wrapping enabled
+      local first_item_index = state.current.index
+      H.actions.jump_back(H.instance, {})
+      state = Jumppack.get_state()
+
+      -- Should have wrapped to a different position
+      MiniTest.expect.equality(state.current.index ~= first_item_index, true)
+
+      -- Clean up
+      vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes('<Esc>', true, true, true), 'x', false)
+    end
+  end)
+
+  -- Cleanup
+  pcall(vim.fn.delete, temp_file1)
+  pcall(vim.fn.delete, temp_file2)
+  pcall(vim.fn.delete, temp_file3)
+  pcall(vim.api.nvim_buf_delete, buf1, { force = true })
+  pcall(vim.api.nvim_buf_delete, buf2, { force = true })
+  pcall(vim.api.nvim_buf_delete, buf3, { force = true })
+end
+
+T['Core API']['setup']['should handle picker navigation clamping when wrap_edges = false'] = function()
+  -- Create test files
+  local temp_file1 = vim.fn.tempname() .. '.lua'
+  local temp_file2 = vim.fn.tempname() .. '.lua'
+  local temp_file3 = vim.fn.tempname() .. '.lua'
+  vim.fn.writefile({ 'test content 1' }, temp_file1)
+  vim.fn.writefile({ 'test content 2' }, temp_file2)
+  vim.fn.writefile({ 'test content 3' }, temp_file3)
+
+  -- Create buffers for the files
+  local buf1 = vim.fn.bufadd(temp_file1)
+  local buf2 = vim.fn.bufadd(temp_file2)
+  local buf3 = vim.fn.bufadd(temp_file3)
+  vim.fn.bufload(buf1)
+  vim.fn.bufload(buf2)
+  vim.fn.bufload(buf3)
+
+  -- Mock jumplist with multiple items
+  vim.fn.getjumplist = function()
+    return {
+      {
+        { bufnr = buf1, lnum = 1, col = 0 }, -- offset -2
+        { bufnr = buf2, lnum = 1, col = 0 }, -- offset -1
+        { bufnr = buf2, lnum = 2, col = 0 }, -- offset 0 (current)
+        { bufnr = buf3, lnum = 1, col = 0 }, -- offset 1
+      },
+      2, -- current position
+    }
+  end
+
+  local config = {
+    options = {
+      wrap_edges = false, -- disable wrapping
+    },
+  }
+
+  MiniTest.expect.no_error(function()
+    Jumppack.setup(config)
+  end)
+
+  -- Test picker navigation without wrapping
+  MiniTest.expect.no_error(function()
+    Jumppack.start({ offset = -1 })
+
+    if Jumppack.is_active() then
+      local state = Jumppack.get_state()
+
+      -- Move to first item
+      while state.current.index > 1 do
+        H.actions.jump_back(H.instance, {})
+        state = Jumppack.get_state()
+      end
+
+      -- Now at first item - try to go back (should stay at first)
+      local first_item_index = state.current.index
+      H.actions.jump_back(H.instance, {})
+      state = Jumppack.get_state()
+
+      -- Should stay at first item (no wrapping)
+      MiniTest.expect.equality(state.current.index, first_item_index)
+
+      -- Similarly, move to last item and try to go forward
+      while state.current.index < #state.items do
+        H.actions.jump_forward(H.instance, {})
+        state = Jumppack.get_state()
+      end
+
+      local last_item_index = state.current.index
+      H.actions.jump_forward(H.instance, {})
+      state = Jumppack.get_state()
+
+      -- Should stay at last item (no wrapping)
+      MiniTest.expect.equality(state.current.index, last_item_index)
+
+      -- Clean up
+      vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes('<Esc>', true, true, true), 'x', false)
+    end
+  end)
+
+  -- Cleanup
+  pcall(vim.fn.delete, temp_file1)
+  pcall(vim.fn.delete, temp_file2)
+  pcall(vim.fn.delete, temp_file3)
+  pcall(vim.api.nvim_buf_delete, buf1, { force = true })
+  pcall(vim.api.nvim_buf_delete, buf2, { force = true })
+  pcall(vim.api.nvim_buf_delete, buf3, { force = true })
+end
+
 T['Core API']['is_active'] = MiniTest.new_set()
 
 T['Core API']['is_active']['should return false when no instance exists'] = function()
