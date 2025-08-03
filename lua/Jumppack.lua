@@ -13,6 +13,8 @@ Jumppack.config = {
   options = {
     -- Whether to set up global key mappings
     global_mappings = true,
+    -- Whether to include only jumps within current working directory
+    cwd_only = false,
   },
   -- Keys for performing actions. See `:h Jumppack-actions`.
   mappings = {
@@ -185,7 +187,7 @@ end
 function H.create_jumplist_source(opts)
   opts = vim.tbl_deep_extend('force', { offset = -1 }, opts)
 
-  local all_jumps = H.get_all_jumps()
+  local all_jumps = H.get_all_jumps(Jumppack.config)
 
   if #all_jumps == 0 then
     return nil
@@ -203,10 +205,14 @@ function H.create_jumplist_source(opts)
   }
 end
 
-function H.get_all_jumps()
+function H.get_all_jumps(config)
   local jumps = vim.fn.getjumplist()
   local jumplist = jumps[1]
   local current = jumps[2]
+
+  config = config or Jumppack.config
+  local cwd_only = config.options and config.options.cwd_only
+  local current_cwd = cwd_only and H.full_path(vim.fn.getcwd()) or nil
 
   local all_jumps = {}
 
@@ -216,7 +222,15 @@ function H.get_all_jumps()
     if jump.bufnr > 0 and vim.fn.buflisted(jump.bufnr) == 1 then
       local jump_item = H.create_jump_item(jump, i, current)
       if jump_item then
-        table.insert(all_jumps, jump_item)
+        -- Filter by cwd if cwd_only is enabled
+        if cwd_only then
+          local jump_path = H.full_path(jump_item.path)
+          if vim.startswith(jump_path, current_cwd) then
+            table.insert(all_jumps, jump_item)
+          end
+        else
+          table.insert(all_jumps, jump_item)
+        end
       end
     end
   end
