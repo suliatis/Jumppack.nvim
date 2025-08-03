@@ -17,6 +17,8 @@ Jumppack.config = {
     cwd_only = false,
     -- Whether to wrap around edges when navigating with <C-o>/<C-i>
     wrap_edges = false,
+    -- Default view mode when starting picker ('list' or 'preview')
+    default_view = 'preview',
   },
   -- Keys for performing actions. See `:h Jumppack-actions`.
   mappings = {
@@ -371,6 +373,15 @@ function H.setup_config(config)
   H.check_type('mappings.stop', config.mappings.stop, 'string')
   H.check_type('mappings.toggle_preview', config.mappings.toggle_preview, 'string')
 
+  H.check_type('options', config.options, 'table')
+  H.check_type('options.global_mappings', config.options.global_mappings, 'boolean')
+  H.check_type('options.cwd_only', config.options.cwd_only, 'boolean')
+  H.check_type('options.wrap_edges', config.options.wrap_edges, 'boolean')
+  H.check_type('options.default_view', config.options.default_view, 'string')
+  if not vim.tbl_contains({ 'list', 'preview' }, config.options.default_view) then
+    H.error('`options.default_view` should be "list" or "preview", not "' .. config.options.default_view .. '"')
+  end
+
   H.check_type('window', config.window, 'table')
   local is_table_or_callable = function(x)
     return x == nil or type(x) == 'table' or vim.is_callable(x)
@@ -523,7 +534,7 @@ function H.new(opts)
     action_keys = H.normalize_mappings(opts.mappings),
 
     -- View data
-    view_state = 'preview',
+    view_state = opts.options and opts.options.default_view or 'preview',
     visible_range = { from = nil, to = nil },
     current_ind = nil,
     shown_inds = {},

@@ -634,6 +634,126 @@ T['Core API']['setup']['should handle picker navigation clamping when wrap_edges
   pcall(vim.api.nvim_buf_delete, buf3, { force = true })
 end
 
+T['Core API']['setup']['should respect default_view = "preview"'] = function()
+  -- Create test files
+  local temp_file1 = vim.fn.tempname() .. '.lua'
+  local temp_file2 = vim.fn.tempname() .. '.lua'
+  vim.fn.writefile({ 'test content 1' }, temp_file1)
+  vim.fn.writefile({ 'test content 2' }, temp_file2)
+
+  -- Create buffers for the files
+  local buf1 = vim.fn.bufadd(temp_file1)
+  local buf2 = vim.fn.bufadd(temp_file2)
+  vim.fn.bufload(buf1)
+  vim.fn.bufload(buf2)
+
+  -- Mock jumplist
+  vim.fn.getjumplist = function()
+    return {
+      {
+        { bufnr = buf1, lnum = 1, col = 0 }, -- offset -1
+        { bufnr = buf2, lnum = 1, col = 0 }, -- offset 0 (current)
+      },
+      1, -- current position
+    }
+  end
+
+  local config = {
+    options = {
+      default_view = 'preview',
+    },
+  }
+
+  MiniTest.expect.no_error(function()
+    Jumppack.setup(config)
+  end)
+
+  -- Test that picker starts in preview mode
+  MiniTest.expect.no_error(function()
+    Jumppack.start({ offset = -1 })
+
+    if Jumppack.is_active() then
+      local state = Jumppack.get_state()
+      -- Should start in preview mode
+      MiniTest.expect.equality(state.general_info.view_state, 'preview')
+
+      -- Clean up
+      vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes('<Esc>', true, true, true), 'x', false)
+    end
+  end)
+
+  -- Cleanup
+  pcall(vim.fn.delete, temp_file1)
+  pcall(vim.fn.delete, temp_file2)
+  pcall(vim.api.nvim_buf_delete, buf1, { force = true })
+  pcall(vim.api.nvim_buf_delete, buf2, { force = true })
+end
+
+T['Core API']['setup']['should respect default_view = "list"'] = function()
+  -- Create test files
+  local temp_file1 = vim.fn.tempname() .. '.lua'
+  local temp_file2 = vim.fn.tempname() .. '.lua'
+  vim.fn.writefile({ 'test content 1' }, temp_file1)
+  vim.fn.writefile({ 'test content 2' }, temp_file2)
+
+  -- Create buffers for the files
+  local buf1 = vim.fn.bufadd(temp_file1)
+  local buf2 = vim.fn.bufadd(temp_file2)
+  vim.fn.bufload(buf1)
+  vim.fn.bufload(buf2)
+
+  -- Mock jumplist
+  vim.fn.getjumplist = function()
+    return {
+      {
+        { bufnr = buf1, lnum = 1, col = 0 }, -- offset -1
+        { bufnr = buf2, lnum = 1, col = 0 }, -- offset 0 (current)
+      },
+      1, -- current position
+    }
+  end
+
+  local config = {
+    options = {
+      default_view = 'list',
+    },
+  }
+
+  MiniTest.expect.no_error(function()
+    Jumppack.setup(config)
+  end)
+
+  -- Test that picker starts in list mode
+  MiniTest.expect.no_error(function()
+    Jumppack.start({ offset = -1 })
+
+    if Jumppack.is_active() then
+      local state = Jumppack.get_state()
+      -- Should start in list mode (note: the internal state might be 'main' for list mode)
+      MiniTest.expect.equality(state.general_info.view_state, 'list')
+
+      -- Clean up
+      vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes('<Esc>', true, true, true), 'x', false)
+    end
+  end)
+
+  -- Cleanup
+  pcall(vim.fn.delete, temp_file1)
+  pcall(vim.fn.delete, temp_file2)
+  pcall(vim.api.nvim_buf_delete, buf1, { force = true })
+  pcall(vim.api.nvim_buf_delete, buf2, { force = true })
+end
+
+T['Core API']['setup']['should validate default_view option'] = function()
+  MiniTest.expect.error(function()
+    Jumppack.setup({
+      options = {
+        default_view = 'invalid_mode', -- should cause error
+      },
+    })
+  end)
+end
+
 T['Core API']['is_active'] = MiniTest.new_set()
 
 T['Core API']['is_active']['should return false when no instance exists'] = function()
