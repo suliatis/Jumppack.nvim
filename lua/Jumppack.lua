@@ -43,7 +43,7 @@ function Jumppack.start(opts)
   opts = opts or {}
 
   -- Create jumplist source
-  local offset = opts.jumplist_offset or 0
+  local offset = opts.offset or 0
   local jumplist_source = H.create_jumplist_source({ offset = offset })
   if not jumplist_source then
     return -- No jumps available
@@ -265,11 +265,11 @@ end
 function H.setup_global_mappings(config)
   -- Set up global keymaps for jump navigation with count support
   vim.keymap.set('n', config.mappings.jump_back, function()
-    Jumppack.start({ jumplist_offset = -vim.v.count1 })
+    Jumppack.start({ offset = -vim.v.count1 })
   end, { desc = 'Jump back', silent = true })
 
   vim.keymap.set('n', config.mappings.jump_forward, function()
-    Jumppack.start({ jumplist_offset = vim.v.count1 })
+    Jumppack.start({ offset = vim.v.count1 })
   end, { desc = 'Jump forward', silent = true })
 end
 
