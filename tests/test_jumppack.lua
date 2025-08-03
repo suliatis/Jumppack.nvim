@@ -194,96 +194,7 @@ T['Core API']['get_state']['should return nil when no instance is active'] = fun
   MiniTest.expect.equality(Jumppack.get_state(), nil)
 end
 
-T['Core API']['get_state']['should return correct state structure when active'] = function()
-  local opts = {
-    source = {
-      name = 'test source',
-      items = {
-        { path = 'test1.lua', text = 'item 1' },
-        { path = 'test2.lua', text = 'item 2' },
-        { path = 'test3.lua', text = 'item 3' },
-      },
-      show = function() end,
-      preview = function() end,
-      choose = function() end,
-    },
-    mappings = {
-      jump_back = '<C-o>',
-      jump_forward = '<C-i>',
-      choose = '<CR>',
-      choose_in_split = '<C-s>',
-      choose_in_tabpage = '<C-t>',
-      choose_in_vsplit = '<C-v>',
-      stop = '<Esc>',
-      toggle_preview = '<C-p>',
-    },
-  }
-
-  Jumppack.start(opts)
-
-  -- Allow time for instance to initialize
-  vim.wait(10)
-
-  local state = Jumppack.get_state()
-
-  -- Verify state structure and values
-  verify_state(state, {
-    items_count = 3,
-    selection_index = 1,
-    source_name = 'test source',
-  })
-
-  -- Verify selection item matches first item
-  MiniTest.expect.equality(state.selection.item.text, 'item 1')
-
-  -- Clean up
-  if Jumppack.is_active() then
-    vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes('<Esc>', true, true, true), 'x', false)
-  end
-end
-
 T['Core API']['start'] = MiniTest.new_set()
-
-T['Core API']['start']['should handle valid options'] = function()
-  local opts = {
-    source = {
-      name = 'test',
-      items = {
-        { path = 'test.lua', text = 'test item' },
-      },
-      show = function() end,
-      preview = function() end,
-      choose = function() end,
-    },
-    mappings = {
-      jump_back = '<C-o>',
-      jump_forward = '<C-i>',
-      choose = '<CR>',
-      choose_in_split = '<C-s>',
-      choose_in_tabpage = '<C-t>',
-      choose_in_vsplit = '<C-v>',
-      stop = '<Esc>',
-      toggle_preview = '<C-p>',
-    },
-  }
-
-  MiniTest.expect.no_error(function()
-    Jumppack.start(opts)
-
-    -- Verify state after starting
-    local state = Jumppack.get_state()
-    verify_state(state, {
-      items_count = 1,
-      selection_index = 1,
-      source_name = 'test',
-    })
-
-    -- Immediately stop to clean up
-    if Jumppack.is_active() then
-      vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes('<Esc>', true, true, true), 'x', false)
-    end
-  end)
-end
 
 T['Core API']['start']['should validate options'] = function()
   MiniTest.expect.error(function()
@@ -577,16 +488,6 @@ T['Error Handling']['should handle invalid configuration gracefully'] = function
   MiniTest.expect.error(function()
     Jumppack.setup({
       mappings = 'invalid',
-    })
-  end)
-end
-
-T['Error Handling']['should handle missing required fields'] = function()
-  MiniTest.expect.error(function()
-    Jumppack.start({
-      source = {
-        items = 'invalid',
-      },
     })
   end)
 end

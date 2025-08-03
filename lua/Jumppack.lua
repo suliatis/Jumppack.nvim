@@ -42,23 +42,13 @@ function Jumppack.start(opts)
 
   opts = opts or {}
 
-  -- Handle jumplist-specific options
-  if opts.jumplist_offset then
-    local jumplist_source = H.create_jumplist_source({
-      offset = opts.jumplist_offset,
-    })
-    if not jumplist_source then
-      return -- No jumps available
-    end
-    opts = vim.tbl_extend('force', opts, { source = jumplist_source })
-  elseif not opts.source then
-    -- Create default jumplist source if no source provided
-    local jumplist_source = H.create_jumplist_source({ offset = 0 })
-    if not jumplist_source then
-      return -- No jumps available
-    end
-    opts = vim.tbl_extend('force', opts, { source = jumplist_source })
+  -- Create jumplist source
+  local offset = opts.jumplist_offset or 0
+  local jumplist_source = H.create_jumplist_source({ offset = offset })
+  if not jumplist_source then
+    return -- No jumps available
   end
+  opts.source = jumplist_source
 
   opts = H.validate_opts(opts)
   H.instance = H.new(opts)
