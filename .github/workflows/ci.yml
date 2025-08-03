@@ -1,0 +1,89 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        nvim-version: ['v0.11.0', 'v0.11.3']
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Cache Neovim
+      uses: actions/cache@v4
+      id: cache-nvim
+      with:
+        path: ~/nvim
+        key: nvim-${{ matrix.nvim-version }}-${{ runner.os }}
+
+    - name: Install Neovim
+      if: steps.cache-nvim.outputs.cache-hit != 'true'
+      run: |
+        mkdir -p ~/nvim
+        cd ~/nvim
+        # Download precompiled Neovim directly from GitHub releases
+        curl -L --fail https://github.com/neovim/neovim/releases/download/${{ matrix.nvim-version }}/nvim-linux-x86_64.tar.gz -o nvim.tar.gz
+        tar xzf nvim.tar.gz --strip-components=1
+        rm nvim.tar.gz
+
+    - name: Add Neovim to PATH
+      run: echo "$HOME/nvim/bin" >> $GITHUB_PATH
+
+    - name: Cache luarocks
+      uses: actions/cache@v4
+      with:
+        path: ~/.luarocks
+        key: luarocks-${{ runner.os }}
+
+    - name: Install luarocks and luacheck
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y luarocks
+        # Install system-wide since we're running as root in containers
+        sudo luarocks install luacheck
+        # Also add luarocks lib path for lua modules
+        echo "LUA_PATH=/usr/local/share/lua/5.1/?.lua;/usr/local/share/lua/5.1/?/init.lua;;" >> $GITHUB_ENV
+
+    - name: Cache stylua
+      uses: actions/cache@v4
+      id: cache-stylua
+      with:
+        path: ~/.local/bin/stylua
+        key: stylua-${{ runner.os }}
+
+    - name: Install stylua
+      if: steps.cache-stylua.outputs.cache-hit != 'true'
+      run: |
+        mkdir -p ~/.local/bin
+        # Download and extract stylua
+        curl -L --fail https://github.com/JohnnyMorganz/StyLua/releases/latest/download/stylua-linux-x86_64.zip -o stylua.zip
+        unzip -o stylua.zip
+        mv stylua ~/.local/bin/
+        chmod +x ~/.local/bin/stylua
+        rm stylua.zip
+
+    - name: Add local bin to PATH
+      run: echo "$HOME/.local/bin" >> $GITHUB_PATH
+
+    - name: Verify installations
+      run: |
+        nvim --version
+        luacheck --version
+        stylua --version
+
+    - name: Run tests
+      run: make test
+
+    - name: Check formatting
+      run: make format-check
+
+    - name: Run lint
+      run: make lint
