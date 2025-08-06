@@ -14,7 +14,7 @@
 ---@field window ConfigWindow Window configuration
 
 ---@class ConfigOptions
----@field global_mappings boolean Whether to set up global key mappings
+---@field global_mappings boolean Whether to override default <C-o>/<C-i> with Jumppack interface
 ---@field cwd_only boolean Whether to include only jumps within current working directory
 ---@field wrap_edges boolean Whether to wrap around edges when navigating
 ---@field default_view string Default view mode ('list' or 'preview')
@@ -76,20 +76,81 @@ H.display = {}
 H.actions = {}
 H.utils = {}
 
----Setup Jumppack with optional configuration
----@param config Config|nil Configuration table
----@usage `require('jumppack').setup({ options = { cwd_only = true } })`
+--- Setup Jumppack with optional configuration
+---
+---@text Initialize Jumppack plugin with custom configuration. This function merges
+--- provided config with defaults, sets up autocommands, highlights, and key mappings.
+--- Also sets up a global `Jumppack` variable for convenient access from anywhere.
+---
+--- IMPORTANT: By default, this overrides Vim's native <C-o> and <C-i> jump commands
+--- with Jumppack's enhanced interface. The original behavior can be preserved by
+--- setting `options.global_mappings = false` and creating custom mappings.
+---
+--- Should be called once during plugin initialization, typically in your init.lua.
+---
+---@param config Config|nil Configuration table with options, mappings, and window settings
+---
+---@usage >lua
+--- -- Basic setup with defaults (overrides <C-o>/<C-i>)
+--- require('jumppack').setup()
+---
+--- -- Preserve original <C-o>/<C-i> behavior
+--- require('jumppack').setup({
+---   options = {
+---     global_mappings = false -- Disable automatic override of jump keys
+---   }
+--- })
+--- -- Then set up custom mappings:
+--- vim.keymap.set('n', '<Leader>o', function() Jumppack.start({ offset = -1 }) end)
+--- vim.keymap.set('n', '<Leader>i', function() Jumppack.start({ offset = 1 }) end)
+---
+--- -- Custom configuration with global mappings enabled (default)
+--- require('jumppack').setup({
+---   options = {
+---     cwd_only = true,        -- Only show jumps within current working directory
+---     wrap_edges = true,      -- Allow wrapping when navigating with enhanced <C-o>/<C-i>
+---     default_view = 'list',  -- Start interface in list mode instead of preview
+---     global_mappings = true  -- Override default jump keys (this is the default)
+---   },
+---   mappings = {
+---     jump_back = '<Leader>o',    -- Custom back navigation
+---     jump_forward = '<Leader>i', -- Custom forward navigation
+---     choose = '<CR>',            -- Choose item
+---     choose_in_split = '<C-s>',  -- Open in horizontal split
+---     choose_in_vsplit = '<C-v>', -- Open in vertical split
+---     choose_in_tabpage = '<C-t>',-- Open in new tab
+---     stop = '<Esc>',             -- Close picker
+---     toggle_preview = '<C-p>'    -- Toggle preview mode
+---   },
+---   window = {
+---     config = {
+---       relative = 'editor',
+---       width = 80,
+---       height = 15,
+---       row = 10,
+---       col = 10,
+---       style = 'minimal',
+---       border = 'rounded'
+---     }
+---   }
+--- })
+--- <
+---
+---@seealso |jumppack-configuration| For detailed configuration options
 function Jumppack.setup(config)
   config = H.config.setup(config)
   H.config.apply(config)
   H.config.setup_autocommands()
   H.config.setup_highlights()
   H.config.setup_mappings(config)
+
+  -- Set global for convenient access
+  _G.Jumppack = Jumppack
 end
 
 Jumppack.config = {
   options = {
-    -- Whether to set up global key mappings
+    -- Whether to override default <C-o>/<C-i> jump keys with Jumppack interface
     global_mappings = true,
     -- Whether to include only jumps within current working directory
     cwd_only = false,
@@ -120,10 +181,61 @@ Jumppack.config = {
   },
 }
 
----Start the jumplist picker
----@param opts table|nil Picker options
----@return JumpItem|nil Selected jump item
----@usage `require('jumppack').start({ offset = -1 })`
+--- Start the jumplist navigation interface
+---
+---@text Opens the jumplist navigation interface with a floating window. Displays available
+--- jump positions with navigation preview. Supports directional navigation with offsets
+--- and filtering options. The interface allows interactive selection and navigation
+--- through your jump history with vim.jumplist.
+---
+---@param opts table|nil Navigation options with the following fields:
+---   - offset (number): Navigation offset from current position. Negative for backward
+---     jumps (e.g., -1 for previous position), positive for forward jumps (e.g., 1 for next).
+---     If offset exceeds available range, falls back to nearest valid position.
+---   - source (table): Custom source configuration (advanced usage)
+---
+---@return JumpItem|nil Selected jump item if user chose one, nil if cancelled
+---
+---@usage >lua
+--- -- Open interface showing previous jump position
+--- Jumppack.start({ offset = -1 })
+---
+--- -- Open interface showing next jump position
+--- Jumppack.start({ offset = 1 })
+---
+--- -- Open interface with no specific offset (shows all jumps)
+--- Jumppack.start()
+---
+--- -- Advanced usage - capture selected item
+--- local selected = Jumppack.start({ offset = -2 })
+--- if selected then
+---   print('Selected:', selected.path, 'at line', selected.lnum)
+--- end
+---
+--- -- Typical workflow integration (using global variable)
+--- vim.keymap.set('n', '<C-o>', function()
+---   Jumppack.start({ offset = -1 })
+--- end, { desc = 'Jump back with interface' })
+---
+--- vim.keymap.set('n', '<C-i>', function()
+---   Jumppack.start({ offset = 1 })
+--- end, { desc = 'Jump forward with interface' })
+---
+--- -- Custom keymaps with global access
+--- vim.keymap.set('n', '<Leader>j', function()
+---   Jumppack.start({ offset = -1 })
+--- end, { desc = 'Jump back' })
+---
+--- -- Check if interface is active
+--- if Jumppack.is_active() then
+---   print('Navigation interface is open')
+--- end
+---
+--- -- Alternative: using require (not necessary after setup)
+--- -- require('jumppack').start({ offset = -1 })
+--- <
+---
+---@seealso |jumppack-navigation| For navigation patterns and workflows
 function Jumppack.start(opts)
   H.cache = {}
 
@@ -153,8 +265,26 @@ function Jumppack.start(opts)
   return H.instance.run_loop(H.current_instance)
 end
 
----Refresh the active picker instance
----@usage `require('jumppack').refresh()`
+--- Refresh the active navigation interface
+---
+---@text Updates the jumplist interface with current jump data. Only works when the interface
+--- is currently active. Useful for refreshing the view if the jumplist has changed
+--- during operation or if you want to reload the data without closing and
+--- reopening the interface.
+---
+---@usage >lua
+--- -- Refresh current interface (only if active)
+--- Jumppack.refresh()
+---
+--- -- Typical use in custom mappings
+--- vim.keymap.set('n', '<F5>', function()
+---   if Jumppack.is_active() then
+---     Jumppack.refresh()
+---   end
+--- end, { desc = 'Refresh jumppack interface' })
+--- <
+---
+---@seealso |jumppack-interface-management| For interface lifecycle management
 function Jumppack.refresh()
   if not Jumppack.is_active() then
     return
@@ -166,10 +296,35 @@ end
 -- DISPLAY & RENDERING FUNCTIONS
 -- ============================================================================
 
----Display items in a buffer with syntax highlighting
+--- Display items in a buffer with syntax highlighting
+---
+---@text Renders jump items in the navigation buffer with file icons and syntax highlighting.
+--- Handles item formatting, icon display, and visual presentation. This is the main
+--- function used by the interface to show the jumplist entries.
+---
 ---@param buf_id number Buffer ID to display items in
----@param items JumpItem[] List of jump items to display
----@param opts table|nil Display options
+---@param items JumpItem[] List of jump items to display with path, line, and offset info
+---@param opts table|nil Display options with fields:
+---   - show_icons (boolean): Whether to show file type icons (default: true)
+---   - icons (table): Custom icon mapping for file types
+---
+---@usage >lua
+--- -- Display items with default options
+--- local buf = vim.api.nvim_create_buf(false, true)
+--- local items = {
+---   { path = 'init.lua', lnum = 1, offset = -1, direction = 'back' },
+---   { path = 'config.lua', lnum = 15, offset = 1, direction = 'forward' }
+--- }
+--- Jumppack.show_items(buf, items)
+---
+--- -- Custom display options
+--- Jumppack.show_items(buf, items, {
+---   show_icons = false,  -- Disable file icons
+---   icons = { file = '📄', none = '  ' }  -- Custom icons
+--- })
+--- <
+---
+---@seealso |jumppack-display| For display customization options
 function Jumppack.show_items(buf_id, items, opts)
   local default_icons = { file = ' ', none = '  ' }
   opts = vim.tbl_deep_extend('force', { show_icons = true, icons = default_icons }, opts or {})
@@ -212,10 +367,35 @@ function Jumppack.show_items(buf_id, items, opts)
   end
 end
 
----Preview a jump item in a buffer
----@param buf_id number Buffer ID for preview content
----@param item JumpItem|nil Jump item to preview
----@param opts table|nil Preview options
+--- Preview a jump item in a buffer
+---
+---@text Displays a preview of the jump destination in the preview buffer. Shows the
+--- content around the jump target with syntax highlighting and cursor positioning.
+--- Used by the interface's preview mode to show file content before navigation.
+---
+---@param buf_id number Buffer ID for preview content (must be a valid buffer)
+---@param item JumpItem|nil Jump item to preview. If nil, clears the preview buffer
+---@param opts table|nil Preview options with fields:
+---   - context_lines (number): Number of lines to show around target (default: varies)
+---   - syntax_highlight (boolean): Whether to apply syntax highlighting (default: true)
+---
+---@usage >lua
+--- -- Preview a jump item
+--- local preview_buf = vim.api.nvim_create_buf(false, true)
+--- local item = { bufnr = 1, lnum = 10, col = 0, path = 'init.lua' }
+--- Jumppack.preview_item(preview_buf, item)
+---
+--- -- Clear preview
+--- Jumppack.preview_item(preview_buf, nil)
+---
+--- -- Custom preview with more context
+--- Jumppack.preview_item(preview_buf, item, {
+---   context_lines = 10,
+---   syntax_highlight = true
+--- })
+--- <
+---
+---@seealso |jumppack-preview| For preview customization
 function Jumppack.preview_item(buf_id, item, opts)
   if not item or not item.bufnr then
     return
@@ -248,8 +428,30 @@ function Jumppack.preview_item(buf_id, item, opts)
   H.display.preview_set_lines(buf_id, lines, preview_data)
 end
 
----Choose and navigate to a jump item
----@param item JumpItem Jump item to navigate to
+--- Choose and navigate to a jump item
+---
+---@text Executes navigation to the selected jump item. Handles backward and forward
+--- jumps using Vim's jump commands (Ctrl-o and Ctrl-i). This function performs the
+--- actual jump navigation and closes the navigation interface.
+---
+---@param item JumpItem Jump item to navigate to with offset field for direction:
+---   - Negative offset: Navigate backward in jumplist (uses <C-o>)
+---   - Positive offset: Navigate forward in jumplist (uses <C-i>)
+---   - Zero offset: Stay at current position
+---
+---@usage >lua
+--- -- Navigate to a jump item (typically called by interface)
+--- local item = { offset = -2, bufnr = 1, lnum = 10 }
+--- Jumppack.choose_item(item)
+---
+--- -- Example of how interface uses this internally
+--- vim.keymap.set('n', '<CR>', function()
+---   local current_item = get_selected_item()
+---   Jumppack.choose_item(current_item)
+--- end, { buffer = interface_buf })
+--- <
+---
+---@seealso |jumppack-navigation| For jump navigation patterns
 function Jumppack.choose_item(item)
   vim.schedule(function()
     if item.offset < 0 then
@@ -263,14 +465,66 @@ function Jumppack.choose_item(item)
   end)
 end
 
----Check if a picker instance is currently active
----@return boolean True if picker is active
+--- Check if the navigation interface is currently active
+---
+---@text Determines whether the Jumppack navigation interface is currently open and active.
+--- Useful for conditional operations and preventing conflicts with multiple instances.
+---
+---@return boolean True if interface is active, false otherwise
+---
+---@usage >lua
+--- -- Check before performing operations
+--- if Jumppack.is_active() then
+---   print('Interface is open')
+---   Jumppack.refresh()
+--- else
+---   print('No active interface')
+--- end
+---
+--- -- Conditional keymap behavior
+--- vim.keymap.set('n', '<Esc>', function()
+---   if Jumppack.is_active() then
+---     -- Close interface
+---     vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes('<Esc>', true, true, true), 'n', false)
+---   else
+---     -- Normal escape behavior
+---     vim.cmd('nohlsearch')
+---   end
+--- end)
+--- <
 function Jumppack.is_active()
   return H.current_instance ~= nil
 end
 
----Get the current state of the active picker
----@return PickerState|nil Current picker state or nil if not active
+--- Get the current state of the active navigation interface
+---
+---@text Retrieves the current state of the active interface instance, including items,
+--- selection, and general information. Returns nil if no interface is active. Useful
+--- for inspecting interface state and implementing custom behaviors.
+---
+---@return PickerState|nil Current interface state with fields:
+---   - items (JumpItem[]): Available jump items
+---   - selection (table): Current selection with index
+---   - general_info (table): Interface metadata and configuration
+---   - current (JumpItem): Currently selected item
+---
+---@usage >lua
+--- -- Get and inspect interface state
+--- local state = Jumppack.get_state()
+--- if state then
+---   print('Selected item:', state.current.path)
+---   print('Total items:', #state.items)
+---   print('Selection index:', state.selection.index)
+--- end
+---
+--- -- Custom behavior based on interface state
+--- vim.keymap.set('n', '<C-g>', function()
+---   local state = Jumppack.get_state()
+---   if state and state.current then
+---     vim.notify(string.format('Jump: %s:%d', state.current.path, state.current.lnum))
+---   end
+--- end, { desc = 'Show current jump info' })
+--- <
 function Jumppack.get_state()
   if not Jumppack.is_active() then
     return nil
@@ -560,7 +814,12 @@ function H.config.setup_highlights()
   hi('JumppackMatchCurrent', { link = 'Visual' })
 end
 
----Setup global key mappings
+--- Setup global key mappings that override default jump behavior
+---
+---@text Sets up global keymaps that replace Vim's default <C-o> and <C-i> jump
+--- commands with Jumppack's enhanced interface. Only runs if global_mappings option
+--- is enabled. The mappings support count prefixes (e.g., 3<C-o> for 3 jumps back).
+---
 ---@param config Config Configuration with mappings
 function H.config.setup_mappings(config)
   if not config.options.global_mappings then

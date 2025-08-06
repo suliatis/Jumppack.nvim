@@ -1,0 +1,793 @@
+*jumppack.txt*    Enhanced jumplist navigation for Neovim
+
+JUMPPACK                                              *jumppack* *jumppack.nvim*
+
+Enhanced jumplist navigation interface with floating window preview.
+Navigate your jump history with visual feedback and flexible controls.
+
+==============================================================================
+CONTENTS                                               *jumppack-contents*
+
+1. Introduction ................... |jumppack-introduction|
+2. Setup .......................... |jumppack-setup|
+3. Configuration .................. |jumppack-configuration|
+4. Usage .......................... |jumppack-usage|
+5. API Functions .................. |jumppack-api|
+6. Navigation ..................... |jumppack-navigation|
+7. Display Options ................ |jumppack-display|
+8. Interface Management ........... |jumppack-interface-management|
+
+==============================================================================
+INTRODUCTION                                       *jumppack-introduction*
+
+Jumppack provides an enhanced navigation interface for Neovim's jumplist.
+The plugin creates a floating window interface that allows users to
+visualize and navigate their jump history with preview functionality.
+
+Features:
+  • Floating window interface for jump navigation
+  • Preview mode showing destination content
+  • Configurable key mappings and window appearance
+  • Filtering options (current working directory only)
+  • Edge wrapping for continuous navigation
+  • Icon support with file type detection
+
+==============================================================================
+SETUP                                                   *jumppack-setup*
+
+==============================================================================
+------------------------------------------------------------------------------
+[[Jumppack.nvim - Enhanced jumplist navigation for Neovim]]
+
+provides an enhanced navigation interface for Neovim's jumplist.
+plugin creates a floating window picker that allows users to visualize
+navigate their jump history with preview functionality.
+
+Attila Süli
+2025
+MIT
+
+------------------------------------------------------------------------------
+Class ~
+{Config}
+Fields ~
+{options} `(ConfigOptions)` Configuration options
+{mappings} `(ConfigMappings)` Key mappings for actions
+{window} `(ConfigWindow)` Window configuration
+
+------------------------------------------------------------------------------
+Class ~
+{ConfigOptions}
+Fields ~
+{global_mappings} `(boolean)` Whether to override default <C-o>/<C-i> with Jumppack interface
+{cwd_only} `(boolean)` Whether to include only jumps within current working directory
+{wrap_edges} `(boolean)` Whether to wrap around edges when navigating
+{default_view} `(string)` Default view mode ('list' or 'preview')
+
+------------------------------------------------------------------------------
+Class ~
+{ConfigMappings}
+Fields ~
+{jump_back} `(string)` Key for jumping back
+{jump_forward} `(string)` Key for jumping forward
+{choose} `(string)` Key for choosing item
+{choose_in_split} `(string)` Key for choosing item in split
+{choose_in_tabpage} `(string)` Key for choosing item in tab
+{choose_in_vsplit} `(string)` Key for choosing item in vsplit
+{stop} `(string)` Key for stopping picker
+{toggle_preview} `(string)` Key for toggling preview
+
+------------------------------------------------------------------------------
+Class ~
+{ConfigWindow}
+Fields ~
+{config} `(table|function|nil)` Float window config
+
+------------------------------------------------------------------------------
+Class ~
+{JumpItem}
+Fields ~
+{bufnr} `(number)` Buffer number
+{path} `(string)` File path
+{lnum} `(number)` Line number
+{col} `(number)` Column number
+{jump_index} `(number)` Index in jumplist
+{is_current} `(boolean)` Whether this is current position
+{offset} `(number)` Navigation offset
+
+------------------------------------------------------------------------------
+Class ~
+{Instance}
+Fields ~
+{opts} `(table)` Configuration options
+{items} `(JumpItem[])` List of jump items
+{buffers} `(table)` Buffer IDs
+{windows} `(table)` Window IDs
+{action_keys} `(table)` Action key mappings
+{view_state} `(string)` Current view state
+{visible_range} `(table)` Visible range info
+{current_ind} `(number)` Current item index
+{shown_inds} `(number[])` Shown item indices
+
+------------------------------------------------------------------------------
+Class ~
+{PickerState}
+Fields ~
+{items} `(JumpItem[])` Available jump items
+{selection} `(table)` Current selection info
+{general_info} `(table)` General picker information
+
+------------------------------------------------------------------------------
+                                                              *Jumppack.setup()*
+                           `Jumppack.setup`({config})
+Setup Jumppack with optional configuration
+
+Initialize Jumppack plugin with custom configuration. This function merges
+provided config with defaults, sets up autocommands, highlights, and key mappings.
+Also sets up a global `Jumppack` variable for convenient access from anywhere.
+
+IMPORTANT: By default, this overrides Vim's native <C-o> and <C-i> jump commands
+with Jumppack's enhanced interface. The original behavior can be preserved by
+setting `options.global_mappings = false` and creating custom mappings.
+
+Should be called once during plugin initialization, typically in your init.lua.
+
+Parameters ~
+{config} `(Config|nil)` Configuration table with options, mappings, and window settings
+
+Usage ~
+>lua
+-- Basic setup with defaults (overrides <C-o>/<C-i>)
+require('jumppack').setup()
+
+-- Preserve original <C-o>/<C-i> behavior
+require('jumppack').setup({
+  options = {
+    global_mappings = false -- Disable automatic override of jump keys
+  }
+})
+-- Then set up custom mappings:
+vim.keymap.set('n', '<Leader>o', function() Jumppack.start({ offset = -1 }) end)
+vim.keymap.set('n', '<Leader>i', function() Jumppack.start({ offset = 1 }) end)
+
+-- Custom configuration with global mappings enabled (default)
+require('jumppack').setup({
+  options = {
+    cwd_only = true,        -- Only show jumps within current working directory
+    wrap_edges = true,      -- Allow wrapping when navigating with enhanced <C-o>/<C-i>
+    default_view = 'list',  -- Start interface in list mode instead of preview
+    global_mappings = true  -- Override default jump keys (this is the default)
+  },
+  mappings = {
+    jump_back = '<Leader>o',    -- Custom back navigation
+    jump_forward = '<Leader>i', -- Custom forward navigation
+    choose = '<CR>',            -- Choose item
+    choose_in_split = '<C-s>',  -- Open in horizontal split
+    choose_in_vsplit = '<C-v>', -- Open in vertical split
+    choose_in_tabpage = '<C-t>',-- Open in new tab
+    stop = '<Esc>',             -- Close picker
+    toggle_preview = '<C-p>'    -- Toggle preview mode
+  },
+  window = {
+    config = {
+      relative = 'editor',
+      width = 80,
+      height = 15,
+      row = 10,
+      col = 10,
+      style = 'minimal',
+      border = 'rounded'
+    }
+  }
+})
+<
+
+See also ~
+|jumppack-configuration| For detailed configuration options
+
+------------------------------------------------------------------------------
+                                                              *Jumppack.start()*
+                            `Jumppack.start`({opts})
+Start the jumplist navigation interface
+
+Opens the jumplist navigation interface with a floating window. Displays available
+jump positions with navigation preview. Supports directional navigation with offsets
+and filtering options. The interface allows interactive selection and navigation
+through your jump history with vim.jumplist.
+
+Parameters ~
+{opts} `(table|nil)` Navigation options with the following fields:
+  - offset (number): Navigation offset from current position. Negative for backward
+    jumps (e.g., -1 for previous position), positive for forward jumps (e.g., 1 for next).
+    If offset exceeds available range, falls back to nearest valid position.
+  - source (table): Custom source configuration (advanced usage)
+
+Return ~
+`(JumpItem|nil)` Selected jump item if user chose one, nil if cancelled
+
+Usage ~
+>lua
+-- Open interface showing previous jump position
+Jumppack.start({ offset = -1 })
+
+-- Open interface showing next jump position
+Jumppack.start({ offset = 1 })
+
+-- Open interface with no specific offset (shows all jumps)
+Jumppack.start()
+
+-- Advanced usage - capture selected item
+local selected = Jumppack.start({ offset = -2 })
+if selected then
+  print('Selected:', selected.path, 'at line', selected.lnum)
+end
+
+-- Typical workflow integration (using global variable)
+vim.keymap.set('n', '<C-o>', function()
+  Jumppack.start({ offset = -1 })
+end, { desc = 'Jump back with interface' })
+
+vim.keymap.set('n', '<C-i>', function()
+  Jumppack.start({ offset = 1 })
+end, { desc = 'Jump forward with interface' })
+
+-- Custom keymaps with global access
+vim.keymap.set('n', '<Leader>j', function()
+  Jumppack.start({ offset = -1 })
+end, { desc = 'Jump back' })
+
+-- Check if interface is active
+if Jumppack.is_active() then
+  print('Navigation interface is open')
+end
+
+-- Alternative: using require (not necessary after setup)
+-- require('jumppack').start({ offset = -1 })
+<
+
+See also ~
+|jumppack-navigation| For navigation patterns and workflows
+
+------------------------------------------------------------------------------
+                                                            *Jumppack.refresh()*
+                              `Jumppack.refresh`()
+Refresh the active navigation interface
+
+Updates the jumplist interface with current jump data. Only works when the interface
+is currently active. Useful for refreshing the view if the jumplist has changed
+during operation or if you want to reload the data without closing and
+reopening the interface.
+
+Usage ~
+>lua
+-- Refresh current interface (only if active)
+Jumppack.refresh()
+
+-- Typical use in custom mappings
+vim.keymap.set('n', '<F5>', function()
+  if Jumppack.is_active() then
+    Jumppack.refresh()
+  end
+end, { desc = 'Refresh jumppack interface' })
+<
+
+See also ~
+|jumppack-interface-management| For interface lifecycle management
+
+------------------------------------------------------------------------------
+                                                         *Jumppack.show_items()*
+                `Jumppack.show_items`({buf_id}, {items}, {opts})
+Display items in a buffer with syntax highlighting
+
+Renders jump items in the navigation buffer with file icons and syntax highlighting.
+Handles item formatting, icon display, and visual presentation. This is the main
+function used by the interface to show the jumplist entries.
+
+Parameters ~
+{buf_id} `(number)` Buffer ID to display items in
+{items} `(JumpItem[])` List of jump items to display with path, line, and offset info
+{opts} `(table|nil)` Display options with fields:
+  - show_icons (boolean): Whether to show file type icons (default: true)
+  - icons (table): Custom icon mapping for file types
+
+Usage ~
+>lua
+-- Display items with default options
+local buf = vim.api.nvim_create_buf(false, true)
+local items = {
+  { path = 'init.lua', lnum = 1, offset = -1, direction = 'back' },
+  { path = 'config.lua', lnum = 15, offset = 1, direction = 'forward' }
+}
+Jumppack.show_items(buf, items)
+
+-- Custom display options
+Jumppack.show_items(buf, items, {
+  show_icons = false,  -- Disable file icons
+  icons = { file = '📄', none = '  ' }  -- Custom icons
+})
+<
+
+See also ~
+|jumppack-display| For display customization options
+
+------------------------------------------------------------------------------
+                                                       *Jumppack.preview_item()*
+               `Jumppack.preview_item`({buf_id}, {item}, {opts})
+Preview a jump item in a buffer
+
+Displays a preview of the jump destination in the preview buffer. Shows the
+content around the jump target with syntax highlighting and cursor positioning.
+Used by the interface's preview mode to show file content before navigation.
+
+Parameters ~
+{buf_id} `(number)` Buffer ID for preview content (must be a valid buffer)
+{item} `(JumpItem|nil)` Jump item to preview. If nil, clears the preview buffer
+{opts} `(table|nil)` Preview options with fields:
+  - context_lines (number): Number of lines to show around target (default: varies)
+  - syntax_highlight (boolean): Whether to apply syntax highlighting (default: true)
+
+Usage ~
+>lua
+-- Preview a jump item
+local preview_buf = vim.api.nvim_create_buf(false, true)
+local item = { bufnr = 1, lnum = 10, col = 0, path = 'init.lua' }
+Jumppack.preview_item(preview_buf, item)
+
+-- Clear preview
+Jumppack.preview_item(preview_buf, nil)
+
+-- Custom preview with more context
+Jumppack.preview_item(preview_buf, item, {
+  context_lines = 10,
+  syntax_highlight = true
+})
+<
+
+See also ~
+|jumppack-preview| For preview customization
+
+------------------------------------------------------------------------------
+                                                        *Jumppack.choose_item()*
+                         `Jumppack.choose_item`({item})
+Choose and navigate to a jump item
+
+Executes navigation to the selected jump item. Handles backward and forward
+jumps using Vim's jump commands (Ctrl-o and Ctrl-i). This function performs the
+actual jump navigation and closes the navigation interface.
+
+Parameters ~
+{item} `(JumpItem)` Jump item to navigate to with offset field for direction:
+  - Negative offset: Navigate backward in jumplist (uses <C-o>)
+  - Positive offset: Navigate forward in jumplist (uses <C-i>)
+  - Zero offset: Stay at current position
+
+Usage ~
+>lua
+-- Navigate to a jump item (typically called by interface)
+local item = { offset = -2, bufnr = 1, lnum = 10 }
+Jumppack.choose_item(item)
+
+-- Example of how interface uses this internally
+vim.keymap.set('n', '<CR>', function()
+  local current_item = get_selected_item()
+  Jumppack.choose_item(current_item)
+end, { buffer = interface_buf })
+<
+
+See also ~
+|jumppack-navigation| For jump navigation patterns
+
+------------------------------------------------------------------------------
+                                                          *Jumppack.is_active()*
+                             `Jumppack.is_active`()
+Check if the navigation interface is currently active
+
+Determines whether the Jumppack navigation interface is currently open and active.
+Useful for conditional operations and preventing conflicts with multiple instances.
+
+Return ~
+`(boolean)` True if interface is active, false otherwise
+
+Usage ~
+>lua
+-- Check before performing operations
+if Jumppack.is_active() then
+  print('Interface is open')
+  Jumppack.refresh()
+else
+  print('No active interface')
+end
+
+-- Conditional keymap behavior
+vim.keymap.set('n', '<Esc>', function()
+  if Jumppack.is_active() then
+    -- Close interface
+    vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes('<Esc>', true, true, true), 'n', false)
+  else
+    -- Normal escape behavior
+    vim.cmd('nohlsearch')
+  end
+end)
+<
+------------------------------------------------------------------------------
+                                                          *Jumppack.get_state()*
+                             `Jumppack.get_state`()
+Get the current state of the active navigation interface
+
+Retrieves the current state of the active interface instance, including items,
+selection, and general information. Returns nil if no interface is active. Useful
+for inspecting interface state and implementing custom behaviors.
+
+Return ~
+`(PickerState|nil)` Current interface state with fields:
+  - items (JumpItem[]): Available jump items
+  - selection (table): Current selection with index
+  - general_info (table): Interface metadata and configuration
+  - current (JumpItem): Currently selected item
+
+Usage ~
+>lua
+-- Get and inspect interface state
+local state = Jumppack.get_state()
+if state then
+  print('Selected item:', state.current.path)
+  print('Total items:', #state.items)
+  print('Selection index:', state.selection.index)
+end
+
+-- Custom behavior based on interface state
+vim.keymap.set('n', '<C-g>', function()
+  local state = Jumppack.get_state()
+  if state and state.current then
+    vim.notify(string.format('Jump: %s:%d', state.current.path, state.current.lnum))
+  end
+end, { desc = 'Show current jump info' })
+<
+------------------------------------------------------------------------------
+                                                    *H.jumplist.create_source()*
+                       `H.jumplist.create_source`({opts})
+jumplist source for picker
+Parameters ~
+{opts} `(table)` Picker options
+Return ~
+`(table|nil)` Jumplist source or nil if no jumps
+
+------------------------------------------------------------------------------
+                                                          *H.jumplist.get_all()*
+                         `H.jumplist.get_all`({config})
+all valid jumps from jumplist
+Parameters ~
+{config} `(Config|nil)` Configuration
+Return ~
+`(JumpItem[])` List of valid jump items
+
+------------------------------------------------------------------------------
+                                                      *H.jumplist.create_item()*
+                `H.jumplist.create_item`({jump}, {i}, {current})
+jump item from jumplist entry
+Parameters ~
+{jump} `(table)` Vim jumplist entry
+{i} `(number)` Jump index
+{current} `(number)` Current position index
+Return ~
+`(JumpItem|nil)` Jump item or nil if invalid
+
+------------------------------------------------------------------------------
+                                               *H.jumplist.find_target_offset()*
+      `H.jumplist.find_target_offset`({jumps}, {target_offset}, {config})
+best matching jump for target offset
+Parameters ~
+{jumps} `(JumpItem[])` Available jump items
+{target_offset} `(number)` Target navigation offset
+{config} `(Config)` Configuration
+Return ~
+`(number)` Index of best matching jump
+
+------------------------------------------------------------------------------
+                                                              *H.config.setup()*
+                           `H.config.setup`({config})
+and validate configuration
+Parameters ~
+{config} `(Config|nil)` Configuration table
+Return ~
+`(Config)` Validated configuration
+
+------------------------------------------------------------------------------
+                                                              *H.config.apply()*
+                           `H.config.apply`({config})
+configuration to Jumppack
+Parameters ~
+{config} `(Config)` Configuration to apply
+
+------------------------------------------------------------------------------
+                                                                *H.config.get()*
+                            `H.config.get`({config})
+merged configuration
+Parameters ~
+{config} `(Config|nil)` Override configuration
+Return ~
+`(Config)` Merged configuration
+
+------------------------------------------------------------------------------
+                                                 *H.config.setup_autocommands()*
+                        `H.config.setup_autocommands`()
+autocommands for Jumppack
+
+------------------------------------------------------------------------------
+                                                   *H.config.setup_highlights()*
+                         `H.config.setup_highlights`()
+default highlight groups
+
+------------------------------------------------------------------------------
+                                                     *H.config.setup_mappings()*
+                      `H.config.setup_mappings`({config})
+Setup global key mappings that override default jump behavior
+
+Sets up global keymaps that replace Vim's default <C-o> and <C-i> jump
+commands with Jumppack's enhanced interface. Only runs if global_mappings option
+is enabled. The mappings support count prefixes (e.g., 3<C-o> for 3 jumps back).
+
+Parameters ~
+{config} `(Config)` Configuration with mappings
+
+------------------------------------------------------------------------------
+                                                      *H.config.validate_opts()*
+                        `H.config.validate_opts`({opts})
+picker options
+Parameters ~
+{opts} `(table|nil)` Options to validate
+Return ~
+`(table)` Validated options
+
+------------------------------------------------------------------------------
+                                                           *H.instance.create()*
+                          `H.instance.create`({opts})
+new picker instance
+Parameters ~
+{opts} `(table)` Validated picker options
+Return ~
+`(Instance)` New picker instance
+
+------------------------------------------------------------------------------
+                                                         *H.instance.run_loop()*
+                       `H.instance.run_loop`({instance})
+main picker event loop
+Parameters ~
+{instance} `(Instance)` Picker instance
+Return ~
+`(JumpItem|nil)` Selected item or nil if aborted
+
+------------------------------------------------------------------------------
+                                                           *H.instance.update()*
+                `H.instance.update`({instance}, {update_window})
+picker instance display
+Parameters ~
+{instance} `(Instance)` Picker instance
+{update_window} `(boolean|nil)` Whether to update window config
+
+------------------------------------------------------------------------------
+                                                      *H.window.create_buffer()*
+                           `H.window.create_buffer`()
+scratch buffer for picker
+Return ~
+`(number)` Buffer ID
+
+------------------------------------------------------------------------------
+                                                      *H.window.create_window()*
+            `H.window.create_window`({buf_id}, {win_config}, {cwd})
+floating window for picker
+Parameters ~
+{buf_id} `(number)` Buffer ID to display
+{win_config} `(table|function|nil)` Window configuration
+{cwd} `(string)` Current working directory
+Return ~
+`(number)` Window ID
+
+------------------------------------------------------------------------------
+                                                     *H.window.compute_config()*
+             `H.window.compute_config`({win_config}, {is_for_open})
+window configuration
+Parameters ~
+{win_config} `(table|function|nil)` Window config or callable
+{is_for_open} `(boolean|nil)` Whether config is for opening window
+Return ~
+`(table)` Computed window configuration
+
+------------------------------------------------------------------------------
+                                                      *H.instance.track_focus()*
+                      `H.instance.track_focus`({instance})
+focus loss for picker instance
+Parameters ~
+{instance} `(Instance)` Picker instance
+
+------------------------------------------------------------------------------
+                                                        *H.instance.set_items()*
+        `H.instance.set_items`({instance}, {items}, {initial_selection})
+items and initial selection for instance
+Parameters ~
+{instance} `(Instance)` Picker instance
+{items} `(JumpItem[])` Jump items
+{initial_selection} `(number|nil)` Initial selection index
+
+------------------------------------------------------------------------------
+                                                    *H.display.item_to_string()*
+                       `H.display.item_to_string`({item})
+jump item to display string
+Parameters ~
+{item} `(JumpItem)` Jump item to convert
+Return ~
+`(string)` Display string
+
+------------------------------------------------------------------------------
+                                                    *H.instance.set_selection()*
+         `H.instance.set_selection`({instance}, {ind}, {force_update})
+current selection index
+Parameters ~
+{instance} `(Instance)` Picker instance
+{ind} `(number)` Selection index
+{force_update} `(boolean|nil)` Force visible range update
+
+------------------------------------------------------------------------------
+                                                      *H.display.update_lines()*
+                      `H.display.update_lines`({instance})
+buffer lines with current items
+Parameters ~
+{instance} `(Instance)` Picker instance
+
+------------------------------------------------------------------------------
+                                                 *H.config.normalize_mappings()*
+                   `H.config.normalize_mappings`({mappings})
+key mappings for actions
+Parameters ~
+{mappings} `(ConfigMappings)` Key mappings
+Return ~
+`(table)` Normalized action mappings
+
+------------------------------------------------------------------------------
+                                                     *H.display.update_border()*
+                     `H.display.update_border`({instance})
+window border text
+Parameters ~
+{instance} `(Instance)` Picker instance
+
+------------------------------------------------------------------------------
+                                                    *H.display.compute_footer()*
+                `H.display.compute_footer`({instance}, {win_id})
+footer content for window
+Parameters ~
+{instance} `(Instance)` Picker instance
+{win_id} `(number)` Window ID
+Return ~
+`(table)` Footer content
+
+------------------------------------------------------------------------------
+                                                          *H.instance.destroy()*
+                        `H.instance.destroy`({instance})
+picker instance and cleanup
+Parameters ~
+{instance} `(Instance)` Picker instance
+
+------------------------------------------------------------------------------
+                                                            *H.actions.choose()*
+                 `H.actions.choose`({instance}, {pre_command})
+current item with optional pre-command
+Parameters ~
+{instance} `(Instance)` Picker instance
+{pre_command} `(string|nil)` Command to execute before choosing
+Return ~
+`(boolean)` True if should stop picker
+
+------------------------------------------------------------------------------
+                                                   *H.instance.move_selection()*
+              `H.instance.move_selection`({instance}, {by}, {to})
+current selection by offset or to position
+Parameters ~
+{instance} `(Instance)` Picker instance
+{by} `(number)` Movement offset
+{to} `(number|nil)` Target position
+
+------------------------------------------------------------------------------
+                                                    *H.instance.get_selection()*
+                     `H.instance.get_selection`({instance})
+currently selected item
+Parameters ~
+{instance} `(Instance)` Picker instance
+Return ~
+`(JumpItem|nil)` Current selection or nil
+
+------------------------------------------------------------------------------
+                                                       *H.display.render_main()*
+                      `H.display.render_main`({instance})
+main buffer view
+Parameters ~
+{instance} `(Instance)` Picker instance
+
+------------------------------------------------------------------------------
+                                                  *H.display.get_general_info()*
+                    `H.display.get_general_info`({instance})
+general information about picker state
+Parameters ~
+{instance} `(Instance)` Picker instance
+Return ~
+`(table)` General information
+
+------------------------------------------------------------------------------
+                                                    *H.display.render_preview()*
+                     `H.display.render_preview`({instance})
+preview buffer view
+Parameters ~
+{instance} `(Instance)` Picker instance
+
+------------------------------------------------------------------------------
+                                                          *H.display.get_icon()*
+                     `H.display.get_icon`({item}, {icons})
+icon for item
+Parameters ~
+{item} `(JumpItem)` Item to get icon for
+{icons} `(table)` Icon configuration
+Return ~
+`(table)` Icon data with text and highlight
+
+------------------------------------------------------------------------------
+                                                         *H.utils.get_fs_type()*
+                         `H.utils.get_fs_type`({path})
+filesystem type for path
+Parameters ~
+{path} `(string)` File path
+Return ~
+`(string)` Type: 'file', 'directory', or 'none'
+
+------------------------------------------------------------------------------
+                                                               *H.utils.error()*
+                             `H.utils.error`({msg})
+error message
+Parameters ~
+{msg} `(string)` Error message
+
+------------------------------------------------------------------------------
+                                                          *H.utils.check_type()*
+            `H.utils.check_type`({name}, {val}, {ref}, {allow_nil})
+value type and error if invalid
+Parameters ~
+{name} `(string)` Parameter name
+{val} `(any)` Value to check
+{ref} `(string)` Expected type
+{allow_nil} `(boolean|nil)` Allow nil values
+
+------------------------------------------------------------------------------
+                                                              *H.utils.notify()*
+                     `H.utils.notify`({msg}, {level_name})
+notification message
+Parameters ~
+{msg} `(string)` Message to display
+{level_name} `(string|nil)` Log level name
+
+------------------------------------------------------------------------------
+                                                        *H.utils.is_valid_buf()*
+                        `H.utils.is_valid_buf`({buf_id})
+if buffer ID is valid
+Parameters ~
+{buf_id} `(number)` Buffer ID
+Return ~
+`(boolean)` True if valid
+
+------------------------------------------------------------------------------
+                                                        *H.utils.is_valid_win()*
+                        `H.utils.is_valid_win`({win_id})
+if window ID is valid
+Parameters ~
+{win_id} `(number)` Window ID
+Return ~
+`(boolean)` True if valid
+
+------------------------------------------------------------------------------
+                                                  *H.utils.create_scratch_buf()*
+                      `H.utils.create_scratch_buf`({name})
+scratch buffer
+Parameters ~
+{name} `(string)` Buffer name
+Return ~
+`(number)` Buffer ID
+
+
+ vim:tw=78:ts=8:noet:ft=help:norl:

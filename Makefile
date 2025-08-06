@@ -1,6 +1,6 @@
 # Makefile for Jumppack plugin
 
-.PHONY: test test-interactive test-watch format format-check lint ci ci-act help
+.PHONY: test test-interactive test-watch format format-check lint ci ci-act doc doc-check help
 
 # Default target
 help:
@@ -10,6 +10,8 @@ help:
 	@echo "  format         - Format Lua code with stylua"
 	@echo "  format-check   - Check code formatting (for CI)"
 	@echo "  lint           - Lint Lua code with luacheck"
+	@echo "  doc            - Generate documentation with mini.doc"
+	@echo "  doc-check      - Check documentation generation (for CI)"
 	@echo "  ci             - Run all CI checks locally"
 	@echo "  ci-act         - Run GitHub Actions workflow locally with act"
 	@echo "  help           - Show this help message"
@@ -52,8 +54,38 @@ lint:
 		echo "luacheck not found. Install with: luarocks install luacheck"; \
 	fi
 
+# Generate documentation with mini.doc
+doc:
+	@echo "Generating documentation..."
+	@mkdir -p doc
+	@if [ -f scripts/generate_docs.lua ]; then \
+		nvim --headless --noplugin -u scripts/minimal_init.lua -c "luafile scripts/generate_docs.lua" -c "qa!"; \
+	else \
+		echo "Documentation script not found. Creating..."; \
+		$(MAKE) create-doc-script; \
+		nvim --headless --noplugin -u scripts/minimal_init.lua -c "luafile scripts/generate_docs.lua" -c "qa!"; \
+	fi
+	@echo "Documentation generated in doc/jumppack.txt"
+
+# Check documentation generation (for CI)
+doc-check:
+	@echo "Checking documentation generation..."
+	@mkdir -p doc
+	@if [ -f scripts/generate_docs.lua ]; then \
+		nvim --headless --noplugin -u scripts/minimal_init.lua -c "luafile scripts/generate_docs.lua" -c "qa!" 2>/dev/null; \
+		if [ $$? -eq 0 ]; then \
+			echo "Documentation generation successful"; \
+		else \
+			echo "Documentation generation failed"; \
+			exit 1; \
+		fi; \
+	else \
+		echo "Documentation script not found"; \
+		exit 1; \
+	fi
+
 # Run all CI checks locally
-ci: test format-check lint
+ci: test format-check lint doc-check
 	@echo "All CI checks passed!"
 
 # Run GitHub Actions workflow locally with act
