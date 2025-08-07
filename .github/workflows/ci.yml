@@ -97,5 +97,5 @@ jobs:
     - name: Run lint
       run: make lint
 
-    - name: Check documentation generation
+    - name: Check documentation
       run: make doc-check

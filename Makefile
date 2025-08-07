@@ -1,6 +1,6 @@
 # Makefile for Jumppack plugin
 
-.PHONY: test test-interactive test-watch format format-check lint ci ci-act doc doc-check help
+.PHONY: test test-interactive format format-check lint ci ci-act doc doc-check help
 
 # Default target
 help:
@@ -69,18 +69,31 @@ doc:
 
 # Check documentation generation (for CI)
 doc-check:
-	@echo "Checking documentation generation..."
-	@mkdir -p doc
-	@if [ -f scripts/generate_docs.lua ]; then \
-		nvim --headless --noplugin -u scripts/minimal_init.lua -c "luafile scripts/generate_docs.lua" -c "qa!" 2>/dev/null; \
-		if [ $$? -eq 0 ]; then \
-			echo "Documentation generation successful"; \
+	@echo "Checking if documentation is up-to-date..."
+	@if [ ! -f doc/jumppack.txt ]; then \
+		echo "Error: doc/jumppack.txt not found. Run 'make doc' first."; \
+		exit 1; \
+	fi
+	@echo "Backing up existing documentation..."
+	@cp doc/jumppack.txt doc/jumppack.txt.backup
+	@echo "Generating temporary documentation for comparison..."
+	@mkdir -p /tmp/jumppack-doccheck
+	@if TEMP_DOC=/tmp/jumppack-doccheck/jumppack.txt nvim --headless --noplugin \
+		-u scripts/minimal_init.lua -c "luafile scripts/generate_docs.lua" 2>/dev/null; then \
+		mv doc/jumppack.txt.backup doc/jumppack.txt; \
+		if diff -q doc/jumppack.txt /tmp/jumppack-doccheck/jumppack.txt >/dev/null 2>&1; then \
+			echo "✓ Documentation is up-to-date"; \
+			rm -rf /tmp/jumppack-doccheck; \
 		else \
-			echo "Documentation generation failed"; \
+			echo "✗ Documentation is out of date!"; \
+			echo "  Run 'make doc' to update and commit the changes."; \
+			rm -rf /tmp/jumppack-doccheck; \
 			exit 1; \
 		fi; \
 	else \
-		echo "Documentation script not found"; \
+		mv doc/jumppack.txt.backup doc/jumppack.txt 2>/dev/null || true; \
+		echo "✗ Failed to generate documentation"; \
+		rm -rf /tmp/jumppack-doccheck; \
 		exit 1; \
 	fi
 

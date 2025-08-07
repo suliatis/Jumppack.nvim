@@ -39,13 +39,17 @@ local function generate_documentation()
   -- Setup mini.doc
   local MiniDoc = setup_mini_doc()
 
+  -- Get output path
+  local output_path = os.getenv('TEMP_DOC') or 'doc/jumppack.txt'
+  print('Using output path: ' .. output_path)
+
   -- Configure mini.doc
   MiniDoc.setup({
     -- Input files (source code with annotations)
     input = { 'lua/Jumppack.lua' },
 
     -- Output file (help documentation)
-    output = 'doc/jumppack.txt',
+    output = output_path,
 
     -- Configuration for documentation generation
     hooks = {
@@ -125,11 +129,19 @@ local function generate_documentation()
   print('Processing annotations and generating help file...')
   MiniDoc.generate()
 
-  print('Documentation generation completed successfully!')
-  print('Generated: doc/jumppack.txt')
+  -- Handle temp doc case by moving file if needed
+  local temp_doc = os.getenv('TEMP_DOC')
+  local output_file = temp_doc or 'doc/jumppack.txt'
 
-  -- Verify the output file exists and has content
-  local output_file = 'doc/jumppack.txt'
+  if temp_doc and vim.fn.filereadable('doc/jumppack.txt') == 1 then
+    -- Copy generated file to temp location, preserving exact format
+    local lines = vim.fn.readfile('doc/jumppack.txt')
+    -- Write without adding final newline to match original format
+    vim.fn.writefile(lines, temp_doc, 'b')
+  end
+
+  print('Documentation generation completed successfully!')
+  print('Generated: ' .. output_file)
   if vim.fn.filereadable(output_file) == 1 then
     local lines = vim.fn.readfile(output_file)
     print(string.format('Generated %d lines of documentation', #lines))
@@ -155,8 +167,10 @@ local function main()
   end
 
   -- Create doc directory if it doesn't exist
-  if vim.fn.isdirectory('doc') == 0 then
-    vim.fn.mkdir('doc', 'p')
+  local output_file = os.getenv('TEMP_DOC') or 'doc/jumppack.txt'
+  local output_dir = vim.fn.fnamemodify(output_file, ':h')
+  if vim.fn.isdirectory(output_dir) == 0 then
+    vim.fn.mkdir(output_dir, 'p')
   end
 
   -- Generate documentation
@@ -164,7 +178,7 @@ local function main()
 
   if not success then
     print('Error generating documentation: ' .. tostring(err))
-    vim.cmd('cquit 1') -- Exit with error code
+    vim.cmd('cquit 1') -- Exit with error code 1
   else
     print('Documentation generation completed successfully')
     vim.cmd('qall!') -- Exit successfully
