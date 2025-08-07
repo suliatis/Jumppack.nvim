@@ -8,34 +8,46 @@ on:
 
 jobs:
   test:
+    name: Test - Neovim ${{ matrix.nvim-version }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        nvim-version: ['v0.11.0', 'v0.11.3']
+        nvim-version: [
+          'v0.11.0',
+          'v0.11.1',
+          'v0.11.2',
+          'v0.11.3',
+          'nightly'
+        ]
 
     steps:
     - uses: actions/checkout@v4
 
-    - name: Cache Neovim
-      uses: actions/cache@v4
-      id: cache-nvim
+    - name: Setup Neovim
+      uses: rhysd/action-setup-vim@v1
       with:
-        path: ~/nvim
-        key: nvim-${{ matrix.nvim-version }}-${{ runner.os }}
+        neovim: true
+        version: ${{ matrix.nvim-version }}
 
-    - name: Install Neovim
-      if: steps.cache-nvim.outputs.cache-hit != 'true'
-      run: |
-        mkdir -p ~/nvim
-        cd ~/nvim
-        # Download precompiled Neovim directly from GitHub releases
-        curl -L --fail https://github.com/neovim/neovim/releases/download/${{ matrix.nvim-version }}/nvim-linux-x86_64.tar.gz -o nvim.tar.gz
-        tar xzf nvim.tar.gz --strip-components=1
-        rm nvim.tar.gz
+    - name: Verify Neovim installation
+      run: nvim --version
 
-    - name: Add Neovim to PATH
-      run: echo "$HOME/nvim/bin" >> $GITHUB_PATH
+    - name: Run tests
+      run: make test
+
+  quality:
+    name: Code Quality
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Setup Neovim
+      uses: rhysd/action-setup-vim@v1
+      with:
+        neovim: true
+        version: v0.11.3
 
     - name: Cache luarocks
       uses: actions/cache@v4
@@ -78,9 +90,6 @@ jobs:
         nvim --version
         luacheck --version
         stylua --version
-
-    - name: Run tests
-      run: make test
 
     - name: Check formatting
       run: make format-check
