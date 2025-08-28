@@ -17,6 +17,8 @@
 
 ---
 
+![Jumppack Logo](res/logo.png)
+
 **Jumppack.nvim** is a Neovim plugin that enhances the built-in jumplist with a visual floating window picker. Navigate your jump history with preview functionality, syntax highlighting, and intuitive keymaps.
 
 ## ✨ Features
