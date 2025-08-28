@@ -27,7 +27,9 @@
 - 📁 **File icons** - Integration with MiniIcons and nvim-web-devicons
 - ⚡ **Fast and lightweight** - Single-file plugin with minimal dependencies
 - 🎨 **Fully customizable** - Configure window appearance, keymaps, and behavior
-- 📍 **Current position indicator** - Always know where you are in the jumplist
+- 📍 **Enhanced position display** - Format: `[indicator] [icon] [path/name] [lnum:col]` with line previews
+- 🔍 **Powerful filtering** - Filter by current file, working directory, or hide unwanted entries
+- 💾 **Persistent hide system** - Mark entries as hidden and remember across sessions
 - 🔀 **Multiple open modes** - Open jumps in splits, tabs, or current window
 
 ## 📦 Installation
@@ -118,14 +120,28 @@ Jumppack.setup({
       wrap_edges = true,       -- Wrap around when reaching jumplist edges
     },
     mappings = {
+      -- Navigation
       jump_back = '<C-o>',
       jump_forward = '<C-i>',
+      
+      -- Selection  
       choose = '<CR>',
       choose_in_split = '<C-s>',
       choose_in_vsplit = '<C-v>',
       choose_in_tabpage = '<C-t>',
+      
+      -- Control
       stop = '<Esc>',
-      toggle_preview = '<C-p>',
+      toggle_preview = 'p',
+      
+      -- Filtering (temporary filters)
+      toggle_file_filter = 'f',
+      toggle_cwd_filter = 'c', 
+      toggle_show_hidden = '.',
+      reset_filters = 'r',
+      
+      -- Hide management (persistent)
+      toggle_hidden = 'x',
     },
 })
 ```
@@ -141,8 +157,9 @@ Once installed with default settings, Jumppack automatically enhances your jumpl
 
 1. **Navigate normally** - Use `<C-o>` to go back or `<C-i>` to go forward in your jumplist
 2. **Visual picker opens** - When you have multiple jumps, a floating window shows your jump history
-3. **Preview and choose** - Navigate with `<C-o>`/`<C-i>`, preview with `<C-p>`, select with `<CR>`
-4. **Alternative open modes** - Use `<C-s>` for split, `<C-v>` for vsplit, `<C-t>` for new tab
+3. **Preview and choose** - Navigate with `<C-o>`/`<C-i>`, toggle preview with `p`, select with `<CR>`
+4. **Filter and manage** - Use `f` (file filter), `c` (directory filter), `.` (show hidden), `x` (hide item)
+5. **Alternative open modes** - Use `<C-s>` for split, `<C-v>` for vsplit, `<C-t>` for new tab
 
 ### Programmatic usage
 
@@ -175,6 +192,43 @@ local jumppack = require('jumppack')
 jumppack.start({ direction = 'back' })
 ```
 
+## 🔧 Advanced Features
+
+### Filtering System
+
+Jumppack includes a powerful filtering system to help manage your jumplist:
+
+- **File filter** (`f`): Show only jumps from the current file
+- **Directory filter** (`c`): Show only jumps from the current working directory
+- **Hidden items** (`.`): Toggle visibility of items you've marked as hidden
+- **Reset filters** (`r`): Clear all active filters
+
+### Hide System
+
+You can mark jump entries as "hidden" to reduce clutter:
+
+- **Hide current item** (`x`): Mark the currently selected jump as hidden
+- Hidden items are remembered across Neovim sessions
+- Use the show hidden filter (`.`) to view or unhide items
+- Hidden items appear with a `✗` marker when visible
+
+### Smart Display
+
+Jumppack uses the format: **`[indicator] [icon] [path/name] [lnum:col] [│ line preview]`**
+
+**Examples:**
+- `● 󰢱 src/main.lua 45:12 │ local function init()`
+- `✗  config.json 10:5 │ "name": "jumppack"`  
+- `↑3  init.lua 1:1 │ local M = {}`
+
+**Display features:**
+- **Smart filenames**: Ambiguous files like `init.lua` show parent directory (`parent/init.lua`)
+- **Position markers**: `●` current, `↑N` back N positions, `↓N` forward N positions, `✗` hidden
+- **File icons**: Integration with MiniIcons/nvim-web-devicons for file type visualization
+- **Precise positioning**: Always shows line:column (`45:12`) for exact location context
+- **Line previews**: See the actual content at each jump location
+- **Filter status**: Shows active filters in the status line (e.g., `[File,CWD]`)
+
 ## ⚙️ Configuration
 
 ### Default configuration
@@ -192,7 +246,7 @@ require('jumppack').setup({
     wrap_edges = true,
 
     -- Default view mode ('list' or 'preview')
-    default_view = 'list',
+    default_view = 'preview',
   },
 
   mappings = {
@@ -208,7 +262,16 @@ require('jumppack').setup({
 
     -- Control
     stop = '<Esc>',             -- Close picker
-    toggle_preview = '<C-p>',   -- Toggle preview window
+    toggle_preview = 'p',       -- Toggle between list and preview modes
+
+    -- Filtering (temporary filters, reset when picker closes)
+    toggle_file_filter = 'f',   -- Show only jumps in current file
+    toggle_cwd_filter = 'c',    -- Show only jumps in current working directory
+    toggle_show_hidden = '.',   -- Toggle visibility of hidden items
+    reset_filters = 'r',        -- Clear all active filters
+
+    -- Hide management (persistent across sessions via vim.g)
+    toggle_hidden = 'x',        -- Hide/unhide current item permanently
   },
 
   window = {

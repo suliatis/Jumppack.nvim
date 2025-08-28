@@ -138,7 +138,13 @@ T['Configuration Tests']['Basic Configuration']['merges user config with default
       choose_in_tabpage = '<C-t>',
       choose_in_vsplit = '<C-v>',
       stop = '<Esc>',
-      toggle_preview = '<C-p>',
+      toggle_preview = 'p',
+      -- New filter mappings
+      toggle_file_filter = 'f',
+      toggle_cwd_filter = 'c',
+      toggle_show_hidden = '.',
+      reset_filters = 'r',
+      toggle_hidden = 'x',
     },
   }
 
@@ -159,7 +165,13 @@ T['Configuration Tests']['Basic Configuration']['validates configuration in setu
       choose_in_tabpage = '<C-t>',
       choose_in_vsplit = '<C-v>',
       stop = '<Esc>',
-      toggle_preview = '<C-p>',
+      toggle_preview = 'p',
+      -- New filter mappings
+      toggle_file_filter = 'f',
+      toggle_cwd_filter = 'c',
+      toggle_show_hidden = '.',
+      reset_filters = 'r',
+      toggle_hidden = 'x',
     },
   }
 
@@ -220,7 +232,12 @@ T['Configuration Tests']['Mapping Configuration']['creates global mappings by de
       choose_in_tabpage = '<C-t>',
       choose_in_vsplit = '<C-v>',
       stop = '<Esc>',
-      toggle_preview = '<C-p>',
+      toggle_preview = 'p',
+      toggle_file_filter = 'f',
+      toggle_cwd_filter = 'c',
+      toggle_show_hidden = '.',
+      reset_filters = 'r',
+      toggle_hidden = 'x',
     },
   }
 
@@ -259,7 +276,12 @@ T['Configuration Tests']['Mapping Configuration']['respects global_mappings = fa
       choose_in_tabpage = '<C-t>',
       choose_in_vsplit = '<C-v>',
       stop = '<Esc>',
-      toggle_preview = '<C-p>',
+      toggle_preview = 'p',
+      toggle_file_filter = 'f',
+      toggle_cwd_filter = 'c',
+      toggle_show_hidden = '.',
+      reset_filters = 'r',
+      toggle_hidden = 'x',
     },
   }
 
@@ -292,7 +314,12 @@ T['Configuration Tests']['Mapping Configuration']['respects global_mappings = tr
       choose_in_tabpage = '<C-t>',
       choose_in_vsplit = '<C-v>',
       stop = '<Esc>',
-      toggle_preview = '<C-p>',
+      toggle_preview = 'p',
+      toggle_file_filter = 'f',
+      toggle_cwd_filter = 'c',
+      toggle_show_hidden = '.',
+      reset_filters = 'r',
+      toggle_hidden = 'x',
     },
   }
 
@@ -769,6 +796,369 @@ T['Integration Tests']['handles invalid start options'] = function()
   MiniTest.expect.error(function()
     Jumppack.start('not a table')
   end)
+end
+
+-- Phase 1: Visual Display Tests
+T['Display Tests'] = MiniTest.new_set()
+
+T['Display Tests']['Item Formatting'] = MiniTest.new_set()
+
+T['Display Tests']['Item Formatting']['displays items with new format'] = function()
+  -- Set up plugin
+  Jumppack.setup({})
+
+  local test_buf = H.create_test_buffer('test.lua', { 'function test() end' })
+
+  MiniTest.expect.no_error(function()
+    local item = {
+      offset = 0,
+      path = vim.api.nvim_buf_get_name(test_buf),
+      lnum = 1,
+      bufnr = test_buf,
+      is_current = true,
+    }
+
+    -- Test list mode display
+    local list_buf = vim.api.nvim_create_buf(false, true)
+    Jumppack.show_items(list_buf, { item }, {})
+    local lines = vim.api.nvim_buf_get_lines(list_buf, 0, -1, false)
+
+    -- Should contain the item with new format
+    MiniTest.expect.equality(#lines > 0, true)
+    if #lines > 0 then
+      -- Should contain current marker (●) somewhere in the line
+      MiniTest.expect.equality(lines[1]:find('●') ~= nil, true)
+      -- Should not contain old format markers (←, →)
+      MiniTest.expect.equality(lines[1]:find('←'), nil)
+      MiniTest.expect.equality(lines[1]:find('→'), nil)
+    end
+
+    vim.api.nvim_buf_delete(list_buf, { force = true })
+  end)
+
+  H.cleanup_buffers({ test_buf })
+end
+
+T['Display Tests']['Item Formatting']['shows line preview in list mode'] = function()
+  Jumppack.setup({})
+
+  local test_buf = H.create_test_buffer('preview_test.lua', { 'local result = "test content"' })
+
+  MiniTest.expect.no_error(function()
+    local item = {
+      offset = -1,
+      path = vim.api.nvim_buf_get_name(test_buf),
+      lnum = 1,
+      bufnr = test_buf,
+      is_current = false,
+    }
+
+    local display_buf = vim.api.nvim_create_buf(false, true)
+    Jumppack.show_items(display_buf, { item }, {})
+    local lines = vim.api.nvim_buf_get_lines(display_buf, 0, -1, false)
+
+    if #lines > 0 then
+      -- Should contain the line content
+      MiniTest.expect.equality(lines[1]:find('test content') ~= nil, true)
+      -- Should contain separator
+      MiniTest.expect.equality(lines[1]:find('│') ~= nil, true)
+    end
+
+    vim.api.nvim_buf_delete(display_buf, { force = true })
+  end)
+
+  H.cleanup_buffers({ test_buf })
+end
+
+-- Phase 3: Filter System Tests
+T['Filter System'] = MiniTest.new_set()
+
+T['Filter System']['H.filters.apply'] = function()
+  local items = {
+    { filepath = '/test/file1.lua', lnum = 1, bufnr = 1, is_current = false },
+    { filepath = '/test/file2.lua', lnum = 2, bufnr = 2, is_current = true },
+    { filepath = '/other/file3.lua', lnum = 3, bufnr = 3, is_current = false },
+    { filepath = '/test/file4.lua', lnum = 4, bufnr = 4, is_current = false, hidden = true },
+  }
+
+  -- Test file_only filter
+  local filters = { file_only = true, cwd_only = false, show_hidden = false }
+
+  -- Mock current file
+  local orig_expand = vim.fn.expand
+  vim.fn.expand = function(pattern)
+    if pattern == '%:p' then
+      return '/test/file2.lua'
+    end
+    return orig_expand(pattern)
+  end
+
+  local filtered = Jumppack.H.filters.apply(items, filters)
+  MiniTest.expect.equality(#filtered, 1)
+  MiniTest.expect.equality(filtered[1].filepath, '/test/file2.lua')
+
+  -- Test cwd_only filter
+  filters = { file_only = false, cwd_only = true, show_hidden = true }
+
+  -- Mock getcwd
+  local orig_getcwd = vim.fn.getcwd
+  vim.fn.getcwd = function()
+    return '/test'
+  end
+
+  filtered = Jumppack.H.filters.apply(items, filters)
+  MiniTest.expect.equality(#filtered, 3) -- Should include 3 files in /test/
+
+  -- Test show_hidden filter
+  filters = { file_only = false, cwd_only = false, show_hidden = false }
+  filtered = Jumppack.H.filters.apply(items, filters)
+  MiniTest.expect.equality(#filtered, 3) -- Should exclude hidden item
+
+  -- Restore mocks
+  vim.fn.expand = orig_expand
+  vim.fn.getcwd = orig_getcwd
+end
+
+T['Filter System']['H.filters.get_status_text'] = function()
+  local filters = { file_only = false, cwd_only = false, show_hidden = false }
+  MiniTest.expect.equality(Jumppack.H.filters.get_status_text(filters), '')
+
+  filters.file_only = true
+  MiniTest.expect.equality(Jumppack.H.filters.get_status_text(filters), '[File] ')
+
+  filters.cwd_only = true
+  MiniTest.expect.equality(Jumppack.H.filters.get_status_text(filters), '[File,CWD] ')
+
+  filters.show_hidden = true
+  MiniTest.expect.equality(Jumppack.H.filters.get_status_text(filters), '[File,CWD,Show-hidden] ')
+end
+
+T['Filter System']['Filter actions'] = function()
+  -- Setup test configuration
+  local config = {
+    options = { global_mappings = false, default_view = 'preview' },
+    mappings = {
+      jump_back = '<C-o>',
+      jump_forward = '<C-i>',
+      choose = '<CR>',
+      choose_in_split = '<C-s>',
+      choose_in_vsplit = '<C-v>',
+      choose_in_tabpage = '<C-t>',
+      stop = '<Esc>',
+      toggle_preview = 'p',
+      toggle_file_filter = 'f',
+      toggle_cwd_filter = 'c',
+      toggle_show_hidden = '.',
+      reset_filters = 'r',
+      toggle_hidden = 'x',
+    },
+    window = { config = nil },
+  }
+
+  require('jumppack').setup(config)
+
+  -- Create mock items and start picker
+  local items = {
+    { filepath = '/test/file1.lua', lnum = 1, bufnr = 1, is_current = false },
+    { filepath = '/test/file2.lua', lnum = 2, bufnr = 2, is_current = true },
+  }
+
+  -- Mock vim functions
+  local orig_expand = vim.fn.expand
+  vim.fn.expand = function(pattern)
+    if pattern == '%:p' then
+      return '/test/file2.lua'
+    end
+    return orig_expand(pattern)
+  end
+
+  -- Test filter toggle functions exist
+  local H = Jumppack.H
+  MiniTest.expect.equality(type(H.actions.toggle_file_filter), 'function')
+  MiniTest.expect.equality(type(H.actions.toggle_cwd_filter), 'function')
+  MiniTest.expect.equality(type(H.actions.toggle_show_hidden), 'function')
+  MiniTest.expect.equality(type(H.actions.reset_filters), 'function')
+
+  -- Restore mocks
+  vim.fn.expand = orig_expand
+end
+
+-- Phase 4: Hide System Tests
+T['Hide System'] = MiniTest.new_set()
+
+T['Hide System']['H.hide functions'] = function()
+  -- Clear any existing hidden items
+  vim.g.jumppack_hidden = {}
+
+  local item = { filepath = '/test/file.lua', lnum = 10 }
+
+  -- Test hide key generation
+  local key = Jumppack.H.hide.get_key(item)
+  MiniTest.expect.equality(key, '/test/file.lua:10')
+
+  -- Test item not hidden initially
+  MiniTest.expect.equality(Jumppack.H.hide.is_hidden(item), false)
+
+  -- Test toggle to hidden
+  local new_status = Jumppack.H.hide.toggle(item)
+  MiniTest.expect.equality(new_status, true)
+  MiniTest.expect.equality(Jumppack.H.hide.is_hidden(item), true)
+
+  -- Test toggle back to not hidden
+  new_status = Jumppack.H.hide.toggle(item)
+  MiniTest.expect.equality(new_status, false)
+  MiniTest.expect.equality(Jumppack.H.hide.is_hidden(item), false)
+
+  -- Test mark_items function
+  local items = {
+    { filepath = '/test/file1.lua', lnum = 1 },
+    { filepath = '/test/file2.lua', lnum = 2 },
+  }
+
+  -- Mark first item as hidden
+  Jumppack.H.hide.toggle(items[1])
+
+  -- Mark items with hide status
+  local marked_items = Jumppack.H.hide.mark_items(items)
+  MiniTest.expect.equality(marked_items[1].hidden, true)
+  MiniTest.expect.equality(marked_items[2].hidden, false)
+
+  -- Cleanup
+  vim.g.jumppack_hidden = {}
+end
+
+T['Hide System']['Toggle hidden action'] = function()
+  -- Setup test configuration
+  local config = {
+    options = { global_mappings = false, default_view = 'preview' },
+    mappings = {
+      jump_back = '<C-o>',
+      jump_forward = '<C-i>',
+      choose = '<CR>',
+      choose_in_split = '<C-s>',
+      choose_in_vsplit = '<C-v>',
+      choose_in_tabpage = '<C-t>',
+      stop = '<Esc>',
+      toggle_preview = 'p',
+      toggle_file_filter = 'f',
+      toggle_cwd_filter = 'c',
+      toggle_show_hidden = '.',
+      reset_filters = 'r',
+      toggle_hidden = 'x',
+    },
+    window = { config = nil },
+  }
+
+  require('jumppack').setup(config)
+
+  -- Clear any existing hidden items
+  vim.g.jumppack_hidden = {}
+
+  -- Test that toggle_hidden action exists
+  local H = Jumppack.H
+  MiniTest.expect.equality(type(H.actions.toggle_hidden), 'function')
+
+  -- Cleanup
+  vim.g.jumppack_hidden = {}
+end
+
+T['Hide System']['Display with hidden items'] = function()
+  local item_normal = {
+    filepath = '/test/file1.lua',
+    lnum = 1,
+    path = '/test/file1.lua',
+    offset = -1,
+    hidden = false,
+  }
+
+  local item_hidden = {
+    filepath = '/test/file2.lua',
+    lnum = 2,
+    path = '/test/file2.lua',
+    offset = 1,
+    hidden = true,
+  }
+
+  -- Test display string for normal item
+  local normal_display = Jumppack.H.display.item_to_string(item_normal, { show_preview = false })
+  MiniTest.expect.equality(normal_display:find('✗') == nil, true)
+
+  -- Test display string for hidden item
+  local hidden_display = Jumppack.H.display.item_to_string(item_hidden, { show_preview = false })
+  MiniTest.expect.equality(hidden_display:find('✗') ~= nil, true)
+end
+
+-- Phase 5: Smart Navigation Tests
+T['Smart Navigation'] = MiniTest.new_set()
+
+T['Smart Navigation']['calculate_filtered_initial_selection'] = function()
+  local original_items = {
+    { path = '/test/file1.lua', lnum = 1, offset = -2 },
+    { path = '/test/file2.lua', lnum = 5, offset = -1 },
+    { path = '/test/file3.lua', lnum = 10, offset = 0 }, -- Current position
+    { path = '/test/file4.lua', lnum = 15, offset = 1 },
+    { path = '/test/file5.lua', lnum = 20, offset = 2 },
+  }
+
+  local filtered_items = {
+    { path = '/test/file1.lua', lnum = 1, offset = -2 },
+    { path = '/test/file3.lua', lnum = 10, offset = 0 }, -- Current position
+    { path = '/test/file5.lua', lnum = 20, offset = 2 },
+  }
+
+  -- Test finding exact match
+  local selection = Jumppack.H.instance.calculate_filtered_initial_selection(original_items, filtered_items, 3)
+  MiniTest.expect.equality(selection, 2) -- file3.lua should be at index 2 in filtered items
+
+  -- Test finding closest when exact match not available
+  selection = Jumppack.H.instance.calculate_filtered_initial_selection(original_items, filtered_items, 4)
+  MiniTest.expect.equality(selection, 2) -- Should find file3.lua (offset=0) as first closest to file4.lua (offset=1)
+
+  -- Test edge cases
+  selection = Jumppack.H.instance.calculate_filtered_initial_selection(original_items, filtered_items, nil)
+  MiniTest.expect.equality(selection, 1) -- Should default to 1
+
+  selection = Jumppack.H.instance.calculate_filtered_initial_selection(original_items, filtered_items, 10)
+  MiniTest.expect.equality(selection, 3) -- Should clamp to last item and find closest
+end
+
+T['Smart Navigation']['find_best_selection'] = function()
+  -- Setup a mock instance
+  local original_items = {
+    { path = '/test/file1.lua', lnum = 1, offset = -1 },
+    { path = '/test/file2.lua', lnum = 5, offset = 0 },
+    { path = '/test/file3.lua', lnum = 10, offset = 1 },
+  }
+
+  local filtered_items = {
+    { path = '/test/file1.lua', lnum = 1, offset = -1 },
+    { path = '/test/file3.lua', lnum = 10, offset = 1 },
+  }
+
+  local mock_instance = {
+    original_items = original_items,
+    current_ind = 2, -- Currently on file2.lua
+  }
+
+  -- Test finding closest item when current is not in filtered list
+  local selection = Jumppack.H.instance.find_best_selection(mock_instance, filtered_items)
+  -- Should find file1.lua (offset=-1) as closest to file2.lua (offset=0)
+  MiniTest.expect.equality(selection, 1)
+
+  -- Test when current item is in filtered list
+  mock_instance.current_ind = 1 -- Currently on file1.lua
+  selection = Jumppack.H.instance.find_best_selection(mock_instance, filtered_items)
+  MiniTest.expect.equality(selection, 1) -- Should find exact match
+end
+
+T['Smart Navigation']['Navigation actions'] = function()
+  -- Test that navigation actions exist and handle count
+  local H = Jumppack.H
+  MiniTest.expect.equality(type(H.actions.jump_back), 'function')
+  MiniTest.expect.equality(type(H.actions.jump_forward), 'function')
+
+  -- Note: Full integration testing of count support would require
+  -- more complex setup with actual picker instance
 end
 
 return T

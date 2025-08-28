@@ -43,6 +43,10 @@ provides an enhanced navigation interface for Neovim's jumplist.
 plugin creates a floating window picker that allows users to visualize
 navigate their jump history with preview functionality.
 
+format: [indicator] [icon] [path/name] [lnum:col] [│ line preview]
+● 󰢱 src/main.lua 45:12 │ local function init()
+         ✗  config.json 10:5 │ "name": "jumppack"
+
 Attila Süli
 2025
 MIT
@@ -76,6 +80,11 @@ Fields ~
 {choose_in_vsplit} `(string)` Key for choosing item in vsplit
 {stop} `(string)` Key for stopping picker
 {toggle_preview} `(string)` Key for toggling preview
+{toggle_file_filter} `(string)` Key for toggling file-only filter
+{toggle_cwd_filter} `(string)` Key for toggling current working directory filter
+{toggle_show_hidden} `(string)` Key for toggling visibility of hidden items
+{reset_filters} `(string)` Key for resetting all filters
+{toggle_hidden} `(string)` Key for marking/unmarking current item as hidden
 
 ------------------------------------------------------------------------------
 Class ~
@@ -85,26 +94,38 @@ Fields ~
 
 ------------------------------------------------------------------------------
 Class ~
+{FilterState}
+Fields ~
+{file_only} `(boolean)` Whether to show only jumps from current file
+{cwd_only} `(boolean)` Whether to show only jumps from current working directory
+{show_hidden} `(boolean)` Whether to show items marked as hidden
+
+------------------------------------------------------------------------------
+Class ~
 {JumpItem}
 Fields ~
 {bufnr} `(number)` Buffer number
 {path} `(string)` File path
+{filepath} `(string|nil)` Alternative path field (for compatibility)
 {lnum} `(number)` Line number
 {col} `(number)` Column number
 {jump_index} `(number)` Index in jumplist
 {is_current} `(boolean)` Whether this is current position
-{offset} `(number)` Navigation offset
+{offset} `(number)` Navigation offset from current position
+{hidden} `(boolean|nil)` Whether this item is marked as hidden by user
 
 ------------------------------------------------------------------------------
 Class ~
 {Instance}
 Fields ~
 {opts} `(table)` Configuration options
-{items} `(JumpItem[])` List of jump items
+{items} `(JumpItem[])` List of jump items (filtered)
+{original_items} `(JumpItem[]|nil)` Original unfiltered items for filter operations
+{filters} `(FilterState)` Filter state for item filtering
 {buffers} `(table)` Buffer IDs
 {windows} `(table)` Window IDs
 {action_keys} `(table)` Action key mappings
-{view_state} `(string)` Current view state
+{view_state} `(string)` Current view state ('main' or 'preview')
 {visible_range} `(table)` Visible range info
 {current_ind} `(number)` Current item index
 {shown_inds} `(number[])` Shown item indices
@@ -150,7 +171,7 @@ require('jumppack').setup({
 vim.keymap.set('n', '<Leader>o', function() Jumppack.start({ offset = -1 }) end)
 vim.keymap.set('n', '<Leader>i', function() Jumppack.start({ offset = 1 }) end)
 
--- Custom configuration with global mappings enabled (default)
+-- Complete configuration with all available options
 require('jumppack').setup({
   options = {
     cwd_only = true,        -- Only show jumps within current working directory
@@ -159,14 +180,28 @@ require('jumppack').setup({
     global_mappings = true  -- Override default jump keys (this is the default)
   },
   mappings = {
+    -- Navigation
     jump_back = '<Leader>o',    -- Custom back navigation
     jump_forward = '<Leader>i', -- Custom forward navigation
+
+    -- Selection
     choose = '<CR>',            -- Choose item
     choose_in_split = '<C-s>',  -- Open in horizontal split
     choose_in_vsplit = '<C-v>', -- Open in vertical split
     choose_in_tabpage = '<C-t>',-- Open in new tab
+
+    -- Control
     stop = '<Esc>',             -- Close picker
-    toggle_preview = '<C-p>'    -- Toggle preview mode
+    toggle_preview = 'p',       -- Toggle preview mode
+
+    -- Filtering (runtime filters, not persistent)
+    toggle_file_filter = 'f',   -- Toggle current file filter
+    toggle_cwd_filter = 'c',    -- Toggle current directory filter
+    toggle_show_hidden = '.',   -- Toggle visibility of hidden items
+    reset_filters = 'r',        -- Clear all active filters
+
+    -- Hide management (persistent across sessions)
+    toggle_hidden = 'x',        -- Hide/unhide current item permanently
   },
   window = {
     config = {
@@ -275,34 +310,65 @@ See also ~
 |jumppack-interface-management| For interface lifecycle management
 
 ------------------------------------------------------------------------------
+                                                    *H.display.smart_filename()*
+                 `H.display.smart_filename`({filepath}, {cwd})
+Smart filename display that handles ambiguous names
+
+Parameters ~
+{filepath} `(string)` Full file path
+{cwd} `(string|nil)` Current working directory
+Return ~
+`(string)` Smart filename for display
+
+------------------------------------------------------------------------------
+                                               *H.display.get_position_marker()*
+                    `H.display.get_position_marker`({item})
+Get position marker for jump item
+
+Parameters ~
+{item} `(JumpItem)` Jump item to get marker for
+Return ~
+`(string)` Position marker (●, ↑N, ↓N)
+
+------------------------------------------------------------------------------
+                                                  *H.display.get_line_preview()*
+                      `H.display.get_line_preview`({item})
+Get line preview content for item
+
+Parameters ~
+{item} `(JumpItem)` Jump item to get preview for
+Return ~
+`(string)` Line content preview
+
+------------------------------------------------------------------------------
                                                          *Jumppack.show_items()*
                 `Jumppack.show_items`({buf_id}, {items}, {opts})
 Display items in a buffer with syntax highlighting
 
-Renders jump items in the navigation buffer with file icons and syntax highlighting.
-Handles item formatting, icon display, and visual presentation. This is the main
-function used by the interface to show the jumplist entries.
+Renders jump items in the navigation buffer with integrated format: [indicator] [icon] [path/name] [lnum:col]
+Handles item formatting, icon display, position markers, and line preview. The format includes
+position indicators, file type icons, smart filenames, line:column position, and optional line content preview.
 
 Parameters ~
 {buf_id} `(number)` Buffer ID to display items in
-{items} `(JumpItem[])` List of jump items to display with path, line, and offset info
+{items} `(JumpItem[])` List of jump items to display with path, lnum, col, offset, and optional hidden field
 {opts} `(table|nil)` Display options with fields:
   - show_icons (boolean): Whether to show file type icons (default: true)
   - icons (table): Custom icon mapping for file types
 
 Usage ~
 >lua
--- Display items with default options
+-- Display items with default options (shows: ● lua/init.lua 1:1 │ local M = {})
 local buf = vim.api.nvim_create_buf(false, true)
 local items = {
-  { path = 'init.lua', lnum = 1, offset = -1, direction = 'back' },
-  { path = 'config.lua', lnum = 15, offset = 1, direction = 'forward' }
+  { path = 'lua/init.lua', lnum = 1, col = 1, offset = -1 },
+  { path = 'config.lua', lnum = 15, col = 10, offset = 1, hidden = true }
 }
 Jumppack.show_items(buf, items)
 
 -- Custom display options
 Jumppack.show_items(buf, items, {
-  show_icons = false,  -- Disable file icons
+  show_icons = false,  -- Disable file icons (✗ config.lua 15:10 │ ...)
   icons = { file = '📄', none = '  ' }  -- Custom icons
 })
 <
@@ -484,6 +550,75 @@ Return ~
 `(number)` Index of best matching jump
 
 ------------------------------------------------------------------------------
+                                                             *H.filters.apply()*
+                     `H.filters.apply`({items}, {filters})
+filters to jump items
+Parameters ~
+{items} `(JumpItem[])` Jump items to filter
+{filters} `(FilterState)` Filter state
+Return ~
+`(JumpItem[])` Filtered jump items
+
+------------------------------------------------------------------------------
+                                                   *H.filters.get_status_text()*
+                     `H.filters.get_status_text`({filters})
+filter status text for display
+Parameters ~
+{filters} `(FilterState)` Filter state
+Return ~
+`(string)` Filter status text
+
+------------------------------------------------------------------------------
+                                                                 *H.hide.load()*
+                                `H.hide.load`()
+hidden items from vim variable
+Return ~
+`(table)` Hidden items keyed by filepath:lnum
+
+------------------------------------------------------------------------------
+                                                                 *H.hide.save()*
+                            `H.hide.save`({hidden})
+hidden items to vim variable
+Parameters ~
+{hidden} `(table)` Hidden items keyed by filepath:lnum
+
+------------------------------------------------------------------------------
+                                                              *H.hide.get_key()*
+                            `H.hide.get_key`({item})
+hide key for jump item
+Parameters ~
+{item} `(JumpItem)` Jump item
+Return ~
+`(string)` Hide key
+
+------------------------------------------------------------------------------
+                                                            *H.hide.is_hidden()*
+                           `H.hide.is_hidden`({item})
+if item is hidden
+Parameters ~
+{item} `(JumpItem)` Jump item
+Return ~
+`(boolean)` True if hidden
+
+------------------------------------------------------------------------------
+                                                               *H.hide.toggle()*
+                            `H.hide.toggle`({item})
+hide status for item
+Parameters ~
+{item} `(JumpItem)` Jump item
+Return ~
+`(boolean)` New hide status
+
+------------------------------------------------------------------------------
+                                                           *H.hide.mark_items()*
+                          `H.hide.mark_items`({items})
+items with their hide status
+Parameters ~
+{items} `(JumpItem[])` Jump items
+Return ~
+`(JumpItem[])` Items with hide status marked
+
+------------------------------------------------------------------------------
                                                               *H.config.setup()*
                            `H.config.setup`({config})
 and validate configuration
@@ -610,11 +745,40 @@ Parameters ~
 {initial_selection} `(number|nil)` Initial selection index
 
 ------------------------------------------------------------------------------
+                             *H.instance.calculate_filtered_initial_selection()*
+`H.instance.calculate_filtered_initial_selection`({original_items}, {filtered_items}, {original_selection})
+initial selection when items are filtered
+Parameters ~
+{original_items} `(JumpItem[])` Original items
+{filtered_items} `(JumpItem[])` Filtered items
+{original_selection} `(number|nil)` Original selection index
+Return ~
+`(number)` Adjusted selection index
+
+------------------------------------------------------------------------------
+                                         *H.instance.apply_filters_and_update()*
+               `H.instance.apply_filters_and_update`({instance})
+filters and update display
+Parameters ~
+{instance} `(Instance)` Picker instance
+
+------------------------------------------------------------------------------
+                                              *H.instance.find_best_selection()*
+         `H.instance.find_best_selection`({instance}, {filtered_items})
+best selection index when items are filtered
+Parameters ~
+{instance} `(Instance)` Picker instance
+{filtered_items} `(JumpItem[])` Filtered items
+Return ~
+`(number)` Best selection index
+
+------------------------------------------------------------------------------
                                                     *H.display.item_to_string()*
-                       `H.display.item_to_string`({item})
-jump item to display string
+                   `H.display.item_to_string`({item}, {opts})
+jump item to display string with format: [indicator] [icon] [path/name] [lnum:col]
 Parameters ~
 {item} `(JumpItem)` Jump item to convert
+{opts} `(table|nil)` Display options with show_preview, show_icons, icons, cwd fields
 Return ~
 `(string)` Display string
 
@@ -738,6 +902,35 @@ Return ~
 `(string)` Type: 'file', 'directory', or 'none'
 
 ------------------------------------------------------------------------------
+                                                 *H.display.preview_set_lines()*
+           `H.display.preview_set_lines`({buf_id}, {lines}, {extra})
+Set lines in preview buffer with syntax highlighting
+Parameters ~
+{buf_id} `(number)` Preview buffer id
+{lines} `(string[])` Lines to display
+{extra} `(table)` Extra info with lnum, col, end_lnum, end_col, filetype, path
+
+------------------------------------------------------------------------------
+                                          *H.display.preview_should_highlight()*
+                 `H.display.preview_should_highlight`({buf_id})
+Check if preview buffer should be syntax highlighted based on size limits
+Parameters ~
+{buf_id} `(number)` Buffer id to check
+Return ~
+`(boolean)` # True if buffer should be highlighted
+
+------------------------------------------------------------------------------
+                                          *H.display.preview_highlight_region()*
+`H.display.preview_highlight_region`({buf_id}, {lnum}, {col}, {end_lnum}, {end_col})
+Highlight specific region in preview buffer
+Parameters ~
+{buf_id} `(number)` Buffer id to highlight in
+{lnum} `(number|nil)` Line number to highlight (1-indexed)
+{col} `(number|nil)` Column number for region start
+{end_lnum} `(number|nil)` End line number for region
+{end_col} `(number|nil)` End column number for region
+
+------------------------------------------------------------------------------
                                                                *H.utils.error()*
                              `H.utils.error`({msg})
 error message
@@ -788,6 +981,29 @@ Parameters ~
 {name} `(string)` Buffer name
 Return ~
 `(number)` Buffer ID
+
+------------------------------------------------------------------------------
+                                                        *H.utils.set_buflines()*
+                   `H.utils.set_buflines`({buf_id}, {lines})
+Safely set buffer lines (ignores errors from invalid buffers)
+Parameters ~
+{buf_id} `(number)` Buffer id
+{lines} `(string[])` Lines to set
+
+------------------------------------------------------------------------------
+                                                          *H.utils.set_winbuf()*
+                    `H.utils.set_winbuf`({win_id}, {buf_id})
+Set window buffer
+Parameters ~
+{win_id} `(number)` Window id
+{buf_id} `(number)` Buffer id to set
+
+------------------------------------------------------------------------------
+                                                         *H.utils.set_extmark()*
+                          `H.utils.set_extmark`({...})
+Safely set extmark (ignores errors from invalid buffers)
+Parameters ~
+{...} `(any)` Arguments to nvim_buf_set_extmark
 
 
  vim:tw=78:ts=8:noet:ft=help:norl:
