@@ -1,22 +1,3 @@
-<div align="center">
-  <h1>🚀 Jumppack.nvim</h1>
-  <p><strong>Enhanced jumplist navigation for Neovim with visual picker interface</strong></p>
-</div>
-
-<div align="center">
-  <a href="https://github.com/suliatis/jumppack/blob/main/LICENSE">
-    <img alt="License" src="https://img.shields.io/github/license/suliatis/jumppack?style=flat-square&logo=starship&color=C9CBFF&logoColor=D9E0EE&labelColor=302D41" />
-  </a>
-  <a href="https://github.com/suliatis/jumppack/releases">
-    <img alt="Latest release" src="https://img.shields.io/github/v/release/suliatis/jumppack?style=flat-square&logo=starship&color=8bd5ca&logoColor=D9E0EE&labelColor=302D41" />
-  </a>
-  <a href="https://github.com/suliatis/jumppack/stargazers">
-    <img alt="Stars" src="https://img.shields.io/github/stars/suliatis/jumppack?style=flat-square&logo=starship&color=c69ff5&logoColor=D9E0EE&labelColor=302D41" />
-  </a>
-</div>
-
----
-
 ![Jumppack Logo](res/logo.png)
 
 **Jumppack.nvim** is a Neovim plugin that enhances the built-in jumplist with a visual floating window picker. Navigate your jump history with preview functionality, syntax highlighting, and intuitive keymaps.
