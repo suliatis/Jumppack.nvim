@@ -108,23 +108,23 @@ Jumppack.setup({
       -- Navigation
       jump_back = '<C-o>',
       jump_forward = '<C-i>',
-      
-      -- Selection  
+
+      -- Selection
       choose = '<CR>',
       choose_in_split = '<C-s>',
       choose_in_vsplit = '<C-v>',
       choose_in_tabpage = '<C-t>',
-      
+
       -- Control
       stop = '<Esc>',
       toggle_preview = 'p',
-      
+
       -- Filtering (temporary filters)
       toggle_file_filter = 'f',
-      toggle_cwd_filter = 'c', 
+      toggle_cwd_filter = 'c',
       toggle_show_hidden = '.',
       reset_filters = 'r',
-      
+
       -- Hide management (persistent)
       toggle_hidden = 'x',
     },
@@ -203,7 +203,7 @@ Jumppack uses the format: **`[indicator] [icon] [path/name] [lnum:col] [│ line
 
 **Examples:**
 - `● 󰢱 src/main.lua 45:12 │ local function init()`
-- `✗  config.json 10:5 │ "name": "jumppack"`  
+- `✗  config.json 10:5 │ "name": "jumppack"`
 - `↑3  init.lua 1:1 │ local M = {}`
 
 **Display features:**
