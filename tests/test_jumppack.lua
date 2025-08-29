@@ -1675,4 +1675,213 @@ T['Count Functionality']['general_info without pending count'] = function()
   MiniTest.expect.equality(info.position_indicator:find('×'), nil)
 end
 
+T['Jump Navigation'] = MiniTest.new_set()
+
+T['Jump Navigation']['new actions exist and are callable'] = function()
+  local H_internal = Jumppack.H
+  local actions = H_internal.actions
+
+  -- Test that new actions exist
+  MiniTest.expect.equality(type(actions.jump_to_top), 'function')
+  MiniTest.expect.equality(type(actions.jump_to_bottom), 'function')
+
+  -- Test with empty items - should not error
+  local mock_instance = {
+    current_ind = 1,
+    items = {},
+    view_state = 'list',
+    visible_range = { from = 1, to = 1 },
+    windows = { main = -1 },
+  }
+
+  MiniTest.expect.no_error(function()
+    actions.jump_to_top(mock_instance, 1)
+    actions.jump_to_bottom(mock_instance, 1)
+  end)
+end
+
+T['Jump Navigation']['configuration includes new mappings'] = function()
+  -- Test that new mappings are in default configuration
+  MiniTest.expect.equality(type(Jumppack.config.mappings.jump_to_top), 'string')
+  MiniTest.expect.equality(type(Jumppack.config.mappings.jump_to_bottom), 'string')
+
+  -- Test default values
+  MiniTest.expect.equality(Jumppack.config.mappings.jump_to_top, 'g')
+  MiniTest.expect.equality(Jumppack.config.mappings.jump_to_bottom, 'G')
+end
+
+T['Jump Navigation']['all actions have corresponding config mappings'] = function()
+  local H_internal = Jumppack.H
+  local actions = H_internal.actions
+  local mappings = Jumppack.config.mappings
+
+  -- Test that jump_to_top action exists and has mapping
+  MiniTest.expect.equality(type(actions.jump_to_top), 'function')
+  MiniTest.expect.equality(type(mappings.jump_to_top), 'string')
+
+  -- Test that jump_to_bottom action exists and has mapping
+  MiniTest.expect.equality(type(actions.jump_to_bottom), 'function')
+  MiniTest.expect.equality(type(mappings.jump_to_bottom), 'string')
+end
+
+T['Jump Navigation']['actions are properly wired in action normalization'] = function()
+  local H_internal = Jumppack.H
+
+  -- Test action normalization includes our new actions
+  local test_mappings = {
+    jump_to_top = 'g',
+    jump_to_bottom = 'G',
+    stop = '<Esc>', -- Include a known working action for comparison
+  }
+
+  local normalized = H_internal.config.normalize_mappings(test_mappings)
+
+  -- Check that g and G are properly normalized with function references
+  local g_key = H_internal.utils.replace_termcodes('g')
+  local G_key = H_internal.utils.replace_termcodes('G')
+
+  MiniTest.expect.equality(normalized[g_key] ~= nil, true)
+  MiniTest.expect.equality(normalized[G_key] ~= nil, true)
+  MiniTest.expect.equality(type(normalized[g_key].func), 'function')
+  MiniTest.expect.equality(type(normalized[G_key].func), 'function')
+  MiniTest.expect.equality(normalized[g_key].name, 'jump_to_top')
+  MiniTest.expect.equality(normalized[G_key].name, 'jump_to_bottom')
+end
+
+T['Jump Navigation']['jump_to_top action is properly implemented'] = function()
+  local H_internal = Jumppack.H
+
+  -- Test that the action exists and can be called without error
+  MiniTest.expect.equality(type(H_internal.actions.jump_to_top), 'function')
+
+  -- Test that it calls the right underlying function (move_selection with correct params)
+  local move_selection_called_with = nil
+  local original_move_selection = H_internal.instance.move_selection
+
+  H_internal.instance.move_selection = function(instance, by, to)
+    move_selection_called_with = { instance = instance, by = by, to = to }
+  end
+
+  local test_instance = { items = { {}, {}, {} } }
+  H_internal.actions.jump_to_top(test_instance, 5) -- Count should be ignored
+
+  -- Verify it was called with correct parameters
+  MiniTest.expect.equality(move_selection_called_with.instance, test_instance)
+  MiniTest.expect.equality(move_selection_called_with.by, 0)
+  MiniTest.expect.equality(move_selection_called_with.to, 1)
+
+  -- Restore original function
+  H_internal.instance.move_selection = original_move_selection
+end
+
+T['Jump Navigation']['jump_to_bottom action is properly implemented'] = function()
+  local H_internal = Jumppack.H
+
+  -- Test that the action exists and can be called without error
+  MiniTest.expect.equality(type(H_internal.actions.jump_to_bottom), 'function')
+
+  -- Test that it calls the right underlying function (move_selection with correct params)
+  local move_selection_called_with = nil
+  local original_move_selection = H_internal.instance.move_selection
+
+  H_internal.instance.move_selection = function(instance, by, to)
+    move_selection_called_with = { instance = instance, by = by, to = to }
+  end
+
+  local test_instance = { items = { {}, {}, {}, {} } } -- 4 items
+  H_internal.actions.jump_to_bottom(test_instance, 10) -- Count should be ignored
+
+  -- Verify it was called with correct parameters (should go to item 4)
+  MiniTest.expect.equality(move_selection_called_with.instance, test_instance)
+  MiniTest.expect.equality(move_selection_called_with.by, 0)
+  MiniTest.expect.equality(move_selection_called_with.to, 4)
+
+  -- Test edge case with empty items
+  move_selection_called_with = nil
+  H_internal.actions.jump_to_bottom({ items = {} }, 1)
+  -- Should not call move_selection when items is empty
+  MiniTest.expect.equality(move_selection_called_with, nil)
+
+  -- Restore original function
+  H_internal.instance.move_selection = original_move_selection
+end
+
+T['Jump Navigation']['actions handle edge cases correctly'] = function()
+  local H_internal = Jumppack.H
+  local actions = H_internal.actions
+
+  -- Test with empty items
+  local empty_instance = {
+    current_ind = 1,
+    items = {},
+    view_state = 'list',
+    visible_range = { from = 1, to = 1 },
+    windows = { main = vim.api.nvim_get_current_win() },
+  }
+
+  -- Should not error with empty items
+  MiniTest.expect.no_error(function()
+    actions.jump_to_top(empty_instance, 1)
+    actions.jump_to_bottom(empty_instance, 1)
+  end)
+
+  -- Test with single item
+  local single_instance = {
+    current_ind = 1,
+    items = {
+      { path = '/test/single.lua', lnum = 1, col = 0, jump_index = 1 },
+    },
+    view_state = 'list',
+    visible_range = { from = 1, to = 1 },
+    windows = { main = vim.api.nvim_get_current_win() },
+  }
+
+  -- Both actions should keep selection at position 1
+  actions.jump_to_top(single_instance, 1)
+  MiniTest.expect.equality(single_instance.current_ind, 1)
+
+  actions.jump_to_bottom(single_instance, 1)
+  MiniTest.expect.equality(single_instance.current_ind, 1)
+end
+
+T['Jump Navigation']['validation catches invalid mapping types'] = function()
+  local H_internal = Jumppack.H
+
+  -- Test that config validation fails when jump mappings have invalid types
+  local invalid_config = {
+    options = { global_mappings = true, cwd_only = false, wrap_edges = false, default_view = 'preview' },
+    mappings = {
+      jump_back = '<C-o>',
+      jump_forward = '<C-i>',
+      jump_to_top = 123, -- Invalid type - should be string
+      jump_to_bottom = 'G',
+      choose = '<CR>',
+      choose_in_split = '<C-s>',
+      choose_in_tabpage = '<C-t>',
+      choose_in_vsplit = '<C-v>',
+      stop = '<Esc>',
+      toggle_preview = 'p',
+      toggle_file_filter = 'f',
+      toggle_cwd_filter = 'c',
+      toggle_show_hidden = '.',
+      reset_filters = 'r',
+      toggle_hidden = 'x',
+    },
+    window = { config = nil },
+  }
+
+  -- Should error when jump_to_top mapping has invalid type
+  MiniTest.expect.error(function()
+    H_internal.config.setup(invalid_config)
+  end, 'jump_to_top')
+
+  -- Test invalid jump_to_bottom type
+  local config_invalid_bottom = vim.deepcopy(invalid_config)
+  config_invalid_bottom.mappings.jump_to_top = 'g' -- Fix top
+  config_invalid_bottom.mappings.jump_to_bottom = {} -- Invalid type - should be string
+  MiniTest.expect.error(function()
+    H_internal.config.setup(config_invalid_bottom)
+  end, 'jump_to_bottom')
+end
+
 return T

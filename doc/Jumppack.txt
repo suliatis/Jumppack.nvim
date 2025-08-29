@@ -85,6 +85,8 @@ Fields ~
 {toggle_show_hidden} `(string)` Key for toggling visibility of hidden items
 {reset_filters} `(string)` Key for resetting all filters
 {toggle_hidden} `(string)` Key for marking/unmarking current item as hidden
+{jump_to_top} `(string)` Key for jumping to the top of the jumplist
+{jump_to_bottom} `(string)` Key for jumping to the bottom of the jumplist
 
 ------------------------------------------------------------------------------
 Class ~
@@ -551,11 +553,12 @@ Return ~
 
 ------------------------------------------------------------------------------
                                                              *H.filters.apply()*
-                     `H.filters.apply`({items}, {filters})
+            `H.filters.apply`({items}, {filters}, {filter_context})
 filters to jump items
 Parameters ~
 {items} `(JumpItem[])` Jump items to filter
 {filters} `(FilterState)` Filter state
+{filter_context} `(table)` Filter context with original_file and original_cwd
 Return ~
 `(JumpItem[])` Filtered jump items
 
@@ -571,14 +574,14 @@ Return ~
 ------------------------------------------------------------------------------
                                                                  *H.hide.load()*
                                 `H.hide.load`()
-hidden items from vim variable
+hidden items from session storage
 Return ~
 `(table)` Hidden items keyed by path:lnum
 
 ------------------------------------------------------------------------------
                                                                  *H.hide.save()*
                             `H.hide.save`({hidden})
-hidden items to vim variable
+hidden items to session storage
 Parameters ~
 {hidden} `(table)` Hidden items keyed by path:lnum
 

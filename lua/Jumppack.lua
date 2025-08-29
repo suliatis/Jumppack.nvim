@@ -37,6 +37,8 @@
 ---@field toggle_show_hidden string Key for toggling visibility of hidden items
 ---@field reset_filters string Key for resetting all filters
 ---@field toggle_hidden string Key for marking/unmarking current item as hidden
+---@field jump_to_top string Key for jumping to the top of the jumplist
+---@field jump_to_bottom string Key for jumping to the bottom of the jumplist
 
 ---@class ConfigWindow
 ---@field config table|function|nil Float window config
@@ -198,6 +200,8 @@ Jumppack.config = {
     -- Navigation
     jump_back = '<C-o>',
     jump_forward = '<C-i>',
+    jump_to_top = 'g',
+    jump_to_bottom = 'G',
 
     -- Selection
     choose = '<CR>',
@@ -1132,6 +1136,8 @@ function H.config.setup(config)
   H.utils.check_type('mappings.toggle_show_hidden', config.mappings.toggle_show_hidden, 'string')
   H.utils.check_type('mappings.reset_filters', config.mappings.reset_filters, 'string')
   H.utils.check_type('mappings.toggle_hidden', config.mappings.toggle_hidden, 'string')
+  H.utils.check_type('mappings.jump_to_top', config.mappings.jump_to_top, 'string')
+  H.utils.check_type('mappings.jump_to_bottom', config.mappings.jump_to_bottom, 'string')
 
   H.utils.check_type('options', config.options, 'table')
   H.utils.check_type('options.global_mappings', config.options.global_mappings, 'boolean')
@@ -2061,6 +2067,18 @@ H.actions = {
       else
         H.display.render_list(instance)
       end
+    end
+  end,
+
+  jump_to_top = function(instance, _)
+    -- Jump to the first item in the jumplist (ignores count)
+    H.instance.move_selection(instance, 0, 1)
+  end,
+
+  jump_to_bottom = function(instance, _)
+    -- Jump to the last item in the jumplist (ignores count)
+    if instance.items and #instance.items > 0 then
+      H.instance.move_selection(instance, 0, #instance.items)
     end
   end,
 }
