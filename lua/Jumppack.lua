@@ -341,6 +341,30 @@ end
 -- DISPLAY & RENDERING FUNCTIONS
 -- ============================================================================
 
+-- ============================================================================
+-- H.display CONSTANTS
+-- ============================================================================
+
+-- Highlight priority constants
+local PRIORITY_HIDDEN_MARKER = 150 -- Hidden item markers
+local PRIORITY_ICON = 200 -- File type icons
+local PRIORITY_CURRENT_MATCH = 201 -- Current selection highlight
+local PRIORITY_PREVIEW_LINE = 201 -- Preview line highlight
+local PRIORITY_REGION = 202 -- Preview region highlight
+local PRIORITY_HIDDEN_INDICATOR = 250 -- Hidden indicators (highest)
+
+-- Performance limits
+local HIGHLIGHT_MAX_FILESIZE = 1000000 -- Max file size for syntax highlighting (bytes)
+local HIGHLIGHT_MAX_LINES = 1000 -- Max lines for syntax highlighting
+
+-- Symbol constants
+local SYMBOL_CURRENT = '●' -- Current position marker
+local SYMBOL_HIDDEN = '✗' -- Hidden item indicator
+local SYMBOL_UP = '↑' -- Backward jump marker
+local SYMBOL_DOWN = '↓' -- Forward jump marker
+local SYMBOL_SEPARATOR = '│' -- Content separator
+local SEPARATOR_SPACED = ' │ ' -- Spaced separator
+
 --- Smart filename display that handles ambiguous names
 ---
 ---@param filepath string Full file path
@@ -413,11 +437,11 @@ function H.display.get_position_marker(item)
   end
 
   if item.is_current or (item.offset and item.offset == 0) then
-    return '●'
+    return SYMBOL_CURRENT
   elseif item.offset and item.offset < 0 then
-    return string.format('↑%d', math.abs(item.offset))
+    return string.format(SYMBOL_UP .. '%d', math.abs(item.offset))
   elseif item.offset and item.offset > 0 then
-    return string.format('↓%d', item.offset)
+    return string.format(SYMBOL_DOWN .. '%d', item.offset)
   end
 
   return ' ' -- Fallback for unknown state
@@ -492,7 +516,7 @@ function Jumppack.show_items(buf_id, items, opts)
   end, items)
   local tab_spaces = string.rep(' ', vim.o.tabstop)
   lines = vim.tbl_map(function(l)
-    return l:gsub('%z', '│'):gsub('[\r\n]', ' '):gsub('\t', tab_spaces)
+    return l:gsub('%z', SYMBOL_SEPARATOR):gsub('[\r\n]', ' '):gsub('\t', tab_spaces)
   end, lines)
 
   H.utils.set_buflines(buf_id, lines)
@@ -503,7 +527,7 @@ function Jumppack.show_items(buf_id, items, opts)
 
   -- Highlight icons if enabled
   if opts.show_icons then
-    local icon_extmark_opts = { hl_mode = 'combine', priority = 200 }
+    local icon_extmark_opts = { hl_mode = 'combine', priority = PRIORITY_ICON }
     for i, item in ipairs(items) do
       if item.offset ~= nil and item.lnum then
         local icon_data = H.display.get_icon(item, opts.icons)
@@ -520,7 +544,7 @@ function Jumppack.show_items(buf_id, items, opts)
   end
 
   -- Highlight hidden items
-  local hidden_extmark_opts = { hl_mode = 'combine', priority = 150 }
+  local hidden_extmark_opts = { hl_mode = 'combine', priority = PRIORITY_HIDDEN_MARKER }
   for i, item in ipairs(items) do
     if item.hidden then
       -- Highlight the entire line as hidden
@@ -529,8 +553,9 @@ function Jumppack.show_items(buf_id, items, opts)
       H.utils.set_extmark(buf_id, ns_id, i - 1, 0, hidden_extmark_opts)
 
       -- Highlight the ✗ marker specifically
-      if lines[i]:match('^✗') then
-        local marker_extmark_opts = { hl_mode = 'combine', priority = 250, hl_group = 'JumppackHiddenMarker' }
+      if lines[i]:match('^' .. SYMBOL_HIDDEN) then
+        local marker_extmark_opts =
+          { hl_mode = 'combine', priority = PRIORITY_HIDDEN_INDICATOR, hl_group = 'JumppackHiddenMarker' }
         marker_extmark_opts.end_row, marker_extmark_opts.end_col = i - 1, 2 -- ✗ + space
         H.utils.set_extmark(buf_id, ns_id, i - 1, 0, marker_extmark_opts)
       end
@@ -887,6 +912,18 @@ end
 -- ============================================================================
 H.filters = {}
 
+-- ============================================================================
+-- H.filters CONSTANTS
+-- ============================================================================
+
+-- Filter status symbols
+local FILTER_BRACKET_OPEN = '[' -- Filter status opening bracket
+local FILTER_BRACKET_CLOSE = ']' -- Filter status closing bracket
+local FILTER_SEPARATOR = ',' -- Filter indicator separator
+local FILTER_FILE = 'f' -- File-only filter indicator
+local FILTER_CWD = 'c' -- Current directory filter indicator
+local FILTER_HIDDEN = '.' -- Show hidden filter indicator
+
 ---Apply filters to jump items
 ---@param items JumpItem[] Jump items to filter
 ---@param filters FilterState Filter state
@@ -937,23 +974,23 @@ function H.filters.get_status_text(filters)
   local parts = {}
 
   if filters.file_only then
-    table.insert(parts, 'f')
+    table.insert(parts, FILTER_FILE)
   end
 
   if filters.cwd_only then
-    table.insert(parts, 'c')
+    table.insert(parts, FILTER_CWD)
   end
 
   -- Show hidden status only when it's different from default (false)
   if filters.show_hidden then
-    table.insert(parts, '.')
+    table.insert(parts, FILTER_HIDDEN)
   end
 
   if #parts == 0 then
     return ''
   end
 
-  return '[' .. table.concat(parts, ',') .. '] '
+  return FILTER_BRACKET_OPEN .. table.concat(parts, FILTER_SEPARATOR) .. FILTER_BRACKET_CLOSE .. ' '
 end
 
 -- ============================================================================
@@ -1232,6 +1269,17 @@ end
 -- INSTANCE MANAGEMENT
 -- ============================================================================
 
+-- ============================================================================
+-- H.instance CONSTANTS
+-- ============================================================================
+
+-- Event loop configuration
+local LOOP_MAX_ITERATIONS = 1000000 -- Prevent infinite loops in run_loop
+local INPUT_DELAY_MS = 10 -- Responsive input without CPU spinning
+
+-- Timer intervals
+local FOCUS_CHECK_INTERVAL = 1000 -- Focus tracking timer interval (ms)
+
 ---Create new picker instance
 ---@param opts table Validated picker options
 ---@return Instance New picker instance
@@ -1287,10 +1335,10 @@ function H.instance.run_loop(instance)
   end)
 
   local is_aborted = false
-  for _ = 1, 1000000 do
+  for _ = 1, LOOP_MAX_ITERATIONS do
     H.instance.update(instance)
 
-    local char = H.utils.getcharstr(10)
+    local char = H.utils.getcharstr(INPUT_DELAY_MS)
     is_aborted = char == nil
     if is_aborted then
       break
@@ -1361,6 +1409,14 @@ end
 -- WINDOW MANAGEMENT
 -- ============================================================================
 
+-- ============================================================================
+-- H.window CONSTANTS
+-- ============================================================================
+
+-- UI layout constants
+local GOLDEN_RATIO = 0.618 -- Golden ratio for default window sizing
+local WINDOW_ZINDEX = 251 -- Float window z-index for layering
+
 ---Create scratch buffer for picker
 ---@return number Buffer ID
 function H.window.create_buffer()
@@ -1413,15 +1469,15 @@ function H.window.compute_config(win_config, is_for_open)
   local default_config = {
     relative = 'editor',
     anchor = 'SW',
-    width = math.floor(0.618 * max_width),
-    height = math.floor(0.618 * max_height),
+    width = math.floor(GOLDEN_RATIO * max_width),
+    height = math.floor(GOLDEN_RATIO * max_height),
     col = 0,
     row = max_height + (has_tabline and 1 or 0),
     border = (vim.fn.exists('+winborder') == 1 and vim.o.winborder ~= '') and vim.o.winborder or 'single',
     style = 'minimal',
     noautocmd = is_for_open,
     -- Use high enough value to be on top of built-in windows (pmenu, etc.)
-    zindex = 251,
+    zindex = WINDOW_ZINDEX,
   }
   local config = vim.tbl_deep_extend('force', default_config, H.utils.expand_callable(win_config) or {})
 
@@ -1451,7 +1507,7 @@ function H.instance.track_focus(instance)
     end
     H.instance.destroy(instance)
   end)
-  H.timers.focus:start(1000, 1000, track)
+  H.timers.focus:start(FOCUS_CHECK_INTERVAL, FOCUS_CHECK_INTERVAL, track)
 end
 
 ---Set items and initial selection for instance
@@ -1601,7 +1657,7 @@ function H.display.item_to_string(item, opts)
     -- Get indicator (hidden marker or position marker)
     local indicator = ''
     if item.hidden then
-      indicator = '✗'
+      indicator = SYMBOL_HIDDEN
     else
       indicator = H.display.get_position_marker(item)
     end
@@ -1625,7 +1681,7 @@ function H.display.item_to_string(item, opts)
     if show_preview then
       -- List mode: add line preview after core format
       local line_content = H.display.get_line_preview(item)
-      local separator = line_content ~= '' and ' │ ' or ''
+      local separator = line_content ~= '' and SEPARATOR_SPACED or ''
       return string.format('%s%s%s', core_format, separator, line_content)
     else
       -- Preview mode or title: show only core format
@@ -1706,7 +1762,13 @@ function H.display.update_lines(instance)
     return
   end
 
-  local cur_opts = { end_row = cur_line, end_col = 0, hl_eol = true, hl_group = 'JumppackMatchCurrent', priority = 201 }
+  local cur_opts = {
+    end_row = cur_line,
+    end_col = 0,
+    hl_eol = true,
+    hl_group = 'JumppackMatchCurrent',
+    priority = PRIORITY_CURRENT_MATCH,
+  }
   H.utils.set_extmark(buf_id, ns_id, cur_line - 1, 0, cur_opts)
 end
 
@@ -1757,7 +1819,7 @@ function H.display.update_border(instance)
           cwd = instance.opts.source.cwd,
         }) or ''
         -- Sanitize title
-        stritem_cur = stritem_cur:gsub('%z', '│'):gsub('%s', ' ')
+        stritem_cur = stritem_cur:gsub('%z', SYMBOL_SEPARATOR):gsub('%s', ' ')
         config = { title = { { H.utils.fit_to_width(' ' .. stritem_cur .. ' ', win_width), 'JumppackBorderText' } } }
       end
     end
@@ -2007,7 +2069,7 @@ function H.display.get_general_info(instance)
   local has_items = instance.items ~= nil
 
   -- Calculate position information (↑N●↓N format) based on selected item
-  local position_indicator = '●'
+  local position_indicator = SYMBOL_CURRENT
 
   if has_items and instance.items then
     -- Count items before/after the currently selected item in picker
@@ -2017,16 +2079,22 @@ function H.display.get_general_info(instance)
 
     -- Include pending count directly in position indicator for compact display
     if instance.pending_count ~= '' then
-      position_indicator = string.format('↑%d●↓%d×%s', up_count, down_count, instance.pending_count)
+      position_indicator = string.format(
+        SYMBOL_UP .. '%d' .. SYMBOL_CURRENT .. SYMBOL_DOWN .. '%d×%s',
+        up_count,
+        down_count,
+        instance.pending_count
+      )
     else
-      position_indicator = string.format('↑%d●↓%d', up_count, down_count)
+      position_indicator =
+        string.format(SYMBOL_UP .. '%d' .. SYMBOL_CURRENT .. SYMBOL_DOWN .. '%d', up_count, down_count)
     end
   end
 
   -- Build filter indicators
   local filter_text = H.filters.get_status_text(instance.filters)
   if filter_text ~= '' then
-    filter_text = ' │ ' .. filter_text
+    filter_text = SEPARATOR_SPACED .. filter_text
   end
 
   -- Note: Pending count is now integrated into position_indicator for compact display
@@ -2155,7 +2223,7 @@ function H.display.preview_should_highlight(buf_id)
   local buf_size = vim.api.nvim_buf_call(buf_id, function()
     return vim.fn.line2byte(vim.fn.line('$') + 1)
   end)
-  return buf_size <= 1000000 and buf_size <= 1000 * vim.api.nvim_buf_line_count(buf_id)
+  return buf_size <= HIGHLIGHT_MAX_FILESIZE and buf_size <= HIGHLIGHT_MAX_LINES * vim.api.nvim_buf_line_count(buf_id)
 end
 
 --- Highlight specific region in preview buffer
@@ -2169,7 +2237,8 @@ function H.display.preview_highlight_region(buf_id, lnum, col, end_lnum, end_col
   if lnum == nil then
     return
   end
-  local hl_line_opts = { end_row = lnum, end_col = 0, hl_eol = true, hl_group = 'JumppackPreviewLine', priority = 201 }
+  local hl_line_opts =
+    { end_row = lnum, end_col = 0, hl_eol = true, hl_group = 'JumppackPreviewLine', priority = PRIORITY_PREVIEW_LINE }
   H.utils.set_extmark(buf_id, H.ns_id.preview, lnum - 1, 0, hl_line_opts)
 
   -- Highlight position/region
@@ -2184,7 +2253,7 @@ function H.display.preview_highlight_region(buf_id, lnum, col, end_lnum, end_col
   local bufline = vim.fn.getbufline(buf_id, ext_end_row + 1)[1]
   ext_end_col = H.utils.get_next_char_bytecol(bufline, ext_end_col)
 
-  local hl_region_opts = { end_row = ext_end_row, end_col = ext_end_col, priority = 202 }
+  local hl_region_opts = { end_row = ext_end_row, end_col = ext_end_col, priority = PRIORITY_REGION }
   hl_region_opts.hl_group = 'JumppackPreviewRegion'
   H.utils.set_extmark(buf_id, H.ns_id.preview, lnum - 1, col - 1, hl_region_opts)
 end
