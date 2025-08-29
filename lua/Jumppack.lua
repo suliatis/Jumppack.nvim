@@ -649,9 +649,11 @@ end
 function Jumppack.choose_item(item)
   vim.schedule(function()
     if item.offset < 0 then
-      vim.cmd(string.format([[execute "normal\! %d\<C-o>"]], math.abs(item.offset)))
+      -- Use vim.cmd with proper command syntax
+      vim.cmd('execute "normal! ' .. math.abs(item.offset) .. '\\<C-o>"')
     elseif item.offset > 0 then
-      vim.cmd(string.format([[execute "normal\! %d\<C-i>"]], item.offset))
+      -- Use vim.cmd with proper command syntax
+      vim.cmd('execute "normal! ' .. item.offset .. '\\<C-i>"')
     elseif item.offset == 0 then
       -- Already at current position, do nothing
       H.utils.notify('Already at current position')

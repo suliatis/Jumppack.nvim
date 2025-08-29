@@ -716,6 +716,12 @@ T['Display Functions Tests']['Choose Function']['handles backward jumps'] = func
 
   MiniTest.expect.no_error(function()
     Jumppack.choose_item(item)
+    -- Wait longer for scheduled function to execute (this will catch vim.cmd errors)
+    vim.wait(100, function()
+      return false
+    end)
+    -- Force event loop processing to ensure scheduled function runs
+    vim.api.nvim_exec2('redraw', {})
   end)
 end
 
@@ -726,6 +732,12 @@ T['Display Functions Tests']['Choose Function']['handles forward jumps'] = funct
 
   MiniTest.expect.no_error(function()
     Jumppack.choose_item(item)
+    -- Wait longer for scheduled function to execute (this will catch vim.cmd errors)
+    vim.wait(100, function()
+      return false
+    end)
+    -- Force event loop processing to ensure scheduled function runs
+    vim.api.nvim_exec2('redraw', {})
   end)
 end
 
@@ -736,6 +748,12 @@ T['Display Functions Tests']['Choose Function']['handles current position'] = fu
 
   MiniTest.expect.no_error(function()
     Jumppack.choose_item(item)
+    -- Wait longer for scheduled function to execute (this will catch vim.cmd errors)
+    vim.wait(100, function()
+      return false
+    end)
+    -- Force event loop processing to ensure scheduled function runs
+    vim.api.nvim_exec2('redraw', {})
   end)
 end
 
