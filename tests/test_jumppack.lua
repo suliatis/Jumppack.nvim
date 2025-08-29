@@ -543,7 +543,7 @@ T['Jumplist Processing Tests']['Basic Processing']['creates proper item structur
     if state and #state.items > 0 then
       local item = state.items[1]
       MiniTest.expect.equality(type(item.path), 'string')
-      MiniTest.expect.equality(type(item.direction), 'string')
+      MiniTest.expect.equality(type(item.offset), 'number')
     end
 
     if Jumppack.is_active() then
@@ -767,7 +767,7 @@ T['Integration Tests']['handles jumplist navigation request'] = function()
     -- Verify at least one item exists with proper structure if any exist
     if state and #state.items > 0 then
       MiniTest.expect.equality(type(state.items[1].path), 'string')
-      MiniTest.expect.equality(type(state.items[1].direction), 'string')
+      MiniTest.expect.equality(type(state.items[1].offset), 'number')
     end
 
     if Jumppack.is_active() then

@@ -88,11 +88,11 @@ require('jumppack').setup({
 
 -- Custom keymaps
 vim.keymap.set('n', '<leader>jo', function()
-  require('jumppack').start({ direction = 'back' })
+  require('jumppack').start({ offset = -1 })
 end, { desc = 'Jump back with picker' })
 
 vim.keymap.set('n', '<leader>ji', function()
-  require('jumppack').start({ direction = 'forward' })
+  require('jumppack').start({ offset = 1 })
 end, { desc = 'Jump forward with picker' })
 ```
 
@@ -157,10 +157,10 @@ After calling `setup()`, a global `Jumppack` variable is available for convenien
 Jumppack.start()
 
 -- Jump backward with picker
-Jumppack.start({ direction = 'back' })
+Jumppack.start({ offset = -1 })
 
 -- Jump forward with picker
-Jumppack.start({ direction = 'forward' })
+Jumppack.start({ offset = 1 })
 
 -- Show only jumps in current directory
 Jumppack.start({ cwd_only = true })
@@ -176,7 +176,7 @@ You can also use the module directly without the global variable:
 
 ```lua
 local jumppack = require('jumppack')
-jumppack.start({ direction = 'back' })
+jumppack.start({ offset = -1 })
 ```
 
 ## 🔧 Advanced Features

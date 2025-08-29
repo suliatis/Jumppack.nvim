@@ -106,7 +106,6 @@ Class ~
 Fields ~
 {bufnr} `(number)` Buffer number
 {path} `(string)` File path
-{filepath} `(string|nil)` Alternative path field (for compatibility)
 {lnum} `(number)` Line number
 {col} `(number)` Column number
 {jump_index} `(number)` Index in jumplist
@@ -574,14 +573,14 @@ Return ~
                                 `H.hide.load`()
 hidden items from vim variable
 Return ~
-`(table)` Hidden items keyed by filepath:lnum
+`(table)` Hidden items keyed by path:lnum
 
 ------------------------------------------------------------------------------
                                                                  *H.hide.save()*
                             `H.hide.save`({hidden})
 hidden items to vim variable
 Parameters ~
-{hidden} `(table)` Hidden items keyed by filepath:lnum
+{hidden} `(table)` Hidden items keyed by path:lnum
 
 ------------------------------------------------------------------------------
                                                               *H.hide.get_key()*
