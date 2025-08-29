@@ -2,8 +2,6 @@
 
 **Jumppack.nvim** is a Neovim plugin that enhances the built-in jumplist with a visual floating window picker. Navigate your jump history with preview functionality, syntax highlighting, and intuitive keymaps.
 
-![Jumppack Demo](res/main-demo.mov)
-
 ## ✨ Features
 
 - 🎯 **Visual jumplist picker** - See all your jumps in a floating window
@@ -16,6 +14,8 @@
 - 🔍 **Powerful filtering** - Filter by current file, working directory, or hide unwanted entries
 - 💾 **Persistent hide system** - Mark entries as hidden and remember across sessions
 - 🔀 **Multiple open modes** - Open jumps in splits, tabs, or current window
+
+![Jumppack Demo](res/main-demo.mov)
 
 ## 📦 Installation
 
