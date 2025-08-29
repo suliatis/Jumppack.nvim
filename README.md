@@ -210,11 +210,12 @@ Jumppack uses the format: **`[indicator] [icon] [path/name] [lnum:col] [│ line
 
 **Display features:**
 - **Smart filenames**: Ambiguous files like `init.lua` show parent directory (`parent/init.lua`)
-- **Position markers**: `●` current, `↑N` back N positions, `↓N` forward N positions, `✗` hidden
+- **Position markers**: `●` current jump position, `↑N` back N positions, `↓N` forward N positions, `✗` hidden
 - **File icons**: Integration with MiniIcons/nvim-web-devicons for file type visualization
 - **Precise positioning**: Always shows line:column (`45:12`) for exact location context
 - **Line previews**: See the actual content at each jump location
 - **Filter status**: Shows active filters in the status line (e.g., `[File,CWD]`)
+- **Selection position**: Title bar shows selected item position in jumplist (e.g., `↑3●↓4` means 3 items above, 4 below)
 
 ## ⚙️ Configuration
 

@@ -873,7 +873,7 @@ general information about picker state
 Parameters ~
 {instance} `(Instance)` Picker instance
 Return ~
-`(table)` General information
+`(table)` General information including position indicator for selected item
 
 ------------------------------------------------------------------------------
                                                     *H.display.render_preview()*

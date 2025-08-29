@@ -937,16 +937,16 @@ function H.filters.get_status_text(filters)
   local parts = {}
 
   if filters.file_only then
-    table.insert(parts, 'File')
+    table.insert(parts, 'f')
   end
 
   if filters.cwd_only then
-    table.insert(parts, 'CWD')
+    table.insert(parts, 'c')
   end
 
   -- Show hidden status only when it's different from default (false)
   if filters.show_hidden then
-    table.insert(parts, 'Show-hidden')
+    table.insert(parts, '.')
   end
 
   if #parts == 0 then
@@ -1746,7 +1746,7 @@ end
 function H.display.compute_footer(instance, win_id)
   local info = H.display.get_general_info(instance)
   local source_name = string.format(' %s ', info.source_name)
-  local status_text = string.format(' %s ', info.status_text) -- New format: ↑3●↓4 │ [f][c]
+  local status_text = string.format(' %s ', info.status_text) -- Format: ↑3●↓4 │ [f][c] (selected item position)
 
   local win_width = vim.api.nvim_win_get_width(win_id)
   local source_width = vim.fn.strchars(source_name)
@@ -1964,26 +1964,18 @@ end
 
 ---Get general information about picker state
 ---@param instance Instance Picker instance
----@return table General information
+---@return table General information including position indicator for selected item
 function H.display.get_general_info(instance)
   local has_items = instance.items ~= nil
 
-  -- Calculate position information (↑N●↓N format)
-  local up_count, down_count = 0, 0
+  -- Calculate position information (↑N●↓N format) based on selected item
   local position_indicator = '●'
 
   if has_items and instance.items then
-    -- Find current position and count items before/after
-    local current_found = false
-    for _, item in ipairs(instance.items) do
-      if item.is_current or (item.offset and item.offset == 0) then
-        current_found = true
-      elseif not current_found then
-        up_count = up_count + 1
-      else
-        down_count = down_count + 1
-      end
-    end
+    -- Count items before/after the currently selected item in picker
+    local selected_index = instance.current_ind or 1
+    local up_count = selected_index - 1
+    local down_count = #instance.items - selected_index
     position_indicator = string.format('↑%d●↓%d', up_count, down_count)
   end
 
