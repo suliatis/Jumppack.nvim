@@ -129,6 +129,7 @@ Fields ~
 {visible_range} `(table)` Visible range info
 {current_ind} `(number)` Current item index
 {shown_inds} `(number[])` Shown item indices
+{pending_count} `(string)` Accumulated count digits for navigation
 
 ------------------------------------------------------------------------------
 Class ~

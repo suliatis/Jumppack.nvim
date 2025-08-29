@@ -69,6 +69,7 @@
 ---@field visible_range table Visible range info
 ---@field current_ind number Current item index
 ---@field shown_inds number[] Shown item indices
+---@field pending_count string Accumulated count digits for navigation
 
 ---@class PickerState
 ---@field items JumpItem[] Available jump items
@@ -1270,6 +1271,9 @@ function H.instance.create(opts)
       cwd_only = false, -- Show only current directory jumps
       show_hidden = false, -- Hide hidden items by default
     },
+
+    -- Count accumulation for navigation
+    pending_count = '',
   }
 
   return instance
@@ -1293,13 +1297,41 @@ function H.instance.run_loop(instance)
       break
     end
 
-    local cur_action = instance.action_keys[char] or {}
-    is_aborted = cur_action.name == 'stop'
+    -- Handle count accumulation
+    local is_digit = char >= '0' and char <= '9'
+    if is_digit then
+      -- Special handling for '0': only add to count if we're already building one
+      if char == '0' and instance.pending_count == '' then
+        -- '0' without existing count - check if it's mapped as an action
+        local zero_action = instance.action_keys[char] or {}
+        if zero_action.func then
+          local should_stop = zero_action.func(instance, 1)
+          if should_stop then
+            break
+          end
+        end
+      else
+        -- Add digit to pending count
+        instance.pending_count = instance.pending_count .. char
+      end
+    else
+      -- Non-digit character - execute action with accumulated count
+      local cur_action = instance.action_keys[char] or {}
+      is_aborted = cur_action.name == 'stop'
 
-    if cur_action.func then
-      local should_stop = cur_action.func(instance)
-      if should_stop then
-        break
+      if cur_action.func then
+        -- Parse count, default to 1 if empty
+        local count = tonumber(instance.pending_count) or 1
+        -- Reset count after parsing
+        instance.pending_count = ''
+
+        local should_stop = cur_action.func(instance, count)
+        if should_stop then
+          break
+        end
+      else
+        -- Unknown character - reset count
+        instance.pending_count = ''
       end
     end
   end
@@ -1976,7 +2008,13 @@ function H.display.get_general_info(instance)
     local selected_index = instance.current_ind or 1
     local up_count = selected_index - 1
     local down_count = #instance.items - selected_index
-    position_indicator = string.format('↑%d●↓%d', up_count, down_count)
+
+    -- Include pending count directly in position indicator for compact display
+    if instance.pending_count ~= '' then
+      position_indicator = string.format('↑%d●↓%d×%s', up_count, down_count, instance.pending_count)
+    else
+      position_indicator = string.format('↑%d●↓%d', up_count, down_count)
+    end
   end
 
   -- Build filter indicators
@@ -1984,6 +2022,8 @@ function H.display.get_general_info(instance)
   if filter_text ~= '' then
     filter_text = ' │ ' .. filter_text
   end
+
+  -- Note: Pending count is now integrated into position_indicator for compact display
 
   return {
     -- Keep existing fields for backward compatibility

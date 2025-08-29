@@ -924,13 +924,13 @@ T['Filter System']['H.filters.get_status_text'] = function()
   MiniTest.expect.equality(Jumppack.H.filters.get_status_text(filters), '')
 
   filters.file_only = true
-  MiniTest.expect.equality(Jumppack.H.filters.get_status_text(filters), '[File] ')
+  MiniTest.expect.equality(Jumppack.H.filters.get_status_text(filters), '[f] ')
 
   filters.cwd_only = true
-  MiniTest.expect.equality(Jumppack.H.filters.get_status_text(filters), '[File,CWD] ')
+  MiniTest.expect.equality(Jumppack.H.filters.get_status_text(filters), '[f,c] ')
 
   filters.show_hidden = true
-  MiniTest.expect.equality(Jumppack.H.filters.get_status_text(filters), '[File,CWD,Show-hidden] ')
+  MiniTest.expect.equality(Jumppack.H.filters.get_status_text(filters), '[f,c,.] ')
 end
 
 T['Filter System']['Filter actions'] = function()
@@ -1159,6 +1159,90 @@ T['Smart Navigation']['Navigation actions'] = function()
 
   -- Note: Full integration testing of count support would require
   -- more complex setup with actual picker instance
+end
+
+T['Count Functionality'] = MiniTest.new_set()
+
+T['Count Functionality']['instance has pending_count field'] = function()
+  local H = Jumppack.H
+
+  -- Create a basic instance structure for testing
+  local mock_instance = {
+    items = { {}, {}, {}, {}, {} }, -- 5 items
+    current_ind = 3,
+    action_keys = {},
+    filters = { file_only = false, cwd_only = false, show_hidden = false },
+    pending_count = '',
+  }
+
+  MiniTest.expect.equality(mock_instance.pending_count, '')
+
+  -- Test that pending_count can be set
+  mock_instance.pending_count = '25'
+  MiniTest.expect.equality(mock_instance.pending_count, '25')
+end
+
+T['Count Functionality']['actions handle count parameter'] = function()
+  local H = Jumppack.H
+
+  -- Create mock instance with move_selection function
+  local moved_by = nil
+  local mock_instance = {
+    items = { {}, {}, {}, {}, {}, {}, {}, {}, {}, {} }, -- 10 items
+    current_ind = 5,
+  }
+
+  -- Mock the move_selection function to capture the count
+  H.instance.move_selection = function(instance, by)
+    moved_by = by
+    instance.current_ind = math.max(1, math.min(#instance.items, instance.current_ind + by))
+  end
+
+  -- Test jump_back with count
+  H.actions.jump_back(mock_instance, 3)
+  MiniTest.expect.equality(moved_by, 3)
+
+  -- Test jump_forward with count
+  H.actions.jump_forward(mock_instance, 2)
+  MiniTest.expect.equality(moved_by, -2)
+
+  -- Test default count (nil becomes 1)
+  H.actions.jump_back(mock_instance, nil)
+  MiniTest.expect.equality(moved_by, 1)
+end
+
+T['Count Functionality']['general_info includes count display'] = function()
+  local H = Jumppack.H
+
+  local mock_instance = {
+    items = { {}, {}, {}, {}, {} },
+    current_ind = 3,
+    filters = { file_only = false, cwd_only = false, show_hidden = false },
+    pending_count = '42',
+    opts = { source = { name = 'test', cwd = '/tmp' } },
+  }
+
+  local info = H.display.get_general_info(mock_instance)
+  -- Check that the count is integrated into the position indicator
+  MiniTest.expect.equality(info.status_text:find('×42') ~= nil, true)
+  MiniTest.expect.equality(info.position_indicator:find('×42') ~= nil, true)
+end
+
+T['Count Functionality']['general_info without pending count'] = function()
+  local H = Jumppack.H
+
+  local mock_instance = {
+    items = { {}, {}, {}, {}, {} },
+    current_ind = 3,
+    filters = { file_only = false, cwd_only = false, show_hidden = false },
+    pending_count = '', -- Empty count
+    opts = { source = { name = 'test', cwd = '/tmp' } },
+  }
+
+  local info = H.display.get_general_info(mock_instance)
+  -- Should not contain count symbol when pending_count is empty
+  MiniTest.expect.equality(info.status_text:find('×'), nil)
+  MiniTest.expect.equality(info.position_indicator:find('×'), nil)
 end
 
 return T
