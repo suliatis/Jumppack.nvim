@@ -200,8 +200,8 @@ require('jumppack').setup({
     toggle_show_hidden = '.',   -- Toggle visibility of hidden items
     reset_filters = 'r',        -- Clear all active filters
 
-    -- Hide management (persistent across sessions)
-    toggle_hidden = 'x',        -- Hide/unhide current item permanently
+    -- Hide management
+    toggle_hidden = 'x',        -- Hide/unhide current item
   },
   window = {
     config = {

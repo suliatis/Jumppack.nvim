@@ -1174,7 +1174,7 @@ T['Hide System'] = MiniTest.new_set()
 
 T['Hide System']['H.hide functions'] = function()
   -- Clear any existing hidden items
-  vim.g.jumppack_hidden = {}
+  Jumppack.H.hide.storage = {}
 
   local item = { path = '/test/file.lua', lnum = 10 }
 
@@ -1210,7 +1210,7 @@ T['Hide System']['H.hide functions'] = function()
   MiniTest.expect.equality(marked_items[2].hidden, false)
 
   -- Cleanup
-  vim.g.jumppack_hidden = {}
+  Jumppack.H.hide.storage = {}
 end
 
 T['Hide System']['Toggle hidden action'] = function()
@@ -1238,14 +1238,14 @@ T['Hide System']['Toggle hidden action'] = function()
   require('jumppack').setup(config)
 
   -- Clear any existing hidden items
-  vim.g.jumppack_hidden = {}
+  Jumppack.H.hide.storage = {}
 
   -- Test that toggle_hidden action exists
   local H = Jumppack.H
   MiniTest.expect.equality(type(H.actions.toggle_hidden), 'function')
 
   -- Cleanup
-  vim.g.jumppack_hidden = {}
+  Jumppack.H.hide.storage = {}
 end
 
 T['Hide System']['Display with hidden items'] = function()
@@ -1279,7 +1279,7 @@ T['Hide System']['Hide current item moves selection correctly'] = function()
   local buf4 = H.create_test_buffer('/test/file4.lua', { 'line 4' })
 
   -- Clear any existing hidden items
-  vim.g.jumppack_hidden = {}
+  Jumppack.H.hide.storage = {}
 
   -- Create jumplist with 4 files
   H.create_mock_jumplist({
@@ -1336,7 +1336,7 @@ T['Hide System']['Hide current item moves selection correctly'] = function()
   end)
 
   -- Cleanup
-  vim.g.jumppack_hidden = {}
+  Jumppack.H.hide.storage = {}
   H.cleanup_buffers({ buf1, buf2, buf3, buf4 })
 end
 
@@ -1345,7 +1345,7 @@ T['Hide System']['Hide item updates both views'] = function()
   local buf2 = H.create_test_buffer('/test/other.lua', { 'other content' })
 
   -- Clear any existing hidden items
-  vim.g.jumppack_hidden = {}
+  Jumppack.H.hide.storage = {}
 
   H.create_mock_jumplist({
     { bufnr = buf1, lnum = 1, col = 0 },
@@ -1401,7 +1401,7 @@ T['Hide System']['Hide item updates both views'] = function()
   end)
 
   -- Cleanup
-  vim.g.jumppack_hidden = {}
+  Jumppack.H.hide.storage = {}
   H.cleanup_buffers({ buf1, buf2 })
 end
 
@@ -1410,7 +1410,7 @@ T['Hide System']['Hide item respects show_hidden filter'] = function()
   local buf2 = H.create_test_buffer('/test/file2.lua', { 'content 2' })
 
   -- Clear any existing hidden items
-  vim.g.jumppack_hidden = {}
+  Jumppack.H.hide.storage = {}
 
   H.create_mock_jumplist({
     { bufnr = buf1, lnum = 1, col = 0 },
@@ -1455,7 +1455,7 @@ T['Hide System']['Hide item respects show_hidden filter'] = function()
   end)
 
   -- Cleanup
-  vim.g.jumppack_hidden = {}
+  Jumppack.H.hide.storage = {}
   H.cleanup_buffers({ buf1, buf2 })
 end
 
@@ -1466,7 +1466,7 @@ T['Hide System']['Hide multiple items in sequence'] = function()
   local buf4 = H.create_test_buffer('/test/item4.lua', { 'content 4' })
 
   -- Clear any existing hidden items
-  vim.g.jumppack_hidden = {}
+  Jumppack.H.hide.storage = {}
 
   H.create_mock_jumplist({
     { bufnr = buf1, lnum = 1, col = 0 },
@@ -1514,7 +1514,7 @@ T['Hide System']['Hide multiple items in sequence'] = function()
   end)
 
   -- Cleanup
-  vim.g.jumppack_hidden = {}
+  Jumppack.H.hide.storage = {}
   H.cleanup_buffers({ buf1, buf2, buf3, buf4 })
 end
 

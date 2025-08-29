@@ -151,8 +151,8 @@ H.utils = {}
 ---     toggle_show_hidden = '.',   -- Toggle visibility of hidden items
 ---     reset_filters = 'r',        -- Clear all active filters
 ---
----     -- Hide management (persistent across sessions)
----     toggle_hidden = 'x',        -- Hide/unhide current item permanently
+---     -- Hide management
+---     toggle_hidden = 'x',        -- Hide/unhide current item
 ---   },
 ---   window = {
 ---     config = {
@@ -215,8 +215,8 @@ Jumppack.config = {
     toggle_show_hidden = '.', -- Toggle visibility of hidden items
     reset_filters = 'r', -- Clear all active filters
 
-    -- Hide management (persistent across sessions via vim.g)
-    toggle_hidden = 'x', -- Hide/unhide current item permanently
+    -- Hide management
+    toggle_hidden = 'x', -- Hide/unhide current item
   },
 
   -- Window related options
@@ -1021,16 +1021,19 @@ end
 -- ============================================================================
 H.hide = {}
 
----Get hidden items from vim variable
+-- Session-only storage for hidden items
+H.hide.storage = {}
+
+---Get hidden items from session storage
 ---@return table Hidden items keyed by path:lnum
 function H.hide.load()
-  return vim.g.jumppack_hidden or {}
+  return H.hide.storage
 end
 
----Save hidden items to vim variable
+---Save hidden items to session storage
 ---@param hidden table Hidden items keyed by path:lnum
 function H.hide.save(hidden)
-  vim.g.jumppack_hidden = hidden
+  H.hide.storage = hidden
 end
 
 ---Get hide key for jump item
@@ -1547,7 +1550,7 @@ end
 ---@param items JumpItem[] Jump items
 ---@param initial_selection number|nil Initial selection index
 function H.instance.set_items(instance, items, initial_selection)
-  -- Store original items before any filtering for persistent state
+  -- Store original items before any filtering for session state
   instance.original_items = vim.deepcopy(items)
   instance.original_initial_selection = initial_selection
 
@@ -2025,7 +2028,7 @@ H.actions = {
     local current_index = instance.current
     local current_view = instance.view_state
 
-    -- Toggle hide status in persistent storage
+    -- Toggle hide status in session storage
     local new_status = H.hide.toggle(cur_item)
 
     -- Re-mark all items with updated hidden status from storage
