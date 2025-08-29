@@ -284,18 +284,18 @@ Jumppack.config = {
 function Jumppack.start(opts)
   H.cache = {}
 
-  -- Validate opts type early
+  -- Early validation with clear error messages
   if opts ~= nil and type(opts) ~= 'table' then
-    H.utils.error('Jumppack options should be table.')
+    H.utils.error('start(): options must be a table, got ' .. type(opts))
   end
 
   opts = opts or {}
 
-  -- Create jumplist source
+  -- Create jumplist source with user feedback
   local jumplist_source = H.jumplist.create_source(opts)
   if not jumplist_source then
     H.utils.notify('No jumps available')
-    return -- No jumps available
+    return -- No jumps available - not an error, just nothing to do
   end
   opts.source = jumplist_source
 
@@ -1113,7 +1113,9 @@ function H.config.setup(config)
   H.utils.check_type('options.wrap_edges', config.options.wrap_edges, 'boolean')
   H.utils.check_type('options.default_view', config.options.default_view, 'string')
   if not vim.tbl_contains({ 'list', 'preview' }, config.options.default_view) then
-    H.utils.error('`options.default_view` should be "list" or "preview", not "' .. config.options.default_view .. '"')
+    H.utils.error(
+      'setup(): options.default_view must be "list" or "preview", got "' .. config.options.default_view .. '"'
+    )
   end
 
   H.utils.check_type('window', config.window, 'table')
@@ -1121,7 +1123,7 @@ function H.config.setup(config)
     return x == nil or type(x) == 'table' or vim.is_callable(x)
   end
   if not is_table_or_callable(config.window.config) then
-    H.utils.error('`window.config` should be table or callable, not ' .. type(config.window.config))
+    H.utils.error('setup(): window.config must be table or callable, got ' .. type(config.window.config))
   end
 
   return config
@@ -1202,14 +1204,14 @@ end
 function H.config.validate_opts(opts)
   opts = opts or {}
   if type(opts) ~= 'table' then
-    H.utils.error('Jumppack options should be table.')
+    H.utils.error('validate_opts(): options must be a table, got ' .. type(opts))
   end
 
   opts = vim.deepcopy(H.config.get(opts))
 
   local validate_callable = function(x, x_name)
     if not vim.is_callable(x) then
-      H.utils.error(string.format('`%s` should be callable.', x_name))
+      H.utils.error(string.format('validate_opts(): %s must be callable, got %s', x_name, type(x)))
     end
   end
 
@@ -1220,7 +1222,7 @@ function H.config.validate_opts(opts)
     local items = source.items or {}
     local is_valid_items = vim.islist(items) or vim.is_callable(items)
     if not is_valid_items then
-      H.utils.error('`source.items` should be array or callable.')
+      H.utils.error('validate_opts(): source.items must be array or callable, got ' .. type(items))
     end
 
     source.name = tostring(source.name or '<No name>')
@@ -1232,7 +1234,7 @@ function H.config.validate_opts(opts)
       source.cwd = vim.fn.getcwd()
     end
     if vim.fn.isdirectory(source.cwd) == 0 then
-      H.utils.error('`source.cwd` should be a valid directory path.')
+      H.utils.error('validate_opts(): source.cwd must be a valid directory, got "' .. tostring(source.cwd) .. '"')
     end
 
     source.show = source.show or Jumppack.show_items
@@ -1248,10 +1250,10 @@ function H.config.validate_opts(opts)
   -- Mappings
   for field, x in pairs(opts.mappings) do
     if type(field) ~= 'string' then
-      H.utils.error('`mappings` should have only string fields.')
+      H.utils.error('validate_opts(): mapping keys must be strings, got ' .. type(field))
     end
     if type(x) ~= 'string' then
-      H.utils.error(string.format('Mapping for action "%s" should be string.', field))
+      H.utils.error(string.format('validate_opts(): mapping for "%s" must be string, got %s', field, type(x)))
     end
   end
 
@@ -1259,7 +1261,7 @@ function H.config.validate_opts(opts)
   local win_config = opts.window.config
   local is_valid_winconfig = win_config == nil or type(win_config) == 'table' or vim.is_callable(win_config)
   if not is_valid_winconfig then
-    H.utils.error('`window.config` should be table or callable.')
+    H.utils.error('validate_opts(): window.config must be table or callable, got ' .. type(win_config))
   end
 
   return opts
@@ -1698,12 +1700,15 @@ end
 ---@param ind number Selection index
 ---@param force_update boolean|nil Force visible range update
 function H.instance.set_selection(instance, ind, force_update)
-  if instance.items == nil or #instance.items == 0 then
-    instance.current_ind, instance.visible_range = nil, {}
+  -- Early validation - guard clause
+  if not instance or not instance.items or #instance.items == 0 then
+    if instance then
+      instance.current_ind, instance.visible_range = nil, {}
+    end
     return
   end
 
-  -- Wrap index around edges
+  -- Wrap index around edges (trusted state after validation)
   local n_matches = #instance.items
   ind = (ind - 1) % n_matches + 1
 
@@ -1725,23 +1730,27 @@ end
 ---Update buffer lines with current items
 ---@param instance Instance Picker instance
 function H.display.update_lines(instance)
+  -- Early validation - guard clauses
+  if not instance or not instance.items or #instance.items == 0 then
+    return
+  end
+
   local buf_id, win_id = instance.buffers.main, instance.windows.main
   if not (H.utils.is_valid_buf(buf_id) and H.utils.is_valid_win(win_id)) then
     return
   end
 
   local visible_range = instance.visible_range
-  if instance.items == nil or visible_range.from == nil or visible_range.to == nil then
+  if not visible_range or visible_range.from == nil or visible_range.to == nil then
     instance.shown_inds = {}
     instance.opts.source.show(buf_id, {})
     return
   end
 
-  -- Construct target items
+  -- Construct target items (validated state - no need for additional checks)
   local items_to_show, items, shown_inds = {}, instance.items, {}
   local cur_ind, cur_line = instance.current_ind, nil
-  local from = visible_range.from
-  local to = visible_range.to
+  local from, to = visible_range.from, visible_range.to
   for i = from, to, (from <= to and 1 or -1) do
     table.insert(shown_inds, i)
     table.insert(items_to_show, items[i])
@@ -1973,8 +1982,9 @@ H.actions = {
 ---@param pre_command string|nil Command to execute before choosing
 ---@return boolean True if should stop picker
 function H.actions.choose(instance, pre_command)
+  -- Early validation - guard clause
   local cur_item = H.instance.get_selection(instance)
-  if cur_item == nil then
+  if not cur_item then
     return true
   end
 
@@ -1995,7 +2005,7 @@ function H.actions.choose(instance, pre_command)
   -- Delay error to have time to hide instance window
   if not ok then
     vim.schedule(function()
-      H.utils.error('Error during choose:\n' .. res)
+      H.utils.error('choose_with_action(): Error during choose action:\n' .. res)
     end)
   end
   -- Error or returning nothing, `nil`, or `false` should lead to instance stop
@@ -2007,13 +2017,12 @@ end
 ---@param by number Movement offset
 ---@param to number|nil Target position
 function H.instance.move_selection(instance, by, to)
-  if instance.items == nil then
+  -- Early validation - guard clauses
+  if not instance or not instance.items or #instance.items == 0 then
     return
   end
+
   local n_matches = #instance.items
-  if n_matches == 0 then
-    return
-  end
 
   if to == nil then
     local wrap_edges = Jumppack.config.options and Jumppack.config.options.wrap_edges
@@ -2048,7 +2057,8 @@ end
 ---@param instance Instance Picker instance
 ---@return JumpItem|nil Current selection or nil
 function H.instance.get_selection(instance)
-  if instance.items == nil then
+  -- Early validation - return nil for invalid state
+  if not instance or not instance.items or #instance.items == 0 then
     return nil
   end
   return instance.items[instance.current_ind]
@@ -2116,11 +2126,13 @@ end
 ---Render preview buffer view
 ---@param instance Instance Picker instance
 function H.display.render_preview(instance)
-  local preview = instance.opts.source.preview
+  -- Early validation - guard clause
   local item = H.instance.get_selection(instance)
-  if item == nil then
+  if not item then
     return
   end
+
+  local preview = instance.opts.source.preview
 
   local win_id, buf_id = instance.windows.main, H.utils.create_scratch_buf('preview')
   vim.bo[buf_id].bufhidden = 'wipe'
@@ -2277,7 +2289,7 @@ function H.utils.check_type(name, val, ref, allow_nil)
   if type(val) == ref or (ref == 'callable' and vim.is_callable(val)) or (allow_nil and val == nil) then
     return
   end
-  H.utils.error(string.format('`%s` should be %s, not %s', name, ref, type(val)))
+  H.utils.error(string.format('check_type(): %s must be %s, got %s', name, ref, type(val)))
 end
 
 function H.utils.set_buf_name(buf_id, name)
