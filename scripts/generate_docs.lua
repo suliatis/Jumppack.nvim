@@ -96,6 +96,72 @@ local function generate_documentation()
           '',
         }
 
+        -- Find where classes start and insert section headers
+        local class_start_idx = nil
+        for i, line in ipairs(lines) do
+          if
+            line:match('^%-%-%-%-%-%-%-%-%-%-%-%-%-%-')
+            and i > 1
+            and lines[i + 1]
+            and lines[i + 1]:match('^Class')
+          then
+            class_start_idx = i
+            break
+          end
+        end
+
+        -- Add missing sections before the classes
+        local additional_sections = {
+          '==============================================================================',
+          'CONFIGURATION                                     *jumppack-configuration*',
+          '',
+          'Jumppack can be configured through the setup() function. All configuration',
+          'options have sensible defaults and are optional.',
+          '',
+          'See the setup() function documentation and configuration examples for',
+          'detailed information about all available options.',
+          '',
+          '==============================================================================',
+          'USAGE                                                   *jumppack-usage*',
+          '',
+          'Basic usage patterns and workflows for Jumppack navigation interface.',
+          '',
+          'See the API Functions section for detailed usage examples of all functions.',
+          '',
+          '==============================================================================',
+          'API FUNCTIONS                                             *jumppack-api*',
+          '',
+          'Public API functions for Jumppack navigation interface.',
+          '',
+          '==============================================================================',
+          'NAVIGATION                                           *jumppack-navigation*',
+          '',
+          'Navigation patterns and workflows for jump history management.',
+          '',
+          '==============================================================================',
+          'DISPLAY OPTIONS                                       *jumppack-display*',
+          '',
+          'Display customization and formatting options.',
+          '',
+          '==============================================================================',
+          'INTERFACE MANAGEMENT                         *jumppack-interface-management*',
+          '',
+          'Interface lifecycle management and state control.',
+          '',
+          '==============================================================================',
+          'PREVIEW                                               *jumppack-preview*',
+          '',
+          'Preview functionality and customization options.',
+          '',
+        }
+
+        if class_start_idx then
+          -- Insert additional sections before classes
+          for i = #additional_sections, 1, -1 do
+            table.insert(lines, class_start_idx, additional_sections[i])
+          end
+        end
+
         -- Prepend header to generated content
         for i = #header_lines, 1, -1 do
           table.insert(lines, 1, header_lines[i])

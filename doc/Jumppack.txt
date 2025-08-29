@@ -51,6 +51,47 @@ Attila Süli
 2025
 MIT
 
+==============================================================================
+CONFIGURATION                                     *jumppack-configuration*
+
+Jumppack can be configured through the setup() function. All configuration
+options have sensible defaults and are optional.
+
+See the setup() function documentation and configuration examples for
+detailed information about all available options.
+
+==============================================================================
+USAGE                                                   *jumppack-usage*
+
+Basic usage patterns and workflows for Jumppack navigation interface.
+
+See the API Functions section for detailed usage examples of all functions.
+
+==============================================================================
+API FUNCTIONS                                             *jumppack-api*
+
+Public API functions for Jumppack navigation interface.
+
+==============================================================================
+NAVIGATION                                           *jumppack-navigation*
+
+Navigation patterns and workflows for jump history management.
+
+==============================================================================
+DISPLAY OPTIONS                                       *jumppack-display*
+
+Display customization and formatting options.
+
+==============================================================================
+INTERFACE MANAGEMENT                         *jumppack-interface-management*
+
+Interface lifecycle management and state control.
+
+==============================================================================
+PREVIEW                                               *jumppack-preview*
+
+Preview functionality and customization options.
+
 ------------------------------------------------------------------------------
 Class ~
 {Config}
