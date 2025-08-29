@@ -875,10 +875,10 @@ T['Filter System'] = MiniTest.new_set()
 
 T['Filter System']['H.filters.apply'] = function()
   local items = {
-    { filepath = '/test/file1.lua', lnum = 1, bufnr = 1, is_current = false },
-    { filepath = '/test/file2.lua', lnum = 2, bufnr = 2, is_current = true },
-    { filepath = '/other/file3.lua', lnum = 3, bufnr = 3, is_current = false },
-    { filepath = '/test/file4.lua', lnum = 4, bufnr = 4, is_current = false, hidden = true },
+    { path = '/test/file1.lua', lnum = 1, bufnr = 1, is_current = false },
+    { path = '/test/file2.lua', lnum = 2, bufnr = 2, is_current = true },
+    { path = '/other/file3.lua', lnum = 3, bufnr = 3, is_current = false },
+    { path = '/test/file4.lua', lnum = 4, bufnr = 4, is_current = false, hidden = true },
   }
 
   -- Test file_only filter
@@ -895,7 +895,7 @@ T['Filter System']['H.filters.apply'] = function()
 
   local filtered = Jumppack.H.filters.apply(items, filters)
   MiniTest.expect.equality(#filtered, 1)
-  MiniTest.expect.equality(filtered[1].filepath, '/test/file2.lua')
+  MiniTest.expect.equality(filtered[1].path, '/test/file2.lua')
 
   -- Test cwd_only filter
   filters = { file_only = false, cwd_only = true, show_hidden = true }
@@ -959,8 +959,8 @@ T['Filter System']['Filter actions'] = function()
 
   -- Create mock items and start picker
   local items = {
-    { filepath = '/test/file1.lua', lnum = 1, bufnr = 1, is_current = false },
-    { filepath = '/test/file2.lua', lnum = 2, bufnr = 2, is_current = true },
+    { path = '/test/file1.lua', lnum = 1, bufnr = 1, is_current = false },
+    { path = '/test/file2.lua', lnum = 2, bufnr = 2, is_current = true },
   }
 
   -- Mock vim functions
@@ -990,7 +990,7 @@ T['Hide System']['H.hide functions'] = function()
   -- Clear any existing hidden items
   vim.g.jumppack_hidden = {}
 
-  local item = { filepath = '/test/file.lua', lnum = 10 }
+  local item = { path = '/test/file.lua', lnum = 10 }
 
   -- Test hide key generation
   local key = Jumppack.H.hide.get_key(item)
@@ -1011,8 +1011,8 @@ T['Hide System']['H.hide functions'] = function()
 
   -- Test mark_items function
   local items = {
-    { filepath = '/test/file1.lua', lnum = 1 },
-    { filepath = '/test/file2.lua', lnum = 2 },
+    { path = '/test/file1.lua', lnum = 1 },
+    { path = '/test/file2.lua', lnum = 2 },
   }
 
   -- Mark first item as hidden
@@ -1064,17 +1064,15 @@ end
 
 T['Hide System']['Display with hidden items'] = function()
   local item_normal = {
-    filepath = '/test/file1.lua',
-    lnum = 1,
     path = '/test/file1.lua',
+    lnum = 1,
     offset = -1,
     hidden = false,
   }
 
   local item_hidden = {
-    filepath = '/test/file2.lua',
-    lnum = 2,
     path = '/test/file2.lua',
+    lnum = 2,
     offset = 1,
     hidden = true,
   }

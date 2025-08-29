@@ -49,7 +49,6 @@
 ---@class JumpItem
 ---@field bufnr number Buffer number
 ---@field path string File path
----@field filepath string|nil Alternative path field (for compatibility)
 ---@field lnum number Line number
 ---@field col number Column number
 ---@field jump_index number Index in jumplist
@@ -905,7 +904,7 @@ function H.filters.apply(items, filters)
     local should_include = true
 
     -- File filter: only show jumps in current file
-    local item_path = item.filepath or item.path
+    local item_path = item.path
     if filters.file_only and item_path ~= current_file then
       should_include = false
     end
@@ -963,13 +962,13 @@ end
 H.hide = {}
 
 ---Get hidden items from vim variable
----@return table Hidden items keyed by filepath:lnum
+---@return table Hidden items keyed by path:lnum
 function H.hide.load()
   return vim.g.jumppack_hidden or {}
 end
 
 ---Save hidden items to vim variable
----@param hidden table Hidden items keyed by filepath:lnum
+---@param hidden table Hidden items keyed by path:lnum
 function H.hide.save(hidden)
   vim.g.jumppack_hidden = hidden
 end
@@ -978,7 +977,7 @@ end
 ---@param item JumpItem Jump item
 ---@return string Hide key
 function H.hide.get_key(item)
-  return (item.filepath or item.path) .. ':' .. item.lnum
+  return item.path .. ':' .. item.lnum
 end
 
 ---Check if item is hidden
