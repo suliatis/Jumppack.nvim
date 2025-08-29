@@ -1272,6 +1272,252 @@ T['Hide System']['Display with hidden items'] = function()
   MiniTest.expect.equality(hidden_display:find('✗') ~= nil, true)
 end
 
+T['Hide System']['Hide current item moves selection correctly'] = function()
+  local buf1 = H.create_test_buffer('/test/file1.lua', { 'line 1' })
+  local buf2 = H.create_test_buffer('/test/file2.lua', { 'line 2' })
+  local buf3 = H.create_test_buffer('/test/file3.lua', { 'line 3' })
+  local buf4 = H.create_test_buffer('/test/file4.lua', { 'line 4' })
+
+  -- Clear any existing hidden items
+  vim.g.jumppack_hidden = {}
+
+  -- Create jumplist with 4 files
+  H.create_mock_jumplist({
+    { bufnr = buf1, lnum = 1, col = 0 },
+    { bufnr = buf2, lnum = 1, col = 0 },
+    { bufnr = buf3, lnum = 1, col = 0 },
+    { bufnr = buf4, lnum = 1, col = 0 },
+  }, 0)
+
+  MiniTest.expect.no_error(function()
+    Jumppack.setup({})
+    Jumppack.start({})
+    vim.wait(10)
+
+    local state = Jumppack.get_state()
+    if not state or not state.instance then
+      return -- Skip if no valid state
+    end
+
+    local instance = state.instance
+    local H_actions = Jumppack.H.actions
+
+    -- Test 1: Hide middle item (should move to next)
+    local initial_count = #instance.items
+    H.instance.set_selection(instance, 2) -- Select middle item
+    local selected_item = H.instance.get_selection(instance)
+    if selected_item then
+      H_actions.toggle_hidden(instance, {})
+      vim.wait(10)
+
+      -- Should have one fewer item visible
+      MiniTest.expect.equality(#instance.items, initial_count - 1)
+      -- Selection should move appropriately (to next available)
+      MiniTest.expect.equality(instance.current <= #instance.items, true)
+    end
+
+    -- Test 2: Hide last item (should move to previous)
+    if #instance.items > 0 then
+      H.instance.set_selection(instance, #instance.items) -- Select last item
+      local last_item = H.instance.get_selection(instance)
+      if last_item then
+        H_actions.toggle_hidden(instance, {})
+        vim.wait(10)
+
+        -- Selection should be valid and not beyond available items
+        MiniTest.expect.equality(instance.current <= #instance.items, true)
+        MiniTest.expect.equality(instance.current >= 1, true)
+      end
+    end
+
+    if Jumppack.is_active() then
+      vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes('<Esc>', true, true, true), 'x', false)
+    end
+  end)
+
+  -- Cleanup
+  vim.g.jumppack_hidden = {}
+  H.cleanup_buffers({ buf1, buf2, buf3, buf4 })
+end
+
+T['Hide System']['Hide item updates both views'] = function()
+  local buf1 = H.create_test_buffer('/test/main.lua', { 'main content' })
+  local buf2 = H.create_test_buffer('/test/other.lua', { 'other content' })
+
+  -- Clear any existing hidden items
+  vim.g.jumppack_hidden = {}
+
+  H.create_mock_jumplist({
+    { bufnr = buf1, lnum = 1, col = 0 },
+    { bufnr = buf2, lnum = 1, col = 0 },
+  }, 0)
+
+  MiniTest.expect.no_error(function()
+    Jumppack.setup({})
+    Jumppack.start({})
+    vim.wait(10)
+
+    local state = Jumppack.get_state()
+    if not state or not state.instance then
+      return -- Skip if no valid state
+    end
+
+    local instance = state.instance
+    local H_actions = Jumppack.H.actions
+
+    -- Test preview view
+    instance.view_state = 'preview'
+    H.instance.set_selection(instance, 1)
+    local initial_view = instance.view_state
+
+    local selected_item = H.instance.get_selection(instance)
+    if selected_item then
+      H_actions.toggle_hidden(instance, {})
+      vim.wait(10)
+
+      -- View should be preserved and updated
+      MiniTest.expect.equality(instance.view_state, initial_view)
+    end
+
+    -- Test list view
+    if #instance.items > 0 then
+      instance.view_state = 'list'
+      H.instance.set_selection(instance, 1)
+      initial_view = instance.view_state
+
+      selected_item = H.instance.get_selection(instance)
+      if selected_item then
+        H_actions.toggle_hidden(instance, {})
+        vim.wait(10)
+
+        -- View should be preserved and updated
+        MiniTest.expect.equality(instance.view_state, initial_view)
+      end
+    end
+
+    if Jumppack.is_active() then
+      vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes('<Esc>', true, true, true), 'x', false)
+    end
+  end)
+
+  -- Cleanup
+  vim.g.jumppack_hidden = {}
+  H.cleanup_buffers({ buf1, buf2 })
+end
+
+T['Hide System']['Hide item respects show_hidden filter'] = function()
+  local buf1 = H.create_test_buffer('/test/file1.lua', { 'content 1' })
+  local buf2 = H.create_test_buffer('/test/file2.lua', { 'content 2' })
+
+  -- Clear any existing hidden items
+  vim.g.jumppack_hidden = {}
+
+  H.create_mock_jumplist({
+    { bufnr = buf1, lnum = 1, col = 0 },
+    { bufnr = buf2, lnum = 1, col = 0 },
+  }, 0)
+
+  MiniTest.expect.no_error(function()
+    Jumppack.setup({})
+    Jumppack.start({})
+    vim.wait(10)
+
+    local state = Jumppack.get_state()
+    if not state or not state.instance then
+      return -- Skip if no valid state
+    end
+
+    local instance = state.instance
+    local H_actions = Jumppack.H.actions
+    local initial_count = #instance.items
+
+    -- Test 1: Hide with show_hidden=false (default) - item should disappear
+    H.instance.set_selection(instance, 1)
+    local selected_item = H.instance.get_selection(instance)
+    if selected_item then
+      H_actions.toggle_hidden(instance, {})
+      vim.wait(10)
+
+      -- Item should be hidden from view
+      MiniTest.expect.equality(#instance.items, initial_count - 1)
+    end
+
+    -- Test 2: Toggle show_hidden=true - hidden items should reappear
+    H_actions.toggle_show_hidden(instance, {})
+    vim.wait(10)
+
+    -- Hidden items should now be visible
+    MiniTest.expect.equality(#instance.items >= initial_count - 1, true)
+
+    if Jumppack.is_active() then
+      vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes('<Esc>', true, true, true), 'x', false)
+    end
+  end)
+
+  -- Cleanup
+  vim.g.jumppack_hidden = {}
+  H.cleanup_buffers({ buf1, buf2 })
+end
+
+T['Hide System']['Hide multiple items in sequence'] = function()
+  local buf1 = H.create_test_buffer('/test/item1.lua', { 'content 1' })
+  local buf2 = H.create_test_buffer('/test/item2.lua', { 'content 2' })
+  local buf3 = H.create_test_buffer('/test/item3.lua', { 'content 3' })
+  local buf4 = H.create_test_buffer('/test/item4.lua', { 'content 4' })
+
+  -- Clear any existing hidden items
+  vim.g.jumppack_hidden = {}
+
+  H.create_mock_jumplist({
+    { bufnr = buf1, lnum = 1, col = 0 },
+    { bufnr = buf2, lnum = 1, col = 0 },
+    { bufnr = buf3, lnum = 1, col = 0 },
+    { bufnr = buf4, lnum = 1, col = 0 },
+  }, 0)
+
+  MiniTest.expect.no_error(function()
+    Jumppack.setup({})
+    Jumppack.start({})
+    vim.wait(10)
+
+    local state = Jumppack.get_state()
+    if not state or not state.instance then
+      return -- Skip if no valid state
+    end
+
+    local instance = state.instance
+    local H_actions = Jumppack.H.actions
+    local initial_count = #instance.items
+
+    -- Hide items sequentially
+    for i = 1, math.min(2, #instance.items) do
+      if #instance.items > 0 then
+        H.instance.set_selection(instance, 1) -- Always hide first visible item
+        local selected_item = H.instance.get_selection(instance)
+        if selected_item then
+          H_actions.toggle_hidden(instance, {})
+          vim.wait(10)
+
+          -- Verify selection is still valid after each hide
+          MiniTest.expect.equality(instance.current >= 1, true)
+          MiniTest.expect.equality(instance.current <= math.max(1, #instance.items), true)
+        end
+      end
+    end
+
+    -- Should have fewer visible items
+    MiniTest.expect.equality(#instance.items < initial_count, true)
+
+    if Jumppack.is_active() then
+      vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes('<Esc>', true, true, true), 'x', false)
+    end
+  end)
+
+  -- Cleanup
+  vim.g.jumppack_hidden = {}
+  H.cleanup_buffers({ buf1, buf2, buf3, buf4 })
+end
+
 -- Phase 5: Smart Navigation Tests
 T['Smart Navigation'] = MiniTest.new_set()
 

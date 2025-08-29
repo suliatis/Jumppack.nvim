@@ -2021,13 +2021,44 @@ H.actions = {
       return
     end
 
-    -- Toggle hide status
+    -- Store current selection index and view state before hiding
+    local current_index = instance.current
+    local current_view = instance.view_state
+
+    -- Toggle hide status in persistent storage
     local new_status = H.hide.toggle(cur_item)
-    cur_item.hidden = new_status
+
+    -- Re-mark all items with updated hidden status from storage
+    -- This ensures both current items AND original_items reflect the change
+    H.hide.mark_items(instance.items)
+    if instance.original_items then
+      H.hide.mark_items(instance.original_items)
+    end
 
     -- Apply filters to update both list and preview views
     -- This will hide the item if show_hidden = false (default)
     H.instance.apply_filters_and_update(instance)
+
+    -- After filtering, adjust selection if the current item was hidden and removed from view
+    if new_status and not instance.filters.show_hidden and #instance.items > 0 then
+      -- Ensure we have a valid current selection after filtering
+      local current = instance.current or 1
+
+      -- If current selection is beyond available items, adjust to last item
+      if current > #instance.items then
+        H.instance.set_selection(instance, #instance.items, true)
+      elseif current < 1 then
+        -- If no valid selection, select first item
+        H.instance.set_selection(instance, 1, true)
+      end
+
+      -- Re-render in the original view mode
+      if current_view == 'preview' then
+        H.display.render_preview(instance)
+      else
+        H.display.render_list(instance)
+      end
+    end
   end,
 }
 
