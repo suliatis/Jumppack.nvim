@@ -125,7 +125,7 @@ Fields ~
 {buffers} `(table)` Buffer IDs
 {windows} `(table)` Window IDs
 {action_keys} `(table)` Action key mappings
-{view_state} `(string)` Current view state ('main' or 'preview')
+{view_state} `(string)` Current view state ('list' or 'preview')
 {visible_range} `(table)` Visible range info
 {current_ind} `(number)` Current item index
 {shown_inds} `(number[])` Shown item indices
@@ -861,9 +861,9 @@ Return ~
 `(JumpItem|nil)` Current selection or nil
 
 ------------------------------------------------------------------------------
-                                                       *H.display.render_main()*
-                      `H.display.render_main`({instance})
-main buffer view
+                                                       *H.display.render_list()*
+                      `H.display.render_list`({instance})
+list buffer view
 Parameters ~
 {instance} `(Instance)` Picker instance
 

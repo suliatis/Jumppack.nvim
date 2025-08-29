@@ -65,7 +65,7 @@
 ---@field buffers table Buffer IDs
 ---@field windows table Window IDs
 ---@field action_keys table Action key mappings
----@field view_state string Current view state ('main' or 'preview')
+---@field view_state string Current view state ('list' or 'preview')
 ---@field visible_range table Visible range info
 ---@field current_ind number Current item index
 ---@field shown_inds number[] Shown item indices
@@ -1541,7 +1541,7 @@ function H.instance.apply_filters_and_update(instance)
     if instance.view_state == 'preview' then
       H.display.render_preview(instance)
     else
-      H.display.render_main(instance)
+      H.display.render_list(instance)
     end
   end
 
@@ -1744,21 +1744,27 @@ function H.display.update_border(instance)
   local view_state, win_width = instance.view_state, vim.api.nvim_win_get_width(win_id)
   local config = {}
 
-  local has_items = instance.items ~= nil
-  if view_state == 'preview' and has_items and instance.current_ind then
-    local current_item = instance.items[instance.current_ind]
-    if current_item then
-      -- For preview mode title, don't show line content but include icon and position
-      local stritem_cur = H.display.item_to_string(current_item, {
-        show_preview = false,
-        show_icons = true,
-        icons = { file = ' ', none = '  ' },
-        cwd = instance.opts.source.cwd,
-      }) or ''
-      -- Sanitize title
-      stritem_cur = stritem_cur:gsub('%z', '│'):gsub('%s', ' ')
-      config = { title = { { H.utils.fit_to_width(' ' .. stritem_cur .. ' ', win_width), 'JumppackBorderText' } } }
+  -- Only show title in preview mode
+  if view_state == 'preview' then
+    local has_items = instance.items ~= nil
+    if has_items and instance.current_ind then
+      local current_item = instance.items[instance.current_ind]
+      if current_item then
+        -- For preview mode title, don't show line content but include icon and position
+        local stritem_cur = H.display.item_to_string(current_item, {
+          show_preview = false,
+          show_icons = true,
+          icons = { file = ' ', none = '  ' },
+          cwd = instance.opts.source.cwd,
+        }) or ''
+        -- Sanitize title
+        stritem_cur = stritem_cur:gsub('%z', '│'):gsub('%s', ' ')
+        config = { title = { { H.utils.fit_to_width(' ' .. stritem_cur .. ' ', win_width), 'JumppackBorderText' } } }
+      end
     end
+  else
+    -- Explicitly clear title in list mode
+    config.title = ''
   end
 
   -- Compute helper footer
@@ -1852,7 +1858,7 @@ H.actions = {
 
   toggle_preview = function(instance, _)
     if instance.view_state == 'preview' then
-      return H.display.render_main(instance)
+      return H.display.render_list(instance)
     end
     H.display.render_preview(instance)
   end,
@@ -1987,11 +1993,12 @@ function H.instance.get_selection(instance)
   return instance.items[instance.current_ind]
 end
 
----Render main buffer view
+---Render list buffer view
 ---@param instance Instance Picker instance
-function H.display.render_main(instance)
+function H.display.render_list(instance)
   H.utils.set_winbuf(instance.windows.main, instance.buffers.main)
-  instance.view_state = 'main'
+  instance.view_state = 'list'
+  H.display.update_border(instance)
 end
 
 ---Get general information about picker state
@@ -2054,6 +2061,7 @@ function H.display.render_preview(instance)
   preview(buf_id, item)
   instance.buffers.preview = buf_id
   instance.view_state = 'preview'
+  H.display.update_border(instance)
 end
 
 ---Get icon for item
