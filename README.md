@@ -15,6 +15,8 @@
 - 💾 **Persistent hide system** - Mark entries as hidden and remember across sessions
 - 🔀 **Multiple open modes** - Open jumps in splits, tabs, or current window
 
+## 📼 Demo
+
 ![Jumppack Demo](res/main-demo.mov)
 
 ## 📦 Installation
