@@ -929,21 +929,26 @@ local FILTER_HIDDEN = '.' -- Show hidden filter indicator
 ---Apply filters to jump items
 ---@param items JumpItem[] Jump items to filter
 ---@param filters FilterState Filter state
+---@param filter_context table Filter context with original_file and original_cwd
 ---@return JumpItem[] Filtered jump items
-function H.filters.apply(items, filters)
+function H.filters.apply(items, filters, filter_context)
   if not items or #items == 0 then
     return items
   end
 
   local filtered = {}
-  local current_file = vim.fn.expand('%:p')
-  local cwd = vim.fn.getcwd()
+  -- Use stored context instead of runtime evaluation to avoid picker buffer context
+  local current_file = filter_context and filter_context.original_file or vim.fn.expand('%:p')
+  local cwd = filter_context and filter_context.original_cwd or vim.fn.getcwd()
+
+  -- Normalize current file path for robust comparison
+  current_file = H.utils.full_path(current_file)
 
   for _, item in ipairs(items) do
     local should_include = true
 
     -- File filter: only show jumps in current file
-    local item_path = item.path
+    local item_path = H.utils.full_path(item.path)
     if filters.file_only and item_path ~= current_file then
       should_include = false
     end
@@ -964,6 +969,22 @@ function H.filters.apply(items, filters)
     if should_include then
       table.insert(filtered, item)
     end
+
+    -- Debug individual item processing
+    if debug_filters and filters.file_only then
+      print(
+        string.format(
+          'JUMPPACK DEBUG: Item %s -> %s (path: %s)',
+          item.path,
+          should_include and 'INCLUDED' or 'FILTERED',
+          item_path
+        )
+      )
+    end
+  end
+
+  if debug_filters and filters.file_only then
+    print('JUMPPACK DEBUG: Filter result - filtered items:', #filtered)
   end
 
   return filtered
@@ -1291,8 +1312,11 @@ function H.instance.create(opts)
   -- Create buffer
   local buf_id = H.window.create_buffer()
 
-  -- Create window
+  -- Create window and store original context
   local win_target = vim.api.nvim_get_current_win()
+  -- Get the file path from the target window's buffer to ensure correct context
+  local original_file = vim.api.nvim_buf_get_name(vim.api.nvim_win_get_buf(win_target))
+  local original_cwd = vim.fn.getcwd() -- Store current working directory
   local win_id = H.window.create_window(buf_id, opts.window.config, opts.source.cwd)
 
   -- Construct and return object
@@ -1321,6 +1345,10 @@ function H.instance.create(opts)
       file_only = false, -- Show only current file jumps
       cwd_only = false, -- Show only current directory jumps
       show_hidden = false, -- Hide hidden items by default
+    },
+    filter_context = {
+      original_file = original_file, -- File that was active when picker started
+      original_cwd = original_cwd, -- Working directory when picker started
     },
 
     -- Count accumulation for navigation
@@ -1524,7 +1552,7 @@ function H.instance.set_items(instance, items, initial_selection)
   instance.original_initial_selection = initial_selection
 
   -- Apply current filter settings to items immediately
-  local filtered_items = H.filters.apply(items, instance.filters)
+  local filtered_items = H.filters.apply(items, instance.filters, instance.filter_context)
   instance.items = filtered_items
 
   if #filtered_items > 0 then
@@ -1586,7 +1614,7 @@ function H.instance.apply_filters_and_update(instance)
   end
 
   -- Apply filters to original items
-  local filtered_items = H.filters.apply(instance.original_items, instance.filters)
+  local filtered_items = H.filters.apply(instance.original_items, instance.filters, instance.filter_context)
 
   -- Update items and preserve best selection after filtering
   instance.items = filtered_items
@@ -1597,6 +1625,19 @@ function H.instance.apply_filters_and_update(instance)
     H.instance.set_selection(instance, new_selection, true)
 
     -- Preserve current view mode when applying filters
+    if instance.view_state == 'preview' then
+      H.display.render_preview(instance)
+    else
+      H.display.render_list(instance)
+    end
+  else
+    -- Handle empty filter results gracefully
+    -- Set minimal state to prevent errors
+    instance.current_ind = nil
+    instance.visible_range = { from = nil, to = nil }
+    instance.shown_inds = {}
+
+    -- Preserve current view mode even when no items match
     if instance.view_state == 'preview' then
       H.display.render_preview(instance)
     else
@@ -1733,12 +1774,23 @@ end
 ---@param instance Instance Picker instance
 function H.display.update_lines(instance)
   -- Early validation - guard clauses
-  if not instance or not instance.items or #instance.items == 0 then
+  if not instance then
     return
   end
 
   local buf_id, win_id = instance.buffers.main, instance.windows.main
   if not (H.utils.is_valid_buf(buf_id) and H.utils.is_valid_win(win_id)) then
+    return
+  end
+
+  -- Handle empty items case - show message instead of returning early
+  if not instance.items or #instance.items == 0 then
+    local filter_status = H.filters.get_status_text(instance.filters)
+    local empty_message = #filter_status > 0 and 'No matching items' or 'No items available'
+    instance.shown_inds = {}
+
+    -- Use source.show to display the empty message
+    instance.opts.source.show(buf_id, { empty_message })
     return
   end
 
@@ -1991,7 +2043,12 @@ function H.actions.choose(instance, pre_command)
   end
 
   local win_id_target = instance.windows.target
-  if pre_command ~= nil and H.utils.is_valid_win(win_id_target) then
+  if
+    pre_command ~= nil
+    and type(pre_command) == 'string'
+    and pre_command ~= ''
+    and H.utils.is_valid_win(win_id_target)
+  then
     -- Work around Neovim not preserving cwd during `nvim_win_call`
     -- See: https://github.com/neovim/neovim/issues/32203
     local instance_cwd, global_cwd = vim.fn.getcwd(0), vim.fn.getcwd(-1, -1)

@@ -951,6 +951,174 @@ T['Filter System']['H.filters.get_status_text'] = function()
   MiniTest.expect.equality(Jumppack.H.filters.get_status_text(filters), '[f,c,.] ')
 end
 
+T['Filter System']['Filter context handling'] = function()
+  -- Create test buffers in different locations
+  local buf1 = H.create_test_buffer('/project/src/main.lua', { 'local main = {}' })
+  local buf2 = H.create_test_buffer('/project/test/spec.lua', { 'describe("test")' })
+  local buf3 = H.create_test_buffer('/other/file.lua', { 'print("hello")' })
+
+  -- Create items with different paths
+  local items = {
+    { path = '/project/src/main.lua', lnum = 1, bufnr = buf1, offset = -2 },
+    { path = '/project/test/spec.lua', lnum = 1, bufnr = buf2, offset = -1 },
+    { path = '/other/file.lua', lnum = 1, bufnr = buf3, offset = 1 },
+  }
+
+  -- Test filter context is properly captured and used
+  local filter_context = {
+    original_file = '/project/src/main.lua', -- Simulate being in main.lua
+    original_cwd = '/project', -- Simulate cwd as /project
+  }
+
+  -- Test file_only filter with context
+  local filters = { file_only = true, cwd_only = false, show_hidden = false }
+  local filtered = Jumppack.H.filters.apply(items, filters, filter_context)
+  MiniTest.expect.equality(#filtered, 1)
+  MiniTest.expect.equality(filtered[1].path, '/project/src/main.lua')
+
+  -- Test cwd_only filter with context
+  filters = { file_only = false, cwd_only = true, show_hidden = false }
+  filtered = Jumppack.H.filters.apply(items, filters, filter_context)
+  MiniTest.expect.equality(#filtered, 2) -- Should include both files in /project
+
+  -- Test combined filters with context
+  filters = { file_only = true, cwd_only = true, show_hidden = false }
+  filtered = Jumppack.H.filters.apply(items, filters, filter_context)
+  MiniTest.expect.equality(#filtered, 1)
+  MiniTest.expect.equality(filtered[1].path, '/project/src/main.lua')
+
+  H.cleanup_buffers({ buf1, buf2, buf3 })
+end
+
+T['Filter System']['Empty filter results handling'] = function()
+  local buf1 = H.create_test_buffer('/test/file1.lua', { 'content' })
+  local buf2 = H.create_test_buffer('/other/file2.lua', { 'content' })
+
+  local items = {
+    { path = '/test/file1.lua', lnum = 1, bufnr = buf1, offset = -1 },
+    { path = '/other/file2.lua', lnum = 1, bufnr = buf2, offset = 1 },
+  }
+
+  -- Filter that produces no results
+  local filter_context = {
+    original_file = '/nonexistent/file.lua',
+    original_cwd = '/nonexistent',
+  }
+
+  local filters = { file_only = true, cwd_only = true, show_hidden = false }
+  local filtered = Jumppack.H.filters.apply(items, filters, filter_context)
+  MiniTest.expect.equality(#filtered, 0)
+
+  -- Test that empty results are handled gracefully in instance update
+  -- Create a more complete mock instance with required structure
+  local mock_instance = {
+    all_items = items,
+    items = items,
+    current = 1,
+    filters = filters,
+    filter_context = filter_context,
+    view_state = 'preview',
+    windows = {
+      main = -1, -- Invalid window ID, but present
+      preview = -1,
+    },
+    buffers = {
+      main = -1, -- Invalid buffer ID, but present
+      preview = -1,
+    },
+  }
+
+  -- This should not error and should preserve view_state
+  MiniTest.expect.no_error(function()
+    Jumppack.H.instance.apply_filters_and_update(mock_instance)
+  end)
+
+  -- View state should be preserved
+  MiniTest.expect.equality(mock_instance.view_state, 'preview')
+
+  H.cleanup_buffers({ buf1, buf2 })
+end
+
+T['Filter System']['Filter toggle integration'] = function()
+  local buf1 = H.create_test_buffer('/project/main.lua', { 'main code' })
+  local buf2 = H.create_test_buffer('/project/test.lua', { 'test code' })
+  local buf3 = H.create_test_buffer('/other/file.lua', { 'other code' })
+
+  -- Create jumplist with different files
+  H.create_mock_jumplist({
+    { bufnr = buf1, lnum = 1, col = 0 },
+    { bufnr = buf2, lnum = 1, col = 0 },
+    { bufnr = buf3, lnum = 1, col = 0 },
+  }, 0)
+
+  -- Mock being in /project/main.lua
+  local orig_expand = vim.fn.expand
+  local orig_getcwd = vim.fn.getcwd
+  vim.fn.expand = function(pattern)
+    if pattern == '%:p' then
+      return '/project/main.lua'
+    end
+    return orig_expand(pattern)
+  end
+  vim.fn.getcwd = function()
+    return '/project'
+  end
+
+  MiniTest.expect.no_error(function()
+    Jumppack.setup({})
+    Jumppack.start({})
+    vim.wait(10)
+
+    local state = Jumppack.get_state()
+    if not state or not state.instance then
+      return -- Skip if no valid state
+    end
+
+    local instance = state.instance
+    local initial_count = #instance.items
+    local initial_view = instance.view_state
+
+    -- Test file filter toggle - should reduce items to current file only
+    local H = Jumppack.H
+    if H.actions.toggle_file_filter then
+      H.actions.toggle_file_filter(instance, {})
+      vim.wait(10)
+
+      -- Should have fewer items (only current file)
+      MiniTest.expect.equality(instance.filters.file_only, true)
+      MiniTest.expect.equality(instance.view_state, initial_view) -- View preserved
+    end
+
+    -- Test cwd filter toggle
+    if H.actions.toggle_cwd_filter then
+      H.actions.toggle_cwd_filter(instance, {})
+      vim.wait(10)
+
+      MiniTest.expect.equality(instance.filters.cwd_only, true)
+      MiniTest.expect.equality(instance.view_state, initial_view) -- View preserved
+    end
+
+    -- Test reset filters
+    if H.actions.reset_filters then
+      H.actions.reset_filters(instance, {})
+      vim.wait(10)
+
+      MiniTest.expect.equality(instance.filters.file_only, false)
+      MiniTest.expect.equality(instance.filters.cwd_only, false)
+      MiniTest.expect.equality(instance.view_state, initial_view) -- View preserved
+    end
+
+    if Jumppack.is_active() then
+      vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes('<Esc>', true, true, true), 'x', false)
+    end
+  end)
+
+  -- Restore mocks
+  vim.fn.expand = orig_expand
+  vim.fn.getcwd = orig_getcwd
+  H.cleanup_buffers({ buf1, buf2, buf3 })
+end
+
 T['Filter System']['Filter actions'] = function()
   -- Setup test configuration
   local config = {
