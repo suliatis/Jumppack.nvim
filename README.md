@@ -110,6 +110,8 @@ Jumppack.setup({
       -- Navigation
       jump_back = '<C-o>',
       jump_forward = '<C-i>',
+      jump_to_top = 'g',
+      jump_to_bottom = 'G',
 
       -- Selection
       choose = '<CR>',
@@ -127,7 +129,7 @@ Jumppack.setup({
       toggle_show_hidden = '.',
       reset_filters = 'r',
 
-      -- Hide management (persistent)
+      -- Hide management
       toggle_hidden = 'x',
     },
 })
@@ -258,8 +260,8 @@ require('jumppack').setup({
     toggle_show_hidden = '.',   -- Toggle visibility of hidden items
     reset_filters = 'r',        -- Clear all active filters
 
-    -- Hide management (persistent across sessions via vim.g)
-    toggle_hidden = 'x',        -- Hide/unhide current item permanently
+    -- Hide management
+    toggle_hidden = 'x',        -- Hide/unhide current item
   },
 
   window = {
