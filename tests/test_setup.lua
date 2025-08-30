@@ -79,8 +79,6 @@ T['Setup & Configuration']['Mapping Configuration']['validates mapping types'] =
   end)
 end
 
--- Additional Setup & Configuration subcategories
-
 T['Setup & Configuration']['Setup'] = MiniTest.new_set()
 
 T['Setup & Configuration']['Setup']['initializes without errors'] = function()
@@ -94,7 +92,6 @@ T['Setup & Configuration']['Setup']['creates autocommands'] = function()
     Jumppack.setup({})
   end)
 
-  -- Check that the Jumppack augroup exists
   local autocmds = vim.api.nvim_get_autocmds({ group = 'Jumppack' })
   MiniTest.expect.equality(#autocmds > 0, true)
 end
@@ -129,11 +126,10 @@ T['Setup & Configuration']['Mapping Configuration']['creates global mappings by 
     Jumppack.setup(config)
   end)
 
-  -- Check that mappings exist
   local mappings = vim.api.nvim_get_keymap('n')
   local has_jump_back = false
   for _, map in ipairs(mappings) do
-    if map.lhs == '<C-X>' then -- nvim_get_keymap normalizes to uppercase
+    if map.lhs == '<C-X>' then
       has_jump_back = true
       break
     end
@@ -173,11 +169,10 @@ T['Setup & Configuration']['Mapping Configuration']['respects global_mappings = 
     Jumppack.setup(config)
   end)
 
-  -- Check that mappings do NOT exist
   local mappings = vim.api.nvim_get_keymap('n')
   local has_jump_back = false
   for _, map in ipairs(mappings) do
-    if map.lhs == '<C-X>' then -- nvim_get_keymap normalizes to uppercase
+    if map.lhs == '<C-X>' then
       has_jump_back = true
       break
     end
@@ -211,11 +206,10 @@ T['Setup & Configuration']['Mapping Configuration']['respects global_mappings = 
     Jumppack.setup(config)
   end)
 
-  -- Check that mappings DO exist
   local mappings = vim.api.nvim_get_keymap('n')
   local has_jump_back = false
   for _, map in ipairs(mappings) do
-    if map.lhs == '<C-Z>' then -- nvim_get_keymap normalizes to uppercase
+    if map.lhs == '<C-Z>' then
       has_jump_back = true
       break
     end
@@ -226,21 +220,19 @@ end
 T['Setup & Configuration']['Options Configuration'] = MiniTest.new_set()
 
 T['Setup & Configuration']['Options Configuration']['respects cwd_only option'] = function()
-  -- Create test files in different directories
   local temp_file1 = vim.fn.tempname() .. '.lua'
   local temp_file2 = vim.fn.tempname() .. '.lua'
   vim.fn.writefile({ 'test content 1' }, temp_file1)
   vim.fn.writefile({ 'test content 2' }, temp_file2)
 
-  -- Create buffers for the files
   local buf1 = vim.fn.bufadd(temp_file1)
   local buf2 = vim.fn.bufadd(temp_file2)
   vim.fn.bufload(buf1)
   vim.fn.bufload(buf2)
 
   H.create_mock_jumplist({
-    { bufnr = buf1, lnum = 1, col = 0 }, -- temp file outside cwd
-    { bufnr = buf2, lnum = 1, col = 0 }, -- another temp file outside cwd
+    { bufnr = buf1, lnum = 1, col = 0 },
+    { bufnr = buf2, lnum = 1, col = 0 },
   }, 1)
 
   local config = {
@@ -253,7 +245,6 @@ T['Setup & Configuration']['Options Configuration']['respects cwd_only option'] 
     Jumppack.setup(config)
   end)
 
-  -- Test that cwd_only filtering works by trying to start jumppack
   MiniTest.expect.no_error(function()
     pcall(Jumppack.start, { offset = -1 })
     if Jumppack.is_active() then
@@ -261,7 +252,6 @@ T['Setup & Configuration']['Options Configuration']['respects cwd_only option'] 
     end
   end)
 
-  -- Cleanup
   pcall(vim.fn.delete, temp_file1)
   pcall(vim.fn.delete, temp_file2)
   H.cleanup_buffers({ buf1, buf2 })
@@ -273,10 +263,10 @@ T['Setup & Configuration']['Options Configuration']['respects wrap_edges option'
   local buf3 = H.create_test_buffer('test3.lua', { 'test content 3' })
 
   H.create_mock_jumplist({
-    { bufnr = buf1, lnum = 1, col = 0 }, -- offset -2 (backward)
-    { bufnr = buf2, lnum = 1, col = 0 }, -- offset -1 (backward)
-    { bufnr = buf2, lnum = 2, col = 0 }, -- offset 0 (current)
-    { bufnr = buf3, lnum = 1, col = 0 }, -- offset 1 (forward)
+    { bufnr = buf1, lnum = 1, col = 0 },
+    { bufnr = buf2, lnum = 1, col = 0 },
+    { bufnr = buf2, lnum = 2, col = 0 },
+    { bufnr = buf3, lnum = 1, col = 0 },
   }, 2)
 
   local config = {
@@ -289,7 +279,6 @@ T['Setup & Configuration']['Options Configuration']['respects wrap_edges option'
     Jumppack.setup(config)
   end)
 
-  -- Test that wrapping works by trying extreme offsets
   MiniTest.expect.no_error(function()
     pcall(Jumppack.start, { offset = 99 }) -- Should wrap to furthest back
     if Jumppack.is_active() then
@@ -300,15 +289,13 @@ T['Setup & Configuration']['Options Configuration']['respects wrap_edges option'
   H.cleanup_buffers({ buf1, buf2, buf3 })
 end
 
--- These complex interaction tests are moved to integration tests section
-
 T['Setup & Configuration']['Options Configuration']['respects default_view option'] = function()
   local buf1 = H.create_test_buffer('test1.lua', { 'test content 1' })
   local buf2 = H.create_test_buffer('test2.lua', { 'test content 2' })
 
   H.create_mock_jumplist({
-    { bufnr = buf1, lnum = 1, col = 0 }, -- offset -1
-    { bufnr = buf2, lnum = 1, col = 0 }, -- offset 0 (current)
+    { bufnr = buf1, lnum = 1, col = 0 },
+    { bufnr = buf2, lnum = 1, col = 0 },
   }, 1)
 
   local config = {
@@ -321,16 +308,13 @@ T['Setup & Configuration']['Options Configuration']['respects default_view optio
     Jumppack.setup(config)
   end)
 
-  -- Test that picker starts in preview mode
   MiniTest.expect.no_error(function()
     Jumppack.start({ offset = -1 })
 
     if Jumppack.is_active() then
       local state = Jumppack.get_state()
-      -- Should start in preview mode
       MiniTest.expect.equality(state.general_info.view_state, 'preview')
 
-      -- Clean up
       vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes('<Esc>', true, true, true), 'x', false)
     end
   end)
@@ -342,7 +326,7 @@ T['Setup & Configuration']['Options Configuration']['validates default_view opti
   MiniTest.expect.error(function()
     Jumppack.setup({
       options = {
-        default_view = 'invalid_mode', -- should cause error
+        default_view = 'invalid_mode',
       },
     })
   end)
@@ -373,26 +357,19 @@ end
 T['Setup & Configuration']['Input Validation'] = MiniTest.new_set()
 
 T['Setup & Configuration']['Input Validation']['validates start option types'] = function()
-  -- Test various invalid argument types to start() - gaps we discovered
-
-  -- Test passing number instead of table
   MiniTest.expect.error(function()
     Jumppack.start(123)
   end)
 
-  -- Test passing function instead of table
   MiniTest.expect.error(function()
     Jumppack.start(function() end)
   end)
 
-  -- Test passing boolean instead of table
   MiniTest.expect.error(function()
     Jumppack.start(true)
   end)
 
-  -- Test nil should be acceptable (uses defaults)
   MiniTest.expect.no_error(function()
-    -- Mock empty jumplist to prevent actual picker
     H.create_mock_jumplist({}, 0)
     Jumppack.start(nil)
     if Jumppack.is_active() then
@@ -400,7 +377,6 @@ T['Setup & Configuration']['Input Validation']['validates start option types'] =
     end
   end, 'should accept nil argument')
 
-  -- Test empty table should be acceptable
   MiniTest.expect.no_error(function()
     H.create_mock_jumplist({}, 0)
     Jumppack.start({})
@@ -409,9 +385,7 @@ T['Setup & Configuration']['Input Validation']['validates start option types'] =
     end
   end, 'should accept empty table')
 
-  -- Test valid table with invalid field types - this may not be validated yet
   MiniTest.expect.no_error(function()
-    -- Mock empty jumplist to avoid actual start
     H.create_mock_jumplist({}, 0)
     Jumppack.start({ offset = 'not a number' })
     if Jumppack.is_active() then
@@ -421,31 +395,24 @@ T['Setup & Configuration']['Input Validation']['validates start option types'] =
 end
 
 T['Setup & Configuration']['Field Validation Gap: documents missing parameter validation'] = function()
-  -- This test documents specific validation gaps discovered during breaking analysis
-  -- Currently these field validations don't exist but should be considered for future implementation
-
   local original_fns = H.mock_vim_functions({
     current_file = 'test.lua',
     cwd = vim.fn.getcwd(),
   })
 
-  -- Document offset parameter not being validated (discovered gap)
   MiniTest.expect.no_error(function()
     H.create_mock_jumplist({}, 0)
-    -- These should potentially be validated but currently are not:
-    Jumppack.start({ offset = 'string_instead_of_number' }) -- No validation
+    Jumppack.start({ offset = 'string_instead_of_number' })
     if Jumppack.is_active() then
       vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes('<Esc>', true, true, true), 'x', false)
     end
   end, 'offset field validation gap - currently no type checking')
 
-  -- Document other potential validation gaps for future consideration
   MiniTest.expect.no_error(function()
     H.create_mock_jumplist({}, 0)
-    -- These pass but could benefit from validation:
     Jumppack.start({
-      some_unknown_field = 'value', -- Unknown fields not caught
-      offset = -999999, -- Extreme values not bounded
+      some_unknown_field = 'value',
+      offset = -999999,
     })
     if Jumppack.is_active() then
       vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes('<Esc>', true, true, true), 'x', false)
@@ -456,9 +423,6 @@ T['Setup & Configuration']['Field Validation Gap: documents missing parameter va
 end
 
 T['Setup & Configuration']['Complex Configuration Processing: handles nested and callback configurations'] = function()
-  -- Test complex configuration scenarios discovered during breaking analysis
-  -- where configuration processing gaps weren't caught by existing tests
-
   local buf = H.create_test_buffer('config_test.lua', { 'test content' })
 
   H.create_mock_jumplist({
@@ -470,7 +434,6 @@ T['Setup & Configuration']['Complex Configuration Processing: handles nested and
     cwd = vim.fn.getcwd(),
   })
 
-  -- Test 1: Nested configuration structures
   MiniTest.expect.no_error(function()
     local complex_config = {
       window = {
@@ -496,7 +459,7 @@ T['Setup & Configuration']['Complex Configuration Processing: handles nested and
         wrap_edges = true,
         max_items = function()
           return 50
-        end, -- Function config
+        end,
       },
       mappings = {
         choose = '<CR>',
@@ -512,7 +475,6 @@ T['Setup & Configuration']['Complex Configuration Processing: handles nested and
 
     Jumppack.setup(complex_config)
 
-    -- Should handle callable configurations
     Jumppack.start({})
     vim.wait(10)
 
@@ -525,7 +487,6 @@ T['Setup & Configuration']['Complex Configuration Processing: handles nested and
     end
   end, 'Should process complex nested configurations')
 
-  -- Test 2: Configuration with callback functions
   MiniTest.expect.no_error(function()
     local callback_config = {
       window = {
@@ -559,18 +520,15 @@ T['Setup & Configuration']['Complex Configuration Processing: handles nested and
     end
   end, 'Should process callback configurations')
 
-  -- Test 3: Configuration merge behavior with complex types
   MiniTest.expect.no_error(function()
-    -- First setup with base config
     Jumppack.setup({
       options = { wrap_edges = true },
       mappings = { choose = '<CR>' },
     })
 
-    -- Second setup should merge, not replace
     Jumppack.setup({
-      options = { max_items = 100 }, -- Should merge with existing wrap_edges
-      mappings = { exit = '<C-c>' }, -- Should merge with existing choose mapping
+      options = { max_items = 100 },
+      mappings = { exit = '<C-c>' },
     })
 
     Jumppack.start({})
@@ -585,7 +543,6 @@ T['Setup & Configuration']['Complex Configuration Processing: handles nested and
     end
   end, 'Should properly merge complex configurations')
 
-  -- Test 4: Configuration with invalid but non-fatal structures
   MiniTest.expect.no_error(function()
     local mixed_config = {
       window = {
@@ -593,14 +550,14 @@ T['Setup & Configuration']['Complex Configuration Processing: handles nested and
           relative = 'editor',
           width = 80,
           height = 20,
-          unknown_field = 'should_be_ignored', -- Unknown fields
+          unknown_field = 'should_be_ignored',
         },
       },
       options = {
         wrap_edges = true,
-        unknown_option = 'ignored', -- Unknown options
+        unknown_option = 'ignored',
       },
-      completely_unknown_section = { -- Unknown sections
+      completely_unknown_section = {
         foo = 'bar',
       },
     }

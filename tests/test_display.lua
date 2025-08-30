@@ -98,11 +98,9 @@ T['Display Features']['Choose Function']['handles backward jumps'] = function()
 
   MiniTest.expect.no_error(function()
     Jumppack.choose_item(item)
-    -- Wait longer for scheduled function to execute (this will catch vim.cmd errors)
     vim.wait(100, function()
       return false
     end)
-    -- Force event loop processing to ensure scheduled function runs
     vim.api.nvim_exec2('redraw', {})
   end)
 end
@@ -114,11 +112,9 @@ T['Display Features']['Choose Function']['handles forward jumps'] = function()
 
   MiniTest.expect.no_error(function()
     Jumppack.choose_item(item)
-    -- Wait longer for scheduled function to execute (this will catch vim.cmd errors)
     vim.wait(100, function()
       return false
     end)
-    -- Force event loop processing to ensure scheduled function runs
     vim.api.nvim_exec2('redraw', {})
   end)
 end
@@ -130,11 +126,9 @@ T['Display Features']['Choose Function']['handles current position'] = function(
 
   MiniTest.expect.no_error(function()
     Jumppack.choose_item(item)
-    -- Wait longer for scheduled function to execute (this will catch vim.cmd errors)
     vim.wait(100, function()
       return false
     end)
-    -- Force event loop processing to ensure scheduled function runs
     vim.api.nvim_exec2('redraw', {})
   end)
 end
@@ -142,7 +136,6 @@ end
 T['Display Features']['Item Formatting'] = MiniTest.new_set()
 
 T['Display Features']['Item Formatting']['displays items with new format'] = function()
-  -- Set up plugin
   Jumppack.setup({})
 
   local test_buf = H.create_test_buffer('test.lua', { 'function test() end' })
@@ -156,17 +149,13 @@ T['Display Features']['Item Formatting']['displays items with new format'] = fun
       is_current = true,
     }
 
-    -- Test list mode display
     local list_buf = vim.api.nvim_create_buf(false, true)
     Jumppack.show_items(list_buf, { item }, {})
     local lines = vim.api.nvim_buf_get_lines(list_buf, 0, -1, false)
 
-    -- Should contain the item with new format
     MiniTest.expect.equality(#lines > 0, true)
     if #lines > 0 then
-      -- Should contain current marker (●) somewhere in the line
       MiniTest.expect.equality(lines[1]:find('●') ~= nil, true)
-      -- Should not contain old format markers (←, →)
       MiniTest.expect.equality(lines[1]:find('←'), nil)
       MiniTest.expect.equality(lines[1]:find('→'), nil)
     end
@@ -196,9 +185,7 @@ T['Display Features']['Item Formatting']['shows line preview in list mode'] = fu
     local lines = vim.api.nvim_buf_get_lines(display_buf, 0, -1, false)
 
     if #lines > 0 then
-      -- Should contain the line content
       MiniTest.expect.equality(lines[1]:find('test content') ~= nil, true)
-      -- Should contain separator
       MiniTest.expect.equality(lines[1]:find('│') ~= nil, true)
     end
 
@@ -209,20 +196,16 @@ T['Display Features']['Item Formatting']['shows line preview in list mode'] = fu
 end
 
 T['Display Features']['Item Formatting']['handles incomplete item data'] = function()
-  -- Test H.display.item_to_string with various missing properties
   local H_internal = Jumppack.H
 
-  -- Test with nil item
   local result1 = H_internal.display.item_to_string(nil)
   MiniTest.expect.equality(result1, '', 'nil item should return empty string')
 
-  -- Test with item missing lnum (discovered as potential crash point)
   local item_no_lnum = {
     path = '/test/file.lua',
     col = 0,
     bufnr = 1,
     offset = -1,
-    -- lnum is missing - this was a gap we discovered
   }
 
   MiniTest.expect.no_error(function()
@@ -230,13 +213,11 @@ T['Display Features']['Item Formatting']['handles incomplete item data'] = funct
     MiniTest.expect.equality(type(result2), 'string', 'should return string even with missing lnum')
   end, 'should handle missing lnum without crashing')
 
-  -- Test with item missing path
   local item_no_path = {
     lnum = 10,
     col = 0,
     bufnr = 1,
     offset = -1,
-    -- path is missing
   }
 
   MiniTest.expect.no_error(function()
@@ -244,13 +225,11 @@ T['Display Features']['Item Formatting']['handles incomplete item data'] = funct
     MiniTest.expect.equality(type(result3), 'string', 'should return string even with missing path')
   end, 'should handle missing path without crashing')
 
-  -- Test with item missing col (should have default)
   local item_no_col = {
     path = '/test/file.lua',
     lnum = 10,
     bufnr = 1,
     offset = -1,
-    -- col is missing
   }
 
   MiniTest.expect.no_error(function()
@@ -259,7 +238,6 @@ T['Display Features']['Item Formatting']['handles incomplete item data'] = funct
     MiniTest.expect.equality(result4:find('10:1') ~= nil, true, 'should default col to 1')
   end, 'should handle missing col with default value')
 
-  -- Test with completely empty item (should fall back to text field)
   local empty_item = {
     text = 'fallback text',
   }
@@ -269,10 +247,6 @@ T['Display Features']['Item Formatting']['handles incomplete item data'] = funct
     MiniTest.expect.equality(result5, 'fallback text', 'should use text field as fallback')
   end, 'should use text field as fallback')
 end
-
--- ============================================================================
--- PHASE 7: VISUAL & DISPLAY TESTING
--- ============================================================================
 
 T['Display Features']['Visual & Display Testing'] = MiniTest.new_set()
 
@@ -295,7 +269,6 @@ T['Display Features']['Visual & Display Testing']['Display Format Validation']['
 
   local lines = vim.api.nvim_buf_get_lines(state.instance.buffers.main, 0, -1, false)
 
-  -- Verify format: [indicator] [icon] [path/name] [lnum:col] [│ line preview]
   MiniTest.expect.string_matches(
     lines[1],
     '^[●○] .* test%.lua %d+:%d+ │',
@@ -307,7 +280,6 @@ T['Display Features']['Visual & Display Testing']['Display Format Validation']['
     'Second item should match format pattern'
   )
 
-  -- Verify position information
   MiniTest.expect.string_matches(lines[1], '1:0', 'First item should show correct line:col')
   MiniTest.expect.string_matches(lines[2], '2:5', 'Second item should show correct line:col')
 

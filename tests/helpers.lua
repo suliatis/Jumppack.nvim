@@ -2,45 +2,37 @@
 
 local MiniTest = require('mini.test')
 
--- Test helper namespace (like production code)
 local H = {}
 
--- ============================================================================
--- TEST SETUP CONFIGURATION
--- ============================================================================
-
--- Store original functions needed for test setup
 local original_getjumplist = vim.fn.getjumplist
 local original_notify = vim.notify
-
--- Create configured test suite with proper hooks
+--- Creates a test suite with automatic plugin state cleanup
+--- Resets plugin state before each test and restores original functions after
+--- @return table MiniTest set with configured hooks
 H.create_test_suite = function()
   return MiniTest.new_set({
     hooks = {
       pre_case = function()
-        -- Reset plugin state before each test
         package.loaded['lua.Jumppack'] = nil
         _G.Jumppack = nil
-        -- Suppress vim.notify during tests to keep output clean
         vim.notify = function() end
       end,
       post_case = function()
         H.force_cleanup_instance()
         vim.fn.getjumplist = original_getjumplist
-        -- Restore original notify
         vim.notify = original_notify
       end,
     },
   })
 end
 
--- ============================================================================
--- SETUP & TEARDOWN HELPERS
--- ============================================================================
+--- Creates a test buffer with optional content
+--- @param name string|nil Buffer name (will be made unique)
+--- @param lines table|nil Array of lines to set in buffer
+--- @return number Buffer handle
 H.create_test_buffer = function(name, lines)
   local buf = vim.api.nvim_create_buf(false, true)
   if name then
-    -- Make buffer names unique to avoid conflicts
     local unique_name = name .. '_' .. tostring(buf)
     vim.api.nvim_buf_set_name(buf, unique_name)
   end
@@ -50,18 +42,27 @@ H.create_test_buffer = function(name, lines)
   return buf
 end
 
+--- Mocks vim.fn.getjumplist with provided entries and position
+--- @param entries table Array of jump entries {bufnr, lnum, col}
+--- @param position number Current position in jumplist
 H.create_mock_jumplist = function(entries, position)
   vim.fn.getjumplist = function()
     return { entries or {}, position or 0 }
   end
 end
 
+--- Safely deletes multiple buffers
+--- @param buffers table Array of buffer handles to delete
 H.cleanup_buffers = function(buffers)
   for _, buf in ipairs(buffers) do
     pcall(vim.api.nvim_buf_delete, buf, { force = true })
   end
 end
 
+--- Starts Jumppack and optionally verifies resulting state
+--- @param opts table Options to pass to Jumppack.start
+--- @param expected table|nil Expected state structure to verify
+--- @return table|nil Current plugin state
 H.start_and_verify = function(opts, expected)
   local Jumppack = require('lua.Jumppack')
   Jumppack.start(opts)
@@ -73,8 +74,9 @@ H.start_and_verify = function(opts, expected)
   return state
 end
 
+--- Forces cleanup of plugin instance state
+--- Attempts graceful cleanup first, then forces state reset
 H.force_cleanup_instance = function()
-  -- Try graceful cleanup first through normal API
   if _G.Jumppack and _G.Jumppack.is_active and _G.Jumppack.is_active() then
     pcall(function()
       vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes('<Esc>', true, true, true), 'x', false)
@@ -84,38 +86,32 @@ H.force_cleanup_instance = function()
     end)
   end
 
-  -- Force cleanup by resetting the module state
   if package.loaded['lua.Jumppack'] then
     local Jumppack = require('lua.Jumppack')
-    -- Use public API or reset module state
     pcall(function()
       if Jumppack.is_active() then
-        -- Force stop if still active after escape key
         vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes('<Esc>', true, true, true), 'x', false)
         vim.wait(50)
       end
     end)
   end
 
-  -- Clear any remaining global state
   _G.Jumppack = nil
 end
 
--- ============================================================================
--- DATA CREATION HELPERS
--- ============================================================================
-
+--- Creates realistic jumplist data for testing scenarios
+--- @param scenario string Scenario type: 'empty', 'single_file', 'multiple_files', 'cross_directory', 'with_hidden', 'large_list'
+--- @param opts table|nil Options: {position: number, count: number}
+--- @return table Metadata: {entries, position, scenario, buffers}
 H.create_realistic_jumplist = function(scenario, opts)
   opts = opts or {}
   local entries = {}
   local position = opts.position or 0
 
   if scenario == 'empty' then
-    -- Empty jumplist
     entries = {}
     position = 0
   elseif scenario == 'single_file' then
-    -- Single file with multiple positions
     local buf = H.create_test_buffer('/project/main.lua', { 'line 1', 'line 2', 'line 3', 'line 4', 'line 5' })
     entries = {
       { bufnr = buf, lnum = 1, col = 0 },
@@ -124,7 +120,6 @@ H.create_realistic_jumplist = function(scenario, opts)
     }
     position = opts.position or 1
   elseif scenario == 'multiple_files' then
-    -- Multiple files in same directory
     local buf1 = H.create_test_buffer('/project/main.lua', { 'main code' })
     local buf2 = H.create_test_buffer('/project/utils.lua', { 'utility functions' })
     local buf3 = H.create_test_buffer('/project/config.lua', { 'configuration' })
@@ -136,7 +131,6 @@ H.create_realistic_jumplist = function(scenario, opts)
     }
     position = opts.position or 2
   elseif scenario == 'cross_directory' then
-    -- Files across different directories
     local buf1 = H.create_test_buffer('/project/src/main.lua', { 'main code' })
     local buf2 = H.create_test_buffer('/project/tests/spec.lua', { 'test code' })
     local buf3 = H.create_test_buffer('/other/external.lua', { 'external code' })
@@ -148,7 +142,6 @@ H.create_realistic_jumplist = function(scenario, opts)
     }
     position = opts.position or 2
   elseif scenario == 'with_hidden' then
-    -- Files with some items marked as hidden
     local buf1 = H.create_test_buffer('/project/main.lua', { 'main code' })
     local buf2 = H.create_test_buffer('/project/hidden.lua', { 'hidden file' })
     local buf3 = H.create_test_buffer('/project/visible.lua', { 'visible file' })
@@ -159,7 +152,6 @@ H.create_realistic_jumplist = function(scenario, opts)
     }
     position = opts.position or 1
   elseif scenario == 'large_list' then
-    -- Large jumplist for performance testing
     local buffers = {}
     for i = 1, (opts.count or 20) do
       buffers[i] = H.create_test_buffer('/project/file' .. i .. '.lua', { 'content ' .. i })
@@ -167,7 +159,7 @@ H.create_realistic_jumplist = function(scenario, opts)
     entries = {}
     for i, buf in ipairs(buffers) do
       table.insert(entries, { bufnr = buf, lnum = i, col = 0 })
-      if i % 3 == 0 then -- Add some repeated files
+      if i % 3 == 0 then
         table.insert(entries, { bufnr = buf, lnum = i + 1, col = 2 })
       end
     end
@@ -176,10 +168,7 @@ H.create_realistic_jumplist = function(scenario, opts)
     error('Unknown jumplist scenario: ' .. tostring(scenario))
   end
 
-  -- Apply the mock jumplist
   H.create_mock_jumplist(entries, position)
-
-  -- Return metadata for test verification
   return {
     entries = entries,
     position = position,
@@ -190,20 +179,16 @@ H.create_realistic_jumplist = function(scenario, opts)
   }
 end
 
--- ============================================================================
--- VALIDATION & ASSERTION HELPERS
--- ============================================================================
-
+--- Validates workflow state with detailed assertions
+--- @param instance table Plugin instance to validate
+--- @param expected table Expected state: {context, items_count, filters, selection_index, view_state, has_item_with_path, no_item_with_path}
 H.assert_workflow_state = function(instance, expected)
   local context = expected.context or 'workflow validation'
-
-  -- Validate instance structure
   MiniTest.expect.equality(type(instance), 'table', context .. ': instance should be table')
   MiniTest.expect.equality(type(instance.items), 'table', context .. ': items should be table')
   MiniTest.expect.equality(type(instance.selection), 'table', context .. ': selection should be table')
   MiniTest.expect.equality(type(instance.filters), 'table', context .. ': filters should be table')
 
-  -- Check filter state if provided
   if expected.filters then
     for filter_name, filter_value in pairs(expected.filters) do
       MiniTest.expect.equality(
@@ -214,7 +199,6 @@ H.assert_workflow_state = function(instance, expected)
     end
   end
 
-  -- Check items count if provided
   if expected.items_count then
     MiniTest.expect.equality(
       #instance.items,
@@ -223,7 +207,6 @@ H.assert_workflow_state = function(instance, expected)
     )
   end
 
-  -- Check selection index if provided
   if expected.selection_index then
     MiniTest.expect.equality(
       instance.selection.index,
@@ -232,7 +215,6 @@ H.assert_workflow_state = function(instance, expected)
     )
   end
 
-  -- Check view state if provided
   if expected.view_state then
     MiniTest.expect.equality(
       instance.view_state,
@@ -241,7 +223,6 @@ H.assert_workflow_state = function(instance, expected)
     )
   end
 
-  -- Check that selection is within bounds
   if #instance.items > 0 then
     MiniTest.expect.equality(
       instance.selection.index >= 1 and instance.selection.index <= #instance.items,
@@ -250,7 +231,6 @@ H.assert_workflow_state = function(instance, expected)
     )
   end
 
-  -- Check specific items if provided
   if expected.has_item_with_path then
     local found = false
     for _, item in ipairs(instance.items) do
@@ -266,7 +246,6 @@ H.assert_workflow_state = function(instance, expected)
     )
   end
 
-  -- Check that no item has specific path if provided
   if expected.no_item_with_path then
     local found = false
     for _, item in ipairs(instance.items) do
@@ -283,17 +262,17 @@ H.assert_workflow_state = function(instance, expected)
   end
 end
 
+--- Creates comprehensive test data for filter testing
+--- @param opts table|nil Options for test data creation
+--- @return table Test data structure with items, buffers, and context
 H.create_filter_test_data = function(opts)
   opts = opts or {}
-
-  -- Create test buffers for different scenarios
   local buf_current = H.create_test_buffer('/project/current.lua', { 'current file content' })
   local buf_same_dir = H.create_test_buffer('/project/other.lua', { 'same directory file' })
   local buf_sub_dir = H.create_test_buffer('/project/src/main.lua', { 'subdirectory file' })
   local buf_parent_dir = H.create_test_buffer('/other/external.lua', { 'external file' })
   local buf_hidden = H.create_test_buffer('/project/hidden.lua', { 'hidden content' })
 
-  -- Standard item structure for filter testing
   local items = {
     {
       path = '/project/current.lua',
@@ -369,13 +348,11 @@ H.create_filter_test_data = function(opts)
     })
   end
 
-  -- Filter context for testing
   local filter_context = {
     original_file = '/project/current.lua',
     original_cwd = '/project',
   }
 
-  -- All possible filter combinations (as in TASKS.md)
   local filter_combinations = {
     { file_only = false, cwd_only = false, show_hidden = false }, -- 000
     { file_only = false, cwd_only = false, show_hidden = true }, -- 001
@@ -387,7 +364,6 @@ H.create_filter_test_data = function(opts)
     { file_only = true, cwd_only = true, show_hidden = true }, -- 111
   }
 
-  -- Expected results for each combination
   local expected_results = {
     [1] = { count = 4, has_current = true, has_external = true, has_hidden = false }, -- 000
     [2] = { count = 5, has_current = true, has_external = true, has_hidden = true }, -- 001
@@ -408,15 +384,13 @@ H.create_filter_test_data = function(opts)
   }
 end
 
--- ============================================================================
--- MOCK MANAGEMENT HELPERS
--- ============================================================================
-
+--- Mocks vim functions with provided overrides
+--- @param mocks table Mock specifications: {current_file, cwd, buffer_names}
+--- @return table Original functions for restoration
 H.mock_vim_functions = function(mocks)
   mocks = mocks or {}
   local original_functions = {}
 
-  -- Mock vim.fn.expand
   if mocks.current_file then
     original_functions.expand = vim.fn.expand
     vim.fn.expand = function(pattern)
@@ -427,7 +401,6 @@ H.mock_vim_functions = function(mocks)
     end
   end
 
-  -- Mock vim.fn.getcwd
   if mocks.cwd then
     original_functions.getcwd = vim.fn.getcwd
     vim.fn.getcwd = function()
@@ -435,7 +408,6 @@ H.mock_vim_functions = function(mocks)
     end
   end
 
-  -- Mock vim.api.nvim_buf_get_name
   if mocks.buffer_names then
     original_functions.buf_get_name = vim.api.nvim_buf_get_name
     vim.api.nvim_buf_get_name = function(bufnr)
@@ -449,6 +421,8 @@ H.mock_vim_functions = function(mocks)
   return original_functions
 end
 
+--- Restores original vim functions from mocks
+--- @param original_functions table Original functions returned by mock_vim_functions
 H.restore_vim_functions = function(original_functions)
   if original_functions.expand then
     vim.fn.expand = original_functions.expand
@@ -461,6 +435,9 @@ H.restore_vim_functions = function(original_functions)
   end
 end
 
+--- Creates test items from specification array
+--- @param spec table Array of item specs with optional properties
+--- @return table Array of formatted test items
 H.create_test_items = function(spec)
   local items = {}
 
@@ -475,7 +452,6 @@ H.create_test_items = function(spec)
       text = item_spec.text or ('line content ' .. i),
     }
 
-    -- Add optional properties
     if item_spec.hidden then
       item.hidden = true
     end
@@ -486,10 +462,11 @@ H.create_test_items = function(spec)
   return items
 end
 
--- ============================================================================
--- WORKFLOW HELPERS
--- ============================================================================
-
+--- Waits for condition to become true within timeout
+--- @param condition_fn function Function that returns true when condition is met
+--- @param timeout_ms number|nil Timeout in milliseconds (default: 1000)
+--- @param interval_ms number|nil Check interval in milliseconds (default: 10)
+--- @return boolean True if condition was met, false if timeout
 H.wait_for_state = function(condition_fn, timeout_ms, interval_ms)
   timeout_ms = timeout_ms or 1000
   interval_ms = interval_ms or 10
@@ -506,22 +483,23 @@ H.wait_for_state = function(condition_fn, timeout_ms, interval_ms)
   return false
 end
 
+--- Simulates sequence of user actions for workflow testing
+--- @param instance table Plugin instance
+--- @param actions table Array of action specifications
+--- @return table Workflow execution results
 H.simulate_user_workflow = function(instance, actions)
-  -- Simulate a sequence of user actions for workflow testing
   local results = {}
 
   for i, action in ipairs(actions) do
     local action_name = action.action or 'unknown'
     local params = action.params or {}
 
-    -- Record state before action
     local before_state = {
       items_count = #instance.items,
       selection_index = instance.selection.index,
       filters = vim.deepcopy(instance.filters),
     }
 
-    -- Perform action
     local success = pcall(function()
       if action_name == 'move_selection' then
         if instance.H and instance.H.instance and instance.H.instance.move_selection then
@@ -539,7 +517,6 @@ H.simulate_user_workflow = function(instance, actions)
       end
     end)
 
-    -- Record results
     table.insert(results, {
       action = action_name,
       params = params,
@@ -552,27 +529,26 @@ H.simulate_user_workflow = function(instance, actions)
       },
     })
 
-    -- Small delay to allow state updates
     vim.wait(5)
   end
 
   return results
 end
 
+--- Verifies plugin state structure and optional expected values
+--- @param state table Plugin state to verify
+--- @param expected table|nil Expected values: {items_count, selection_index, source_name}
 H.verify_state = function(state, expected)
   MiniTest.expect.equality(type(state), 'table')
   MiniTest.expect.equality(type(state.items), 'table')
   MiniTest.expect.equality(type(state.selection), 'table')
   MiniTest.expect.equality(type(state.general_info), 'table')
 
-  -- Verify selection structure
   MiniTest.expect.equality(type(state.selection.index), 'number')
 
-  -- Verify general_info structure
   MiniTest.expect.equality(type(state.general_info.source_name), 'string')
   MiniTest.expect.equality(type(state.general_info.source_cwd), 'string')
 
-  -- Check expected values if provided
   if expected then
     if expected.items_count then
       MiniTest.expect.equality(#state.items, expected.items_count)
@@ -584,6 +560,14 @@ H.verify_state = function(state, expected)
       MiniTest.expect.equality(state.general_info.source_name, expected.source_name)
     end
   end
+end
+
+--- Waits for async operations to complete (scheduled functions, UI updates)
+--- @param ms number|nil Wait time in milliseconds (default: 50)
+H.wait_for_async = function(ms)
+  ms = ms or 50
+  vim.wait(ms)
+  vim.cmd('redraw')
 end
 
 return H

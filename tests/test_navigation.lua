@@ -30,7 +30,7 @@ T['Navigation Features']['Basic Processing']['processes jumplist with items'] = 
   MiniTest.expect.no_error(function()
     local state = H.start_and_verify({ offset = -1 }, { source_name = 'Jumplist' })
 
-    -- Verify jump items have expected structure if any exist
+
     if state and #state.items > 0 then
       for _, item in ipairs(state.items) do
         MiniTest.expect.equality(type(item.offset), 'number')
@@ -71,10 +71,10 @@ T['Navigation Features']['Basic Processing']['creates proper item structure'] = 
 end
 
 T['Navigation Features']['Basic Processing']['filters invalid buffers correctly'] = function()
-  -- Setup: Create valid buffer and mix with invalid buffer numbers
+
   local valid_buf = H.create_test_buffer('valid.lua', { 'valid content' })
 
-  -- Create jumplist with mix of valid and invalid buffer numbers
+
   H.create_mock_jumplist({
     { bufnr = valid_buf, lnum = 1, col = 0 }, -- Valid buffer
     { bufnr = 0, lnum = 2, col = 0 }, -- Invalid: zero
@@ -86,11 +86,11 @@ T['Navigation Features']['Basic Processing']['filters invalid buffers correctly'
     local state = H.start_and_verify({ offset = -1 })
 
     if state and state.items then
-      -- Should have filtered out invalid buffers, keeping only the valid one
-      -- The exact count may vary based on buflisted() checks, but should be >= 0
+
+
       MiniTest.expect.equality(#state.items >= 0, true, 'should handle invalid buffers without crashing')
 
-      -- All remaining items should have valid buffer numbers
+
       for _, item in ipairs(state.items) do
         MiniTest.expect.equality(type(item.bufnr), 'number', 'all items should have numeric bufnr')
         MiniTest.expect.equality(item.bufnr > 0, true, 'all items should have positive bufnr')
@@ -120,14 +120,14 @@ T['Navigation Features']['Fallback Behavior']['falls back to max offset when too
     { bufnr = buf3, lnum = 2, col = 0 }, -- offset 2
   }, 2)
 
-  -- Test requesting offset 99 (forward) - should select offset 2 (max forward)
+
   MiniTest.expect.no_error(function()
     Jumppack.start({ offset = 99 })
     vim.wait(10)
 
     local state = Jumppack.get_state()
     if state and state.current then
-      -- The selected item should have offset 2 (the maximum forward offset)
+
       MiniTest.expect.equality(state.current.offset, 2)
     end
 
@@ -152,14 +152,14 @@ T['Navigation Features']['Fallback Behavior']['falls back to min offset when too
     { bufnr = buf3, lnum = 2, col = 0 }, -- offset 2
   }, 2)
 
-  -- Test requesting offset -99 (backward) - should select offset -2 (min backward)
+
   MiniTest.expect.no_error(function()
     Jumppack.start({ offset = -99 })
     vim.wait(10)
 
     local state = Jumppack.get_state()
     if state and state.current then
-      -- The selected item should have offset -2 (the minimum backward offset)
+
       MiniTest.expect.equality(state.current.offset, -2)
     end
 
@@ -175,7 +175,7 @@ end
 T['Navigation Features']['Buffer Management'] = MiniTest.new_set()
 
 T['Navigation Features']['Buffer Management']['handles source buffers deleted while picker active'] = function()
-  -- Create test buffers and jumplist
+
   local buf1 = H.create_test_buffer('/project/file1.lua', { 'line 1', 'line 2' })
   local buf2 = H.create_test_buffer('/project/file2.lua', { 'other line' })
   local buf3 = H.create_test_buffer('/project/file3.lua', { 'third file' })
@@ -201,27 +201,27 @@ T['Navigation Features']['Buffer Management']['handles source buffers deleted wh
     local state = Jumppack.get_state()
     MiniTest.expect.equality(state and state.instance ~= nil, true, 'Picker should start successfully')
 
-    -- Delete buffer while picker is active
+
     vim.api.nvim_buf_delete(buf2, { force = true })
 
-    -- Picker should continue to function and not crash
+
     if state and state.instance then
       local instance = state.instance
       local H_internal = Jumppack.H
 
-      -- Navigation should work despite deleted buffer
+
       if H_internal.actions and H_internal.actions.jump_back then
         MiniTest.expect.no_error(function()
           H_internal.actions.jump_back(instance, 1)
         end, 'Navigation should work with deleted buffer in jumplist')
       end
 
-      -- Should be able to refresh without error
+
       MiniTest.expect.no_error(function()
         Jumppack.refresh()
       end, 'Refresh should handle deleted buffers gracefully')
 
-      -- Preview should handle deleted buffer gracefully
+
       if H_internal.display and H_internal.display.render_preview then
         MiniTest.expect.no_error(function()
           H_internal.display.render_preview(instance)
@@ -229,14 +229,14 @@ T['Navigation Features']['Buffer Management']['handles source buffers deleted wh
       end
     end
 
-    -- Cleanup
+
     if Jumppack.is_active() then
       vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes('<Esc>', true, true, true), 'x', false)
       vim.wait(50)
     end
   end, 'Should handle deleted buffers without errors')
 
-  -- Restore and cleanup remaining buffers
+
   H.restore_vim_functions(original_fns)
   for _, buf in ipairs({ buf1, buf3 }) do -- buf2 already deleted
     if vim.api.nvim_buf_is_valid(buf) then
@@ -248,7 +248,7 @@ end
 T['Navigation Features']['Window Management'] = MiniTest.new_set()
 
 T['Navigation Features']['Window Management']['gracefully handles window cleanup failures'] = function()
-  -- Create minimal test setup
+
   local buf = H.create_test_buffer('/test/file.lua', { 'test line' })
 
   H.create_mock_jumplist({
@@ -272,12 +272,12 @@ T['Navigation Features']['Window Management']['gracefully handles window cleanup
       local instance = state.instance
       local main_win = instance.windows.main
 
-      -- Manually close the main window to simulate cleanup failure scenario
+
       if main_win and vim.api.nvim_win_is_valid(main_win) then
         pcall(vim.api.nvim_win_close, main_win, true)
       end
 
-      -- Should handle subsequent cleanup gracefully
+
       MiniTest.expect.no_error(function()
         vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes('<Esc>', true, true, true), 'x', false)
         vim.wait(50)
@@ -285,13 +285,13 @@ T['Navigation Features']['Window Management']['gracefully handles window cleanup
     end
   end, 'Should handle window cleanup failures gracefully')
 
-  -- Cleanup
+
   H.restore_vim_functions(original_fns)
   H.cleanup_buffers({ buf })
 end
 
 T['Navigation Features']['Window Management']['verifies window and buffer cleanup'] = function()
-  -- Test that verifies actual resource cleanup happens (not just handling pre-closed windows)
+
   local buf = H.create_test_buffer('/cleanup/test.lua', { 'test content' })
 
   H.create_mock_jumplist({
@@ -304,7 +304,7 @@ T['Navigation Features']['Window Management']['verifies window and buffer cleanu
   })
 
   MiniTest.expect.no_error(function()
-    -- Count windows and buffers before starting
+
     local windows_before = vim.api.nvim_list_wins()
     local buffers_before = vim.api.nvim_list_bufs()
 
@@ -317,7 +317,7 @@ T['Navigation Features']['Window Management']['verifies window and buffer cleanu
       return
     end
 
-    -- Verify picker created new window and buffer
+
     local windows_during = vim.api.nvim_list_wins()
     local buffers_during = vim.api.nvim_list_bufs()
 
@@ -328,15 +328,15 @@ T['Navigation Features']['Window Management']['verifies window and buffer cleanu
     local picker_window = instance.windows.main
     local picker_buffer = instance.buffers.main
 
-    -- Verify the picker resources exist
+
     MiniTest.expect.equality(vim.api.nvim_win_is_valid(picker_window), true, 'Picker window should be valid')
     MiniTest.expect.equality(vim.api.nvim_buf_is_valid(picker_buffer), true, 'Picker buffer should be valid')
 
-    -- Exit picker normally
+
     vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes('<Esc>', true, true, true), 'x', false)
     vim.wait(50)
 
-    -- Verify resources are cleaned up
+
     MiniTest.expect.equality(
       vim.api.nvim_win_is_valid(picker_window),
       false,
@@ -348,12 +348,12 @@ T['Navigation Features']['Window Management']['verifies window and buffer cleanu
       'Picker buffer should be deleted after exit'
     )
 
-    -- Verify we're back to original window/buffer count
+
     local windows_after = vim.api.nvim_list_wins()
     local buffers_after = vim.api.nvim_list_bufs()
 
     MiniTest.expect.equality(#windows_after, #windows_before, 'Should return to original window count')
-    -- Note: Buffer count might differ due to test buffers, so we just check picker buffer is gone
+
   end, 'Should properly cleanup windows and buffers')
 
   H.restore_vim_functions(original_fns)
@@ -363,14 +363,14 @@ end
 T['Navigation Features']['Buffer Validation'] = MiniTest.new_set()
 
 T['Navigation Features']['Buffer Validation']['handles jumplist entries with invalid buffers'] = function()
-  -- Create a buffer then delete it to simulate invalid buffer scenario
+
   local valid_buf = H.create_test_buffer('/project/valid.lua', { 'valid content' })
   local invalid_buf = H.create_test_buffer('/project/invalid.lua', { 'will be deleted' })
 
-  -- Delete the buffer to make it invalid
+
   vim.api.nvim_buf_delete(invalid_buf, { force = true })
 
-  -- Create jumplist with mix of valid and invalid buffers
+
   H.create_mock_jumplist({
     { bufnr = valid_buf, lnum = 1, col = 0 },
     { bufnr = invalid_buf, lnum = 1, col = 0 }, -- Invalid buffer
@@ -393,10 +393,10 @@ T['Navigation Features']['Buffer Validation']['handles jumplist entries with inv
     if state and state.instance then
       local instance = state.instance
 
-      -- Should have filtered out invalid buffers or handled them gracefully
+
       MiniTest.expect.equality(#instance.items >= 0, true, 'Should create items despite invalid buffers')
 
-      -- Navigation should work despite invalid entries
+
       local H_internal = Jumppack.H
       if H_internal.actions and H_internal.actions.jump_back then
         MiniTest.expect.no_error(function()
@@ -405,20 +405,20 @@ T['Navigation Features']['Buffer Validation']['handles jumplist entries with inv
       end
     end
 
-    -- Cleanup
+
     if Jumppack.is_active() then
       vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes('<Esc>', true, true, true), 'x', false)
       vim.wait(50)
     end
   end, 'Should handle invalid buffers without crashing')
 
-  -- Cleanup
+
   H.restore_vim_functions(original_fns)
   H.cleanup_buffers({ valid_buf })
 end
 
 T['Navigation Features']['find_best_selection'] = function()
-  -- Setup a mock instance
+
   local original_items = {
     { path = '/test/file1.lua', lnum = 1, offset = -1 },
     { path = '/test/file2.lua', lnum = 5, offset = 0 },
@@ -435,25 +435,25 @@ T['Navigation Features']['find_best_selection'] = function()
     current_ind = 2, -- Currently on file2.lua
   }
 
-  -- Test finding closest item when current is not in filtered list
+
   local selection = Jumppack.H.instance.find_best_selection(mock_instance, filtered_items)
-  -- Should find file1.lua (offset=-1) as closest to file2.lua (offset=0)
+
   MiniTest.expect.equality(selection, 1)
 
-  -- Test when current item is in filtered list
+
   mock_instance.current_ind = 1 -- Currently on file1.lua
   selection = Jumppack.H.instance.find_best_selection(mock_instance, filtered_items)
   MiniTest.expect.equality(selection, 1) -- Should find exact match
 end
 
 T['Navigation Features']['Navigation actions'] = function()
-  -- Test that navigation actions exist and handle count
+
   local H = Jumppack.H
   MiniTest.expect.equality(type(H.actions.jump_back), 'function')
   MiniTest.expect.equality(type(H.actions.jump_forward), 'function')
 
-  -- Note: Full integration testing of count support would require
-  -- more complex setup with actual picker instance
+
+
 end
 
 T['Navigation Features']['calculate_filtered_initial_selection'] = function()
@@ -471,15 +471,15 @@ T['Navigation Features']['calculate_filtered_initial_selection'] = function()
     { path = '/test/file5.lua', lnum = 20, offset = 2 },
   }
 
-  -- Test finding exact match
+
   local selection = Jumppack.H.instance.calculate_filtered_initial_selection(original_items, filtered_items, 3)
   MiniTest.expect.equality(selection, 2) -- file3.lua should be at index 2 in filtered items
 
-  -- Test finding closest when exact match not available
+
   selection = Jumppack.H.instance.calculate_filtered_initial_selection(original_items, filtered_items, 4)
   MiniTest.expect.equality(selection, 2) -- Should find file3.lua (offset=0) as first closest to file4.lua (offset=1)
 
-  -- Test edge cases
+
   selection = Jumppack.H.instance.calculate_filtered_initial_selection(original_items, filtered_items, nil)
   MiniTest.expect.equality(selection, 1) -- Should default to 1
 
@@ -492,7 +492,7 @@ end
 T['Navigation Features']['instance has pending_count field'] = function()
   local H = Jumppack.H
 
-  -- Create a basic instance structure for testing
+
   local mock_instance = {
     items = { {}, {}, {}, {}, {} }, -- 5 items
     current_ind = 3,
@@ -503,7 +503,7 @@ T['Navigation Features']['instance has pending_count field'] = function()
 
   MiniTest.expect.equality(mock_instance.pending_count, '')
 
-  -- Test that pending_count can be set
+
   mock_instance.pending_count = '25'
   MiniTest.expect.equality(mock_instance.pending_count, '25')
 end
@@ -511,28 +511,28 @@ end
 T['Navigation Features']['actions handle count parameter'] = function()
   local H = Jumppack.H
 
-  -- Create mock instance with move_selection function
+
   local moved_by = nil
   local mock_instance = {
     items = { {}, {}, {}, {}, {}, {}, {}, {}, {}, {} }, -- 10 items
     current_ind = 5,
   }
 
-  -- Mock the move_selection function to capture the count
+
   H.instance.move_selection = function(instance, by)
     moved_by = by
     instance.current_ind = math.max(1, math.min(#instance.items, instance.current_ind + by))
   end
 
-  -- Test jump_back with count
+
   H.actions.jump_back(mock_instance, 3)
   MiniTest.expect.equality(moved_by, 3)
 
-  -- Test jump_forward with count
+
   H.actions.jump_forward(mock_instance, 2)
   MiniTest.expect.equality(moved_by, -2)
 
-  -- Test default count (nil becomes 1)
+
   H.actions.jump_back(mock_instance, nil)
   MiniTest.expect.equality(moved_by, 1)
 end
@@ -549,7 +549,7 @@ T['Navigation Features']['general_info includes count display'] = function()
   }
 
   local info = H.display.get_general_info(mock_instance)
-  -- Check that the count is integrated into the position indicator
+
   MiniTest.expect.equality(info.status_text:find('×42') ~= nil, true)
   MiniTest.expect.equality(info.position_indicator:find('×42') ~= nil, true)
 end
@@ -566,7 +566,7 @@ T['Navigation Features']['general_info without pending count'] = function()
   }
 
   local info = H.display.get_general_info(mock_instance)
-  -- Should not contain count symbol when pending_count is empty
+
   MiniTest.expect.equality(info.status_text:find('×'), nil)
   MiniTest.expect.equality(info.position_indicator:find('×'), nil)
 end
@@ -577,11 +577,11 @@ T['Navigation Features']['new actions exist and are callable'] = function()
   local H_internal = Jumppack.H
   local actions = H_internal.actions
 
-  -- Test that new actions exist
+
   MiniTest.expect.equality(type(actions.jump_to_top), 'function')
   MiniTest.expect.equality(type(actions.jump_to_bottom), 'function')
 
-  -- Test with empty items - should not error
+
   local mock_instance = {
     current_ind = 1,
     items = {},
@@ -597,11 +597,11 @@ T['Navigation Features']['new actions exist and are callable'] = function()
 end
 
 T['Navigation Features']['configuration includes new mappings'] = function()
-  -- Test that new mappings are in default configuration
+
   MiniTest.expect.equality(type(Jumppack.config.mappings.jump_to_top), 'string')
   MiniTest.expect.equality(type(Jumppack.config.mappings.jump_to_bottom), 'string')
 
-  -- Test default values
+
   MiniTest.expect.equality(Jumppack.config.mappings.jump_to_top, 'g')
   MiniTest.expect.equality(Jumppack.config.mappings.jump_to_bottom, 'G')
 end
@@ -611,11 +611,11 @@ T['Navigation Features']['all actions have corresponding config mappings'] = fun
   local actions = H_internal.actions
   local mappings = Jumppack.config.mappings
 
-  -- Test that jump_to_top action exists and has mapping
+
   MiniTest.expect.equality(type(actions.jump_to_top), 'function')
   MiniTest.expect.equality(type(mappings.jump_to_top), 'string')
 
-  -- Test that jump_to_bottom action exists and has mapping
+
   MiniTest.expect.equality(type(actions.jump_to_bottom), 'function')
   MiniTest.expect.equality(type(mappings.jump_to_bottom), 'string')
 end
@@ -623,7 +623,7 @@ end
 T['Navigation Features']['actions are properly wired in action normalization'] = function()
   local H_internal = Jumppack.H
 
-  -- Test action normalization includes our new actions
+
   local test_mappings = {
     jump_to_top = 'g',
     jump_to_bottom = 'G',
@@ -632,7 +632,7 @@ T['Navigation Features']['actions are properly wired in action normalization'] =
 
   local normalized = H_internal.config.normalize_mappings(test_mappings)
 
-  -- Check that g and G are properly normalized with function references
+
   local g_key = H_internal.utils.replace_termcodes('g')
   local G_key = H_internal.utils.replace_termcodes('G')
 
@@ -647,10 +647,10 @@ end
 T['Navigation Features']['jump_to_top action is properly implemented'] = function()
   local H_internal = Jumppack.H
 
-  -- Test that the action exists and can be called without error
+
   MiniTest.expect.equality(type(H_internal.actions.jump_to_top), 'function')
 
-  -- Test that it calls the right underlying function (move_selection with correct params)
+
   local move_selection_called_with = nil
   local original_move_selection = H_internal.instance.move_selection
 
@@ -661,22 +661,22 @@ T['Navigation Features']['jump_to_top action is properly implemented'] = functio
   local test_instance = { items = { {}, {}, {} } }
   H_internal.actions.jump_to_top(test_instance, 5) -- Count should be ignored
 
-  -- Verify it was called with correct parameters
+
   MiniTest.expect.equality(move_selection_called_with.instance, test_instance)
   MiniTest.expect.equality(move_selection_called_with.by, 0)
   MiniTest.expect.equality(move_selection_called_with.to, 1)
 
-  -- Restore original function
+
   H_internal.instance.move_selection = original_move_selection
 end
 
 T['Navigation Features']['jump_to_bottom action is properly implemented'] = function()
   local H_internal = Jumppack.H
 
-  -- Test that the action exists and can be called without error
+
   MiniTest.expect.equality(type(H_internal.actions.jump_to_bottom), 'function')
 
-  -- Test that it calls the right underlying function (move_selection with correct params)
+
   local move_selection_called_with = nil
   local original_move_selection = H_internal.instance.move_selection
 
@@ -687,18 +687,18 @@ T['Navigation Features']['jump_to_bottom action is properly implemented'] = func
   local test_instance = { items = { {}, {}, {}, {} } } -- 4 items
   H_internal.actions.jump_to_bottom(test_instance, 10) -- Count should be ignored
 
-  -- Verify it was called with correct parameters (should go to item 4)
+
   MiniTest.expect.equality(move_selection_called_with.instance, test_instance)
   MiniTest.expect.equality(move_selection_called_with.by, 0)
   MiniTest.expect.equality(move_selection_called_with.to, 4)
 
-  -- Test edge case with empty items
+
   move_selection_called_with = nil
   H_internal.actions.jump_to_bottom({ items = {} }, 1)
-  -- Should not call move_selection when items is empty
+
   MiniTest.expect.equality(move_selection_called_with, nil)
 
-  -- Restore original function
+
   H_internal.instance.move_selection = original_move_selection
 end
 
@@ -706,7 +706,7 @@ T['Navigation Features']['actions handle edge cases correctly'] = function()
   local H_internal = Jumppack.H
   local actions = H_internal.actions
 
-  -- Test with empty items
+
   local empty_instance = {
     current_ind = 1,
     items = {},
@@ -715,13 +715,13 @@ T['Navigation Features']['actions handle edge cases correctly'] = function()
     windows = { main = vim.api.nvim_get_current_win() },
   }
 
-  -- Should not error with empty items
+
   MiniTest.expect.no_error(function()
     actions.jump_to_top(empty_instance, 1)
     actions.jump_to_bottom(empty_instance, 1)
   end)
 
-  -- Test with single item
+
   local single_instance = {
     current_ind = 1,
     items = {
@@ -732,7 +732,7 @@ T['Navigation Features']['actions handle edge cases correctly'] = function()
     windows = { main = vim.api.nvim_get_current_win() },
   }
 
-  -- Both actions should keep selection at position 1
+
   actions.jump_to_top(single_instance, 1)
   MiniTest.expect.equality(single_instance.current_ind, 1)
 
@@ -743,7 +743,7 @@ end
 T['Navigation Features']['validation catches invalid mapping types'] = function()
   local H_internal = Jumppack.H
 
-  -- Test that config validation fails when jump mappings have invalid types
+
   local invalid_config = {
     options = { global_mappings = true, cwd_only = false, wrap_edges = false, default_view = 'preview' },
     mappings = {
@@ -766,12 +766,12 @@ T['Navigation Features']['validation catches invalid mapping types'] = function(
     window = { config = nil },
   }
 
-  -- Should error when jump_to_top mapping has invalid type
+
   MiniTest.expect.error(function()
     H_internal.config.setup(invalid_config)
   end, 'jump_to_top')
 
-  -- Test invalid jump_to_bottom type
+
   local config_invalid_bottom = vim.deepcopy(invalid_config)
   config_invalid_bottom.mappings.jump_to_top = 'g' -- Fix top
   config_invalid_bottom.mappings.jump_to_bottom = {} -- Invalid type - should be string
@@ -781,7 +781,7 @@ T['Navigation Features']['validation catches invalid mapping types'] = function(
 end
 
 T['Navigation Features']['Basic Wrapping: First→back wraps to last, last→forward wraps to first'] = function()
-  -- Setup test data with multiple items
+
   local buf1 = H.create_test_buffer('test1.lua', { 'line 1' })
   local buf2 = H.create_test_buffer('test2.lua', { 'line 2' })
   local buf3 = H.create_test_buffer('test3.lua', { 'line 3' })
@@ -794,14 +794,14 @@ T['Navigation Features']['Basic Wrapping: First→back wraps to last, last→for
     { bufnr = buf4, lnum = 1, col = 0 },
   }, 0)
 
-  -- Mock environment
+
   local original_fns = H.mock_vim_functions({
     current_file = 'test1.lua',
     cwd = vim.fn.getcwd(),
   })
 
   MiniTest.expect.no_error(function()
-    -- Test with wrapping enabled
+
     Jumppack.setup({
       options = { wrap_edges = true },
     })
@@ -820,7 +820,7 @@ T['Navigation Features']['Basic Wrapping: First→back wraps to last, last→for
     MiniTest.expect.equality(#instance.items >= 4, true, 'should have at least 4 items for wrapping test')
 
     if #instance.items >= 4 and H_internal.actions then
-      -- Test forward wrapping: navigate to last item, then forward should wrap to first
+
       if H_internal.actions.jump_to_bottom then
         H_internal.actions.jump_to_bottom(instance, {})
         vim.wait(10)
@@ -841,7 +841,7 @@ T['Navigation Features']['Basic Wrapping: First→back wraps to last, last→for
         end
       end
 
-      -- Test backward wrapping: navigate to first item, then backward should wrap to last
+
       if H_internal.actions.jump_to_top then
         H_internal.actions.jump_to_top(instance, {})
         vim.wait(10)
@@ -862,13 +862,13 @@ T['Navigation Features']['Basic Wrapping: First→back wraps to last, last→for
       end
     end
 
-    -- Cleanup
+
     if Jumppack.is_active() then
       vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes('<Esc>', true, true, true), 'x', false)
       vim.wait(10)
     end
 
-    -- Test with wrapping disabled
+
     Jumppack.setup({
       options = { wrap_edges = false },
     })
@@ -919,21 +919,21 @@ T['Navigation Features']['Basic Wrapping: First→back wraps to last, last→for
       end
     end
 
-    -- Cleanup
+
     if Jumppack.is_active() then
       vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes('<Esc>', true, true, true), 'x', false)
       vim.wait(10)
     end
   end)
 
-  -- Restore and cleanup
+
   H.restore_vim_functions(original_fns)
   H.cleanup_buffers({ buf1, buf2, buf3, buf4 })
 end
 
 T['Navigation Features']['Wrap Edge Conditions: validates specific edge wrapping logic'] = function()
-  -- This test specifically targets the wrap conditions that were NOT caught during breaking analysis:
-  -- to == 1 and by < 0 (wrap backward from first) and to == n_matches and by > 0 (wrap forward from last)
+
+
 
   local buf1 = H.create_test_buffer('wrap1.lua', { 'content 1' })
   local buf2 = H.create_test_buffer('wrap2.lua', { 'content 2' })
@@ -964,50 +964,50 @@ T['Navigation Features']['Wrap Edge Conditions: validates specific edge wrapping
     local H_internal = Jumppack.H
 
     if #instance.items >= 3 then
-      -- Test critical wrap condition: backward from first (to == 1 and by < 0)
+
       instance.current_ind = 1 -- Set current_ind (the actual field used by move_selection)
 
-      -- Direct test of move_selection with backward movement from position 1
+
       H_internal.instance.move_selection(instance, -1) -- Move backward by 1
 
-      -- Should wrap to last item when wrap_edges is true
+
       MiniTest.expect.equality(
         instance.current_ind,
         #instance.items,
         'backward movement from current_ind=1 should wrap to last item'
       )
 
-      -- Test critical wrap condition: forward from last (to == n_matches and by > 0)
+
       instance.current_ind = #instance.items -- Set to last position
 
-      -- Direct test of move_selection with forward movement from last position
+
       H_internal.instance.move_selection(instance, 1) -- Move forward by 1
 
-      -- Should wrap to first item when wrap_edges is true
+
       MiniTest.expect.equality(
         instance.current_ind,
         1,
         'forward movement from current_ind=last should wrap to first item'
       )
 
-      -- Note: Testing wrap_edges=false requires separate instance
-      -- Mid-test setup changes don't affect running instances
+
+
     end
 
-    -- Cleanup
+
     if Jumppack.is_active() then
       vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes('<Esc>', true, true, true), 'x', false)
       vim.wait(10)
     end
   end)
 
-  -- Restore and cleanup
+
   H.restore_vim_functions(original_fns)
   H.cleanup_buffers({ buf1, buf2, buf3 })
 end
 
 T['Navigation Features']['Wrap Edge Behavior: clamps correctly when disabled'] = function()
-  -- Test wrap_edges = false with separate instance
+
   local buf1 = H.create_test_buffer('nowrap1.lua', { 'content 1' })
   local buf2 = H.create_test_buffer('nowrap2.lua', { 'content 2' })
   local buf3 = H.create_test_buffer('nowrap3.lua', { 'content 3' })
@@ -1037,24 +1037,24 @@ T['Navigation Features']['Wrap Edge Behavior: clamps correctly when disabled'] =
     local H_internal = Jumppack.H
 
     if #instance.items >= 3 then
-      -- Test no backward wrap from first: should stay at 1
+
       instance.current_ind = 1
 
       H_internal.instance.move_selection(instance, -1)
 
-      -- Should stay at first item when wrap_edges is false
+
       MiniTest.expect.equality(
         instance.current_ind,
         1,
         'backward movement from current_ind=1 should stay at 1 when wrap disabled'
       )
 
-      -- Test no forward wrap from last: should stay at last
+
       instance.current_ind = #instance.items
 
       H_internal.instance.move_selection(instance, 1)
 
-      -- Should stay at last item when wrap_edges is false
+
       MiniTest.expect.equality(
         instance.current_ind,
         #instance.items,
@@ -1062,7 +1062,7 @@ T['Navigation Features']['Wrap Edge Behavior: clamps correctly when disabled'] =
       )
     end
 
-    -- Cleanup
+
     if Jumppack.is_active() then
       vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes('<Esc>', true, true, true), 'x', false)
       vim.wait(10)
@@ -1074,8 +1074,8 @@ T['Navigation Features']['Wrap Edge Behavior: clamps correctly when disabled'] =
 end
 
 T['Navigation Features']['Wrap Edge Behavior: detects incorrect wrap logic'] = function()
-  -- Test that specifically detects when wrap logic is inverted
-  -- This test checks intermediate values BEFORE final clamping
+
+
 
   local buf1 = H.create_test_buffer('logic1.lua', { 'content 1' })
   local buf2 = H.create_test_buffer('logic2.lua', { 'content 2' })
@@ -1092,22 +1092,22 @@ T['Navigation Features']['Wrap Edge Behavior: detects incorrect wrap logic'] = f
     cwd = vim.fn.getcwd(),
   })
 
-  -- Test wrap_edges = false case where incorrect wrapping would be visible
+
   MiniTest.expect.no_error(function()
     Jumppack.setup({ options = { wrap_edges = false } })
 
-    -- Simulate the exact wrap calculation logic from move_selection
+
     local n_matches = 3
     local wrap_edges = Jumppack.config.options and Jumppack.config.options.wrap_edges
 
-    -- Test case: backward from position 1 with wrap_edges=false
+
     local current_ind = 1
     local by = -1
     local to = current_ind
 
-    -- This mirrors the exact logic from H.instance.move_selection
+
     if wrap_edges then
-      -- Should wrap when enabled
+
       if to == 1 and by < 0 then
         to = n_matches
       elseif to == n_matches and by > 0 then
@@ -1116,12 +1116,12 @@ T['Navigation Features']['Wrap Edge Behavior: detects incorrect wrap logic'] = f
         to = to + by
       end
     else
-      -- Should NOT wrap when disabled - just add by
+
       to = to + by
     end
 
-    -- Before clamping: with wrap_edges=false, to should be 0 (1 + (-1))
-    -- If wrap logic is broken and inverted, to would be 3 (n_matches)
+
+
     MiniTest.expect.equality(
       to,
       0,
@@ -1130,7 +1130,7 @@ T['Navigation Features']['Wrap Edge Behavior: detects incorrect wrap logic'] = f
         .. ' (indicates broken wrap logic)'
     )
 
-    -- Test case: forward from last position with wrap_edges=false
+
     current_ind = n_matches
     by = 1
     to = current_ind
@@ -1147,8 +1147,8 @@ T['Navigation Features']['Wrap Edge Behavior: detects incorrect wrap logic'] = f
       to = to + by
     end
 
-    -- Before clamping: with wrap_edges=false, to should be 4 (3 + 1)
-    -- If wrap logic is broken and inverted, to would be 1
+
+
     MiniTest.expect.equality(
       to,
       4,
@@ -1163,11 +1163,11 @@ T['Navigation Features']['Wrap Edge Behavior: detects incorrect wrap logic'] = f
 end
 
 T['Navigation Features']['Count Wrapping: Large counts with wrapping enabled/disabled'] = function()
-  -- Setup test data
+
   local test_buffers = {}
   local jumplist_entries = {}
 
-  -- Create 5 items for count testing
+
   for i = 1, 5 do
     local buf = H.create_test_buffer(string.format('count_test%d.lua', i), { 'line ' .. i })
     table.insert(test_buffers, buf)
@@ -1176,14 +1176,14 @@ T['Navigation Features']['Count Wrapping: Large counts with wrapping enabled/dis
 
   H.create_mock_jumplist(jumplist_entries, 0)
 
-  -- Mock environment
+
   local original_fns = H.mock_vim_functions({
     current_file = 'count_test1.lua',
     cwd = vim.fn.getcwd(),
   })
 
   MiniTest.expect.no_error(function()
-    -- Test with wrapping enabled
+
     Jumppack.setup({
       options = { wrap_edges = true },
     })
@@ -1200,7 +1200,7 @@ T['Navigation Features']['Count Wrapping: Large counts with wrapping enabled/dis
     local H_internal = Jumppack.H
 
     if #instance.items >= 5 and H_internal.actions then
-      -- Test large count forward with wrapping
+
       if H_internal.actions.jump_to_top and H_internal.actions.move_next then
         H_internal.actions.jump_to_top(instance, {})
         vim.wait(10)
@@ -1222,7 +1222,7 @@ T['Navigation Features']['Count Wrapping: Large counts with wrapping enabled/dis
         MiniTest.expect.equality(instance.pending_count, nil, 'pending count should be cleared after action')
       end
 
-      -- Test large count backward with wrapping
+
       if H_internal.actions.jump_to_bottom and H_internal.actions.move_prev then
         H_internal.actions.jump_to_bottom(instance, {})
         vim.wait(10)
@@ -1249,13 +1249,13 @@ T['Navigation Features']['Count Wrapping: Large counts with wrapping enabled/dis
       end
     end
 
-    -- Cleanup
+
     if Jumppack.is_active() then
       vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes('<Esc>', true, true, true), 'x', false)
       vim.wait(10)
     end
 
-    -- Test with wrapping disabled
+
     Jumppack.setup({
       options = { wrap_edges = false },
     })
@@ -1302,23 +1302,23 @@ T['Navigation Features']['Count Wrapping: Large counts with wrapping enabled/dis
       end
     end
 
-    -- Cleanup
+
     if Jumppack.is_active() then
       vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes('<Esc>', true, true, true), 'x', false)
       vim.wait(10)
     end
   end)
 
-  -- Restore and cleanup
+
   H.restore_vim_functions(original_fns)
   H.cleanup_buffers(test_buffers)
 end
 
 T['Navigation Features']['Filter Wrapping: Wrapping behavior when filters reduce available items'] = function()
-  -- Setup comprehensive test data
+
   local filter_data = H.create_filter_test_data()
 
-  -- Mock environment
+
   local original_fns = H.mock_vim_functions({
     current_file = filter_data.filter_context.original_file,
     cwd = filter_data.filter_context.original_cwd,
@@ -1349,7 +1349,7 @@ T['Navigation Features']['Filter Wrapping: Wrapping behavior when filters reduce
 
     local original_item_count = #instance.items
 
-    -- Apply filter to reduce available items
+
     if H_internal.actions and H_internal.actions.toggle_cwd_filter then
       H_internal.actions.toggle_cwd_filter(instance, {})
       vim.wait(10)
@@ -1396,7 +1396,7 @@ T['Navigation Features']['Filter Wrapping: Wrapping behavior when filters reduce
         end
       end
 
-      -- Test count-based wrapping with filtered items
+
       if filtered_item_count > 2 and H_internal.actions.move_next then
         H_internal.actions.jump_to_top(instance, {})
         vim.wait(10)
@@ -1416,20 +1416,20 @@ T['Navigation Features']['Filter Wrapping: Wrapping behavior when filters reduce
       end
     end
 
-    -- Cleanup
+
     if Jumppack.is_active() then
       vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes('<Esc>', true, true, true), 'x', false)
       vim.wait(10)
     end
   end)
 
-  -- Restore and cleanup
+
   H.restore_vim_functions(original_fns)
   H.cleanup_buffers(filter_data.buffers)
 end
 
 T['Navigation Features']['Hide Wrapping: Wrapping skips hidden items correctly'] = function()
-  -- Setup test data
+
   local test_buffers = {}
   local jumplist_entries = {}
 
@@ -1441,7 +1441,7 @@ T['Navigation Features']['Hide Wrapping: Wrapping skips hidden items correctly']
 
   H.create_mock_jumplist(jumplist_entries, 0)
 
-  -- Mock environment
+
   local original_fns = H.mock_vim_functions({
     current_file = 'hide_wrap1.lua',
     cwd = vim.fn.getcwd(),
@@ -1464,7 +1464,7 @@ T['Navigation Features']['Hide Wrapping: Wrapping skips hidden items correctly']
     local H_internal = Jumppack.H
 
     if #instance.items >= 5 then
-      -- Hide some middle items (items 2 and 4)
+
       local items_to_hide = { instance.items[2], instance.items[4] }
       for _, item in ipairs(items_to_hide) do
         if H_internal.hide and H_internal.hide.toggle then
@@ -1472,7 +1472,7 @@ T['Navigation Features']['Hide Wrapping: Wrapping skips hidden items correctly']
         end
       end
 
-      -- Refresh to apply hide changes
+
       if Jumppack.refresh then
         Jumppack.refresh()
         vim.wait(10)
@@ -1566,25 +1566,25 @@ T['Navigation Features']['Hide Wrapping: Wrapping skips hidden items correctly']
       end
     end
 
-    -- Cleanup
+
     if Jumppack.is_active() then
       vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes('<Esc>', true, true, true), 'x', false)
       vim.wait(10)
     end
   end)
 
-  -- Restore and cleanup
+
   H.restore_vim_functions(original_fns)
   H.cleanup_buffers(test_buffers)
 
-  -- Clear hide storage
+
   if Jumppack.H and Jumppack.H.hide then
     Jumppack.H.hide.storage = {}
   end
 end
 
 T['Navigation Features']['State Preservation: View mode and selection preserved during wrapping'] = function()
-  -- Setup test data
+
   local buf1 = H.create_test_buffer('state1.lua', { 'line 1' })
   local buf2 = H.create_test_buffer('state2.lua', { 'line 2' })
   local buf3 = H.create_test_buffer('state3.lua', { 'line 3' })
@@ -1595,7 +1595,7 @@ T['Navigation Features']['State Preservation: View mode and selection preserved 
     { bufnr = buf3, lnum = 1, col = 0 },
   }, 0)
 
-  -- Mock environment
+
   local original_fns = H.mock_vim_functions({
     current_file = 'state1.lua',
     cwd = vim.fn.getcwd(),
@@ -1621,10 +1621,10 @@ T['Navigation Features']['State Preservation: View mode and selection preserved 
     local H_internal = Jumppack.H
 
     if #instance.items >= 3 and H_internal.actions then
-      -- Verify initial state
+
       local initial_view = instance.current_view
 
-      -- Toggle to preview view if available
+
       if H_internal.actions.toggle_preview then
         H_internal.actions.toggle_preview(instance, {})
         vim.wait(10)
@@ -1669,7 +1669,7 @@ T['Navigation Features']['State Preservation: View mode and selection preserved 
         end
       end
 
-      -- Test state preservation with count-based navigation
+
       if H_internal.actions.jump_to_top and H_internal.actions.move_next then
         H_internal.actions.jump_to_top(instance, {})
         vim.wait(10)
@@ -1697,20 +1697,20 @@ T['Navigation Features']['State Preservation: View mode and selection preserved 
       end
     end
 
-    -- Cleanup
+
     if Jumppack.is_active() then
       vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes('<Esc>', true, true, true), 'x', false)
       vim.wait(10)
     end
   end)
 
-  -- Restore and cleanup
+
   H.restore_vim_functions(original_fns)
   H.cleanup_buffers({ buf1, buf2, buf3 })
 end
 
 T['Navigation Features']['Count with C-o/C-i on Picker Start: Opening picker with count prefix'] = function()
-  -- Setup test data with enough items for meaningful count testing
+
   local test_buffers = {}
   local jumplist_entries = {}
 
@@ -1722,7 +1722,7 @@ T['Navigation Features']['Count with C-o/C-i on Picker Start: Opening picker wit
 
   H.create_mock_jumplist(jumplist_entries, 5) -- Current at position 5 (0-based index)
 
-  -- Mock environment
+
   local original_fns = H.mock_vim_functions({
     current_file = 'count_start_5.lua',
     cwd = vim.fn.getcwd(),
@@ -1733,22 +1733,22 @@ T['Navigation Features']['Count with C-o/C-i on Picker Start: Opening picker wit
       options = { global_mappings = true, wrap_edges = false },
     })
 
-    -- Test 3<C-o> - should start picker at offset -3 (3 jumps back)
+
     local start_state = H.start_and_verify({ offset = -3 })
     if start_state and start_state.items and #start_state.items > 0 then
       local selected_item = start_state.items[start_state.selection.index]
 
-      -- Should select item with offset -3 from current position
+
       MiniTest.expect.equality(selected_item.offset, -3, 'count prefix 3<C-o> should select item with offset -3')
     end
 
-    -- Cleanup
+
     if Jumppack.is_active() then
       vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes('<Esc>', true, true, true), 'x', false)
       vim.wait(10)
     end
 
-    -- Test 2<C-i> - should start picker at offset 2 (2 jumps forward)
+
     start_state = H.start_and_verify({ offset = 2 })
     if start_state and start_state.items and #start_state.items > 0 then
       local selected_item = start_state.items[start_state.selection.index]
@@ -1756,37 +1756,37 @@ T['Navigation Features']['Count with C-o/C-i on Picker Start: Opening picker wit
       MiniTest.expect.equality(selected_item.offset, 2, 'count prefix 2<C-i> should select item with offset 2')
     end
 
-    -- Cleanup
+
     if Jumppack.is_active() then
       vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes('<Esc>', true, true, true), 'x', false)
       vim.wait(10)
     end
 
-    -- Test large count - 8<C-o>
+
     start_state = H.start_and_verify({ offset = -8 })
     if start_state and start_state.items and #start_state.items > 0 then
       local selected_item = start_state.items[start_state.selection.index]
 
-      -- Should find best available jump (since we don't have 8 backward jumps)
+
       MiniTest.expect.equality(type(selected_item.offset), 'number', 'large count should select valid item')
 
       MiniTest.expect.equality(selected_item.offset < 0, true, 'large backward count should select backward jump')
     end
 
-    -- Cleanup
+
     if Jumppack.is_active() then
       vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes('<Esc>', true, true, true), 'x', false)
       vim.wait(10)
     end
   end)
 
-  -- Restore and cleanup
+
   H.restore_vim_functions(original_fns)
   H.cleanup_buffers(test_buffers)
 end
 
 T['Navigation Features']['Count Accumulation in Picker: Multi-digit count building'] = function()
-  -- Setup test data
+
   local test_buffers = {}
   local jumplist_entries = {}
 
@@ -1798,7 +1798,7 @@ T['Navigation Features']['Count Accumulation in Picker: Multi-digit count buildi
 
   H.create_mock_jumplist(jumplist_entries, 0)
 
-  -- Mock environment
+
   local original_fns = H.mock_vim_functions({
     current_file = 'count_accum_1.lua',
     cwd = vim.fn.getcwd(),
@@ -1819,35 +1819,35 @@ T['Navigation Features']['Count Accumulation in Picker: Multi-digit count buildi
 
     local instance = state.instance
 
-    -- Test single digit accumulation
+
     instance.pending_count = ''
     instance.pending_count = instance.pending_count .. '3'
 
     MiniTest.expect.equality(instance.pending_count, '3', 'single digit should accumulate correctly')
 
-    -- Test multi-digit accumulation
+
     instance.pending_count = instance.pending_count .. '5'
 
     MiniTest.expect.equality(instance.pending_count, '35', 'multi-digit count should accumulate correctly')
 
-    -- Test '0' handling - should only work after other digits
+
     instance.pending_count = ''
     instance.pending_count = instance.pending_count .. '0'
 
-    -- '0' alone should not be added (special handling)
+
     MiniTest.expect.equality(
       instance.pending_count == '' or instance.pending_count == '0',
       true,
       'standalone 0 should be handled specially'
     )
 
-    -- '0' after other digits should work
+
     instance.pending_count = '1'
     instance.pending_count = instance.pending_count .. '0'
 
     MiniTest.expect.equality(instance.pending_count, '10', '0 after other digits should accumulate')
 
-    -- Test count display in status
+
     local general_info = H.display.get_general_info(instance)
     if instance.pending_count ~= '' then
       MiniTest.expect.equality(type(general_info.status_text), 'string', 'status should include count information')
@@ -1859,20 +1859,20 @@ T['Navigation Features']['Count Accumulation in Picker: Multi-digit count buildi
       )
     end
 
-    -- Cleanup
+
     if Jumppack.is_active() then
       vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes('<Esc>', true, true, true), 'x', false)
       vim.wait(10)
     end
   end)
 
-  -- Restore and cleanup
+
   H.restore_vim_functions(original_fns)
   H.cleanup_buffers(test_buffers)
 end
 
 T['Navigation Features']['Smart Escape with Count: Escape clears count before closing picker'] = function()
-  -- Setup test data
+
   local buf1 = H.create_test_buffer('escape_count1.lua', { 'line 1' })
   local buf2 = H.create_test_buffer('escape_count2.lua', { 'line 2' })
   local buf3 = H.create_test_buffer('escape_count3.lua', { 'line 3' })
@@ -1883,7 +1883,7 @@ T['Navigation Features']['Smart Escape with Count: Escape clears count before cl
     { bufnr = buf3, lnum = 1, col = 0 },
   }, 0)
 
-  -- Mock environment
+
   local original_fns = H.mock_vim_functions({
     current_file = 'escape_count1.lua',
     cwd = vim.fn.getcwd(),
@@ -1902,12 +1902,12 @@ T['Navigation Features']['Smart Escape with Count: Escape clears count before cl
     local instance = state.instance
     local H_internal = Jumppack.H
 
-    -- Set up a pending count
+
     instance.pending_count = '25'
 
     MiniTest.expect.equality(instance.pending_count, '25', 'should have pending count set')
 
-    -- First escape should clear count without closing picker
+
     if H_internal.actions and H_internal.actions.stop then
       local should_stop = H_internal.actions.stop(instance, 1)
 
@@ -1915,23 +1915,23 @@ T['Navigation Features']['Smart Escape with Count: Escape clears count before cl
 
       MiniTest.expect.equality(instance.pending_count, '', 'first escape should clear pending count')
 
-      -- Verify picker is still active
+
       MiniTest.expect.equality(Jumppack.is_active(), true, 'picker should remain active after count clear')
 
-      -- Second escape should close picker
+
       local should_stop_second = H_internal.actions.stop(instance, 1)
 
       MiniTest.expect.equality(should_stop_second, true, 'second escape without count should close picker')
     end
   end)
 
-  -- Restore and cleanup
+
   H.restore_vim_functions(original_fns)
   H.cleanup_buffers({ buf1, buf2, buf3 })
 end
 
 T['Navigation Features']['Count Timeout: Automatic count clearing after timeout'] = function()
-  -- Setup test data
+
   local buf1 = H.create_test_buffer('timeout1.lua', { 'line 1' })
   local buf2 = H.create_test_buffer('timeout2.lua', { 'line 2' })
 
@@ -1940,7 +1940,7 @@ T['Navigation Features']['Count Timeout: Automatic count clearing after timeout'
     { bufnr = buf2, lnum = 1, col = 0 },
   }, 0)
 
-  -- Mock environment
+
   local original_fns = H.mock_vim_functions({
     current_file = 'timeout1.lua',
     cwd = vim.fn.getcwd(),
@@ -1962,10 +1962,10 @@ T['Navigation Features']['Count Timeout: Automatic count clearing after timeout'
     local instance = state.instance
     local H_internal = Jumppack.H
 
-    -- Simulate digit accumulation (would normally trigger timeout)
+
     instance.pending_count = '5'
 
-    -- Start timeout manually to test the mechanism
+
     if H_internal.instance and H_internal.instance.start_count_timeout then
       H_internal.instance.start_count_timeout(instance)
     end
@@ -1974,21 +1974,21 @@ T['Navigation Features']['Count Timeout: Automatic count clearing after timeout'
 
     MiniTest.expect.equality(instance.count_timer ~= nil, true, 'count timer should be active')
 
-    -- Wait for timeout to expire
+
     vim.wait(150) -- Wait longer than timeout
 
-    -- Check that count was cleared by timeout
+
     MiniTest.expect.equality(instance.pending_count, '', 'count should be cleared after timeout')
 
     MiniTest.expect.equality(instance.count_timer == nil, true, 'count timer should be cleared after timeout')
 
-    -- Test timeout reset on new digit
+
     instance.pending_count = '3'
     if H_internal.instance and H_internal.instance.start_count_timeout then
       H_internal.instance.start_count_timeout(instance)
     end
 
-    -- Add another digit (would reset timeout in real usage)
+
     vim.wait(50) -- Wait less than timeout
     instance.pending_count = instance.pending_count .. '2'
     if H_internal.instance and H_internal.instance.start_count_timeout then
@@ -1997,23 +1997,23 @@ T['Navigation Features']['Count Timeout: Automatic count clearing after timeout'
 
     vim.wait(60) -- Wait less than full timeout but more than first wait
 
-    -- Count should still be there since timeout was reset
+
     MiniTest.expect.equality(instance.pending_count, '32', 'count should persist when timeout is reset')
 
-    -- Cleanup
+
     if Jumppack.is_active() then
       vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes('<Esc>', true, true, true), 'x', false)
       vim.wait(10)
     end
   end)
 
-  -- Restore and cleanup
+
   H.restore_vim_functions(original_fns)
   H.cleanup_buffers({ buf1, buf2 })
 end
 
 T['Navigation Features']['Count with Navigation Actions: Count behavior with jump actions'] = function()
-  -- Setup test data with sufficient items for count testing
+
   local test_buffers = {}
   local jumplist_entries = {}
 
@@ -2025,7 +2025,7 @@ T['Navigation Features']['Count with Navigation Actions: Count behavior with jum
 
   H.create_mock_jumplist(jumplist_entries, 0)
 
-  -- Mock environment
+
   local original_fns = H.mock_vim_functions({
     current_file = 'nav_count_1.lua',
     cwd = vim.fn.getcwd(),
@@ -2048,7 +2048,7 @@ T['Navigation Features']['Count with Navigation Actions: Count behavior with jum
     local H_internal = Jumppack.H
 
     if #instance.items >= 8 and H_internal.actions then
-      -- Test count with jump_back (simulating 3<C-o>)
+
       if H_internal.actions.jump_back then
         local initial_selection = instance.selection.index
 
@@ -2060,7 +2060,7 @@ T['Navigation Features']['Count with Navigation Actions: Count behavior with jum
         MiniTest.expect.equality(math.abs(selection_change) > 0, true, 'count with jump_back should change selection')
       end
 
-      -- Test count with jump_forward (simulating 2<C-i>)
+
       if H_internal.actions.jump_forward then
         local initial_selection = instance.selection.index
 
@@ -2075,7 +2075,7 @@ T['Navigation Features']['Count with Navigation Actions: Count behavior with jum
         )
       end
 
-      -- Test count larger than available items
+
       if H_internal.actions.jump_back then
         H_internal.actions.jump_back(instance, 99) -- Count much larger than items
         vim.wait(10)
@@ -2088,7 +2088,7 @@ T['Navigation Features']['Count with Navigation Actions: Count behavior with jum
         )
       end
 
-      -- Test count clearing after action
+
       instance.pending_count = '42'
 
       if H_internal.actions.jump_back then
@@ -2099,14 +2099,14 @@ T['Navigation Features']['Count with Navigation Actions: Count behavior with jum
       end
     end
 
-    -- Cleanup
+
     if Jumppack.is_active() then
       vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes('<Esc>', true, true, true), 'x', false)
       vim.wait(10)
     end
   end)
 
-  -- Restore and cleanup
+
   H.restore_vim_functions(original_fns)
   H.cleanup_buffers(test_buffers)
 end
@@ -2132,7 +2132,7 @@ T['Navigation Features']['Count Edge Cases: Count behavior in extreme scenarios'
   }
 
   for _, scenario in ipairs(test_scenarios) do
-    -- Setup test data for this scenario
+
     local test_buffers = {}
     local jumplist_entries = {}
 
@@ -2146,7 +2146,7 @@ T['Navigation Features']['Count Edge Cases: Count behavior in extreme scenarios'
 
     H.create_mock_jumplist(jumplist_entries, 0)
 
-    -- Mock environment
+
     local original_fns = H.mock_vim_functions({
       current_file = scenario.item_count > 0 and string.format('edge_%s_1.lua', scenario.name) or '',
       cwd = vim.fn.getcwd(),
@@ -2207,14 +2207,14 @@ T['Navigation Features']['Count Edge Cases: Count behavior in extreme scenarios'
         end
       end
 
-      -- Cleanup
+
       if Jumppack.is_active() then
         vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes('<Esc>', true, true, true), 'x', false)
         vim.wait(10)
       end
     end, string.format('Error in %s scenario', scenario.name))
 
-    -- Restore and cleanup
+
     H.restore_vim_functions(original_fns)
     if #test_buffers > 0 then
       H.cleanup_buffers(test_buffers)
