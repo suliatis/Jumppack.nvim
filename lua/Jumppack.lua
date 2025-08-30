@@ -194,6 +194,8 @@ Jumppack.config = {
     wrap_edges = false,
     -- Default view mode when starting picker ('list' or 'preview')
     default_view = 'preview',
+    -- Timeout in milliseconds for count accumulation (like Vim's timeout)
+    count_timeout_ms = 1000,
   },
   -- Keys for performing actions. See `:h Jumppack-actions`.
   mappings = {
@@ -1362,6 +1364,7 @@ function H.instance.create(opts)
 
     -- Count accumulation for navigation
     pending_count = '',
+    count_timer = nil,
   }
 
   return instance
@@ -1401,6 +1404,9 @@ function H.instance.run_loop(instance)
       else
         -- Add digit to pending count
         instance.pending_count = instance.pending_count .. char
+
+        -- Start/reset count timeout
+        H.instance.start_count_timeout(instance)
       end
     else
       -- Non-digit character - execute action with accumulated count
@@ -1413,6 +1419,9 @@ function H.instance.run_loop(instance)
         -- Reset count after parsing
         instance.pending_count = ''
 
+        -- Clear count timeout since action is being executed
+        H.instance.clear_count_timeout(instance)
+
         local should_stop = cur_action.func(instance, count)
         if should_stop then
           break
@@ -1420,6 +1429,7 @@ function H.instance.run_loop(instance)
       else
         -- Unknown character - reset count
         instance.pending_count = ''
+        H.instance.clear_count_timeout(instance)
       end
     end
   end
@@ -1690,6 +1700,32 @@ function H.instance.find_best_selection(instance, filtered_items)
   end
 
   return best_idx
+end
+
+---Start or restart count timeout timer
+---@param instance Instance Picker instance
+function H.instance.start_count_timeout(instance)
+  -- Clear existing timer
+  H.instance.clear_count_timeout(instance)
+
+  -- Get timeout from config
+  local timeout_ms = Jumppack.config.options.count_timeout_ms or 1000
+
+  -- Start new timer
+  instance.count_timer = vim.fn.timer_start(timeout_ms, function()
+    instance.pending_count = ''
+    instance.count_timer = nil
+    H.display.render(instance)
+  end)
+end
+
+---Clear count timeout timer
+---@param instance Instance Picker instance
+function H.instance.clear_count_timeout(instance)
+  if instance.count_timer then
+    vim.fn.timer_stop(instance.count_timer)
+    instance.count_timer = nil
+  end
 end
 
 ---Convert jump item to display string with format: [indicator] [icon] [path/name] [lnum:col]
@@ -1996,8 +2032,18 @@ H.actions = {
     H.display.render_preview(instance)
   end,
 
-  stop = function(_, _)
-    return true
+  stop = function(instance, _)
+    -- If count is being accumulated, clear it instead of closing picker
+    if instance.pending_count ~= '' then
+      instance.pending_count = ''
+      if instance.count_timer then
+        vim.fn.timer_stop(instance.count_timer)
+        instance.count_timer = nil
+      end
+      H.display.render(instance)
+      return false -- Don't close picker
+    end
+    return true -- Close picker
   end,
 
   -- Filter actions

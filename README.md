@@ -102,9 +102,10 @@ end, { desc = 'Jump forward with picker' })
 local Jumppack = require('jumppack')
 Jumppack.setup({
     options = {
-      global_mappings = true,  -- Override <C-o>/<C-i> with Jumppack
-      cwd_only = false,        -- Show all jumps or only in current directory
-      wrap_edges = true,       -- Wrap around when reaching jumplist edges
+      global_mappings = true,   -- Override <C-o>/<C-i> with Jumppack
+      cwd_only = false,         -- Show all jumps or only in current directory
+      wrap_edges = true,        -- Wrap around when reaching jumplist edges
+      count_timeout_ms = 1000,  -- Timeout for count accumulation (like Vim's timeout)
     },
     mappings = {
       -- Navigation
@@ -147,8 +148,11 @@ Once installed with default settings, Jumppack automatically enhances your jumpl
 1. **Navigate normally** - Use `<C-o>` to go back or `<C-i>` to go forward in your jumplist
 2. **Visual picker opens** - When you have multiple jumps, a floating window shows your jump history
 3. **Preview and choose** - Navigate with `<C-o>`/`<C-i>`, toggle preview with `p`, select with `<CR>`
-4. **Filter and manage** - Use `f` (file filter), `c` (directory filter), `.` (show hidden), `x` (hide item)
-5. **Alternative open modes** - Use `<C-s>` for split, `<C-v>` for vsplit, `<C-t>` for new tab
+4. **Use counts** - Type numbers like `5<C-o>` to jump back 5 times, or `3<C-i>` for 3 forward jumps
+5. **Count in picker** - Accumulate counts in the picker (e.g., type `2`, `5`, then `<C-o>` for 25 back jumps)
+6. **Smart escape** - `<Esc>` clears active count first, then closes picker on second press
+7. **Filter and manage** - Use `f` (file filter), `c` (directory filter), `.` (show hidden), `x` (hide item)
+8. **Alternative open modes** - Use `<C-s>` for split, `<C-v>` for vsplit, `<C-t>` for new tab
 
 ### Programmatic usage
 

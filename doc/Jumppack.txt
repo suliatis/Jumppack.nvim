@@ -65,6 +65,24 @@ USAGE                                                   *jumppack-usage*
 
 Basic usage patterns and workflows for Jumppack navigation interface.
 
+Count Support ~
+Jumppack supports Vim-style count prefixes for enhanced navigation:
+
+- `3<C-o>` - Jump back 3 positions in the jumplist
+- `5<C-i>` - Jump forward 5 positions in the jumplist
+
+Count Accumulation ~
+Within the picker interface, you can accumulate counts by typing digits:
+- Type `2`, then `5`, then `<C-o>` to jump back 25 positions
+- Count accumulation times out after `count_timeout_ms` milliseconds (default: 1000ms)
+- Press `<Esc>` to clear an active count without closing the picker
+
+Smart Escape Behavior ~
+The escape key has intelligent behavior:
+- If a count is being accumulated, first `<Esc>` clears the count
+- If no count is active, `<Esc>` closes the picker
+- This prevents accidental picker closure when clearing counts
+
 See the API Functions section for detailed usage examples of all functions.
 
 ==============================================================================
@@ -108,6 +126,7 @@ Fields ~
 {cwd_only} `(boolean)` Whether to include only jumps within current working directory
 {wrap_edges} `(boolean)` Whether to wrap around edges when navigating
 {default_view} `(string)` Default view mode ('list' or 'preview')
+{count_timeout_ms} `(number)` Timeout for count accumulation in milliseconds (default: 1000)
 
 ------------------------------------------------------------------------------
 Class ~
@@ -217,10 +236,11 @@ vim.keymap.set('n', '<Leader>i', function() Jumppack.start({ offset = 1 }) end)
 -- Complete configuration with all available options
 require('jumppack').setup({
   options = {
-    cwd_only = true,        -- Only show jumps within current working directory
-    wrap_edges = true,      -- Allow wrapping when navigating with enhanced <C-o>/<C-i>
-    default_view = 'list',  -- Start interface in list mode instead of preview
-    global_mappings = true  -- Override default jump keys (this is the default)
+    cwd_only = true,           -- Only show jumps within current working directory
+    wrap_edges = true,         -- Allow wrapping when navigating with enhanced <C-o>/<C-i>
+    default_view = 'list',     -- Start interface in list mode instead of preview
+    global_mappings = true,    -- Override default jump keys (this is the default)
+    count_timeout_ms = 1000,   -- Timeout for count accumulation (like Vim's timeout)
   },
   mappings = {
     -- Navigation

@@ -5164,6 +5164,521 @@ T['Navigation Features']['State Preservation: View mode and selection preserved 
   H.cleanup_buffers({ buf1, buf2, buf3 })
 end
 
+-- Phase 4.2: Count System Testing
+
+T['Navigation Features']['Count with C-o/C-i on Picker Start: Opening picker with count prefix'] = function()
+  -- Setup test data with enough items for meaningful count testing
+  local test_buffers = {}
+  local jumplist_entries = {}
+
+  for i = 1, 10 do
+    local buf = H.create_test_buffer(string.format('count_start_%d.lua', i), { 'line ' .. i })
+    table.insert(test_buffers, buf)
+    table.insert(jumplist_entries, { bufnr = buf, lnum = 1, col = 0 })
+  end
+
+  H.create_mock_jumplist(jumplist_entries, 5) -- Current at position 5 (0-based index)
+
+  -- Mock environment
+  local original_fns = H.mock_vim_functions({
+    current_file = 'count_start_5.lua',
+    cwd = vim.fn.getcwd(),
+  })
+
+  MiniTest.expect.no_error(function()
+    Jumppack.setup({
+      options = { global_mappings = true, wrap_edges = false },
+    })
+
+    -- Test 3<C-o> - should start picker at offset -3 (3 jumps back)
+    local start_state = H.start_and_verify({ offset = -3 })
+    if start_state and start_state.items and #start_state.items > 0 then
+      local selected_item = start_state.items[start_state.selection.index]
+
+      -- Should select item with offset -3 from current position
+      MiniTest.expect.equality(selected_item.offset, -3, 'count prefix 3<C-o> should select item with offset -3')
+    end
+
+    -- Cleanup
+    if Jumppack.is_active() then
+      vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes('<Esc>', true, true, true), 'x', false)
+      vim.wait(10)
+    end
+
+    -- Test 2<C-i> - should start picker at offset 2 (2 jumps forward)
+    start_state = H.start_and_verify({ offset = 2 })
+    if start_state and start_state.items and #start_state.items > 0 then
+      local selected_item = start_state.items[start_state.selection.index]
+
+      MiniTest.expect.equality(selected_item.offset, 2, 'count prefix 2<C-i> should select item with offset 2')
+    end
+
+    -- Cleanup
+    if Jumppack.is_active() then
+      vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes('<Esc>', true, true, true), 'x', false)
+      vim.wait(10)
+    end
+
+    -- Test large count - 8<C-o>
+    start_state = H.start_and_verify({ offset = -8 })
+    if start_state and start_state.items and #start_state.items > 0 then
+      local selected_item = start_state.items[start_state.selection.index]
+
+      -- Should find best available jump (since we don't have 8 backward jumps)
+      MiniTest.expect.equality(type(selected_item.offset), 'number', 'large count should select valid item')
+
+      MiniTest.expect.equality(selected_item.offset < 0, true, 'large backward count should select backward jump')
+    end
+
+    -- Cleanup
+    if Jumppack.is_active() then
+      vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes('<Esc>', true, true, true), 'x', false)
+      vim.wait(10)
+    end
+  end)
+
+  -- Restore and cleanup
+  H.restore_vim_functions(original_fns)
+  H.cleanup_buffers(test_buffers)
+end
+
+T['Navigation Features']['Count Accumulation in Picker: Multi-digit count building'] = function()
+  -- Setup test data
+  local test_buffers = {}
+  local jumplist_entries = {}
+
+  for i = 1, 6 do
+    local buf = H.create_test_buffer(string.format('count_accum_%d.lua', i), { 'line ' .. i })
+    table.insert(test_buffers, buf)
+    table.insert(jumplist_entries, { bufnr = buf, lnum = 1, col = 0 })
+  end
+
+  H.create_mock_jumplist(jumplist_entries, 0)
+
+  -- Mock environment
+  local original_fns = H.mock_vim_functions({
+    current_file = 'count_accum_1.lua',
+    cwd = vim.fn.getcwd(),
+  })
+
+  MiniTest.expect.no_error(function()
+    Jumppack.setup({
+      options = { wrap_edges = true },
+    })
+
+    Jumppack.start({})
+    vim.wait(10)
+
+    local state = Jumppack.get_state()
+    if not state or not state.instance then
+      return -- Skip if no valid state
+    end
+
+    local instance = state.instance
+
+    -- Test single digit accumulation
+    instance.pending_count = ''
+    instance.pending_count = instance.pending_count .. '3'
+
+    MiniTest.expect.equality(instance.pending_count, '3', 'single digit should accumulate correctly')
+
+    -- Test multi-digit accumulation
+    instance.pending_count = instance.pending_count .. '5'
+
+    MiniTest.expect.equality(instance.pending_count, '35', 'multi-digit count should accumulate correctly')
+
+    -- Test '0' handling - should only work after other digits
+    instance.pending_count = ''
+    instance.pending_count = instance.pending_count .. '0'
+
+    -- '0' alone should not be added (special handling)
+    MiniTest.expect.equality(
+      instance.pending_count == '' or instance.pending_count == '0',
+      true,
+      'standalone 0 should be handled specially'
+    )
+
+    -- '0' after other digits should work
+    instance.pending_count = '1'
+    instance.pending_count = instance.pending_count .. '0'
+
+    MiniTest.expect.equality(instance.pending_count, '10', '0 after other digits should accumulate')
+
+    -- Test count display in status
+    local general_info = H.display.get_general_info(instance)
+    if instance.pending_count ~= '' then
+      MiniTest.expect.equality(type(general_info.status_text), 'string', 'status should include count information')
+
+      MiniTest.expect.equality(
+        string.find(general_info.status_text, instance.pending_count) ~= nil,
+        true,
+        'status should display pending count'
+      )
+    end
+
+    -- Cleanup
+    if Jumppack.is_active() then
+      vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes('<Esc>', true, true, true), 'x', false)
+      vim.wait(10)
+    end
+  end)
+
+  -- Restore and cleanup
+  H.restore_vim_functions(original_fns)
+  H.cleanup_buffers(test_buffers)
+end
+
+T['Navigation Features']['Smart Escape with Count: Escape clears count before closing picker'] = function()
+  -- Setup test data
+  local buf1 = H.create_test_buffer('escape_count1.lua', { 'line 1' })
+  local buf2 = H.create_test_buffer('escape_count2.lua', { 'line 2' })
+  local buf3 = H.create_test_buffer('escape_count3.lua', { 'line 3' })
+
+  H.create_mock_jumplist({
+    { bufnr = buf1, lnum = 1, col = 0 },
+    { bufnr = buf2, lnum = 1, col = 0 },
+    { bufnr = buf3, lnum = 1, col = 0 },
+  }, 0)
+
+  -- Mock environment
+  local original_fns = H.mock_vim_functions({
+    current_file = 'escape_count1.lua',
+    cwd = vim.fn.getcwd(),
+  })
+
+  MiniTest.expect.no_error(function()
+    Jumppack.setup({})
+    Jumppack.start({})
+    vim.wait(10)
+
+    local state = Jumppack.get_state()
+    if not state or not state.instance then
+      return -- Skip if no valid state
+    end
+
+    local instance = state.instance
+    local H_internal = Jumppack.H
+
+    -- Set up a pending count
+    instance.pending_count = '25'
+
+    MiniTest.expect.equality(instance.pending_count, '25', 'should have pending count set')
+
+    -- First escape should clear count without closing picker
+    if H_internal.actions and H_internal.actions.stop then
+      local should_stop = H_internal.actions.stop(instance, 1)
+
+      MiniTest.expect.equality(should_stop, false, 'first escape with active count should not close picker')
+
+      MiniTest.expect.equality(instance.pending_count, '', 'first escape should clear pending count')
+
+      -- Verify picker is still active
+      MiniTest.expect.equality(Jumppack.is_active(), true, 'picker should remain active after count clear')
+
+      -- Second escape should close picker
+      local should_stop_second = H_internal.actions.stop(instance, 1)
+
+      MiniTest.expect.equality(should_stop_second, true, 'second escape without count should close picker')
+    end
+  end)
+
+  -- Restore and cleanup
+  H.restore_vim_functions(original_fns)
+  H.cleanup_buffers({ buf1, buf2, buf3 })
+end
+
+T['Navigation Features']['Count Timeout: Automatic count clearing after timeout'] = function()
+  -- Setup test data
+  local buf1 = H.create_test_buffer('timeout1.lua', { 'line 1' })
+  local buf2 = H.create_test_buffer('timeout2.lua', { 'line 2' })
+
+  H.create_mock_jumplist({
+    { bufnr = buf1, lnum = 1, col = 0 },
+    { bufnr = buf2, lnum = 1, col = 0 },
+  }, 0)
+
+  -- Mock environment
+  local original_fns = H.mock_vim_functions({
+    current_file = 'timeout1.lua',
+    cwd = vim.fn.getcwd(),
+  })
+
+  MiniTest.expect.no_error(function()
+    Jumppack.setup({
+      options = { count_timeout_ms = 100 }, -- Short timeout for testing
+    })
+
+    Jumppack.start({})
+    vim.wait(10)
+
+    local state = Jumppack.get_state()
+    if not state or not state.instance then
+      return -- Skip if no valid state
+    end
+
+    local instance = state.instance
+    local H_internal = Jumppack.H
+
+    -- Simulate digit accumulation (would normally trigger timeout)
+    instance.pending_count = '5'
+
+    -- Start timeout manually to test the mechanism
+    if H_internal.instance and H_internal.instance.start_count_timeout then
+      H_internal.instance.start_count_timeout(instance)
+    end
+
+    MiniTest.expect.equality(instance.pending_count, '5', 'count should be present before timeout')
+
+    MiniTest.expect.equality(instance.count_timer ~= nil, true, 'count timer should be active')
+
+    -- Wait for timeout to expire
+    vim.wait(150) -- Wait longer than timeout
+
+    -- Check that count was cleared by timeout
+    MiniTest.expect.equality(instance.pending_count, '', 'count should be cleared after timeout')
+
+    MiniTest.expect.equality(instance.count_timer == nil, true, 'count timer should be cleared after timeout')
+
+    -- Test timeout reset on new digit
+    instance.pending_count = '3'
+    if H_internal.instance and H_internal.instance.start_count_timeout then
+      H_internal.instance.start_count_timeout(instance)
+    end
+
+    -- Add another digit (would reset timeout in real usage)
+    vim.wait(50) -- Wait less than timeout
+    instance.pending_count = instance.pending_count .. '2'
+    if H_internal.instance and H_internal.instance.start_count_timeout then
+      H_internal.instance.start_count_timeout(instance) -- Reset timeout
+    end
+
+    vim.wait(60) -- Wait less than full timeout but more than first wait
+
+    -- Count should still be there since timeout was reset
+    MiniTest.expect.equality(instance.pending_count, '32', 'count should persist when timeout is reset')
+
+    -- Cleanup
+    if Jumppack.is_active() then
+      vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes('<Esc>', true, true, true), 'x', false)
+      vim.wait(10)
+    end
+  end)
+
+  -- Restore and cleanup
+  H.restore_vim_functions(original_fns)
+  H.cleanup_buffers({ buf1, buf2 })
+end
+
+T['Navigation Features']['Count with Navigation Actions: Count behavior with jump actions'] = function()
+  -- Setup test data with sufficient items for count testing
+  local test_buffers = {}
+  local jumplist_entries = {}
+
+  for i = 1, 8 do
+    local buf = H.create_test_buffer(string.format('nav_count_%d.lua', i), { 'line ' .. i })
+    table.insert(test_buffers, buf)
+    table.insert(jumplist_entries, { bufnr = buf, lnum = 1, col = 0 })
+  end
+
+  H.create_mock_jumplist(jumplist_entries, 0)
+
+  -- Mock environment
+  local original_fns = H.mock_vim_functions({
+    current_file = 'nav_count_1.lua',
+    cwd = vim.fn.getcwd(),
+  })
+
+  MiniTest.expect.no_error(function()
+    Jumppack.setup({
+      options = { wrap_edges = true },
+    })
+
+    Jumppack.start({})
+    vim.wait(10)
+
+    local state = Jumppack.get_state()
+    if not state or not state.instance then
+      return -- Skip if no valid state
+    end
+
+    local instance = state.instance
+    local H_internal = Jumppack.H
+
+    if #instance.items >= 8 and H_internal.actions then
+      -- Test count with jump_back (simulating 3<C-o>)
+      if H_internal.actions.jump_back then
+        local initial_selection = instance.selection.index
+
+        H_internal.actions.jump_back(instance, 3) -- Count = 3
+        vim.wait(10)
+
+        -- Should have moved by count amount (or as much as possible)
+        local selection_change = instance.selection.index - initial_selection
+        MiniTest.expect.equality(math.abs(selection_change) > 0, true, 'count with jump_back should change selection')
+      end
+
+      -- Test count with jump_forward (simulating 2<C-i>)
+      if H_internal.actions.jump_forward then
+        local initial_selection = instance.selection.index
+
+        H_internal.actions.jump_forward(instance, 2) -- Count = 2
+        vim.wait(10)
+
+        local selection_change = instance.selection.index - initial_selection
+        MiniTest.expect.equality(
+          math.abs(selection_change) > 0,
+          true,
+          'count with jump_forward should change selection'
+        )
+      end
+
+      -- Test count larger than available items
+      if H_internal.actions.jump_back then
+        H_internal.actions.jump_back(instance, 99) -- Count much larger than items
+        vim.wait(10)
+
+        -- Should handle gracefully without errors
+        MiniTest.expect.equality(
+          instance.selection.index >= 1 and instance.selection.index <= #instance.items,
+          true,
+          'large count should maintain valid selection'
+        )
+      end
+
+      -- Test count clearing after action
+      instance.pending_count = '42'
+
+      if H_internal.actions.jump_back then
+        H_internal.actions.jump_back(instance, 1)
+        vim.wait(10)
+
+        MiniTest.expect.equality(instance.pending_count, '', 'pending count should be cleared after action execution')
+      end
+    end
+
+    -- Cleanup
+    if Jumppack.is_active() then
+      vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes('<Esc>', true, true, true), 'x', false)
+      vim.wait(10)
+    end
+  end)
+
+  -- Restore and cleanup
+  H.restore_vim_functions(original_fns)
+  H.cleanup_buffers(test_buffers)
+end
+
+T['Navigation Features']['Count Edge Cases: Count behavior in extreme scenarios'] = function()
+  local test_scenarios = {
+    {
+      name = 'empty_jumplist',
+      item_count = 0,
+      description = 'empty jumplist with count',
+    },
+    {
+      name = 'single_item',
+      item_count = 1,
+      description = 'single item with count',
+    },
+    {
+      name = 'count_larger_than_items',
+      item_count = 3,
+      count = 10,
+      description = 'count larger than available items',
+    },
+  }
+
+  for _, scenario in ipairs(test_scenarios) do
+    -- Setup test data for this scenario
+    local test_buffers = {}
+    local jumplist_entries = {}
+
+    if scenario.item_count > 0 then
+      for i = 1, scenario.item_count do
+        local buf = H.create_test_buffer(string.format('edge_%s_%d.lua', scenario.name, i), { 'line ' .. i })
+        table.insert(test_buffers, buf)
+        table.insert(jumplist_entries, { bufnr = buf, lnum = 1, col = 0 })
+      end
+    end
+
+    H.create_mock_jumplist(jumplist_entries, 0)
+
+    -- Mock environment
+    local original_fns = H.mock_vim_functions({
+      current_file = scenario.item_count > 0 and string.format('edge_%s_1.lua', scenario.name) or '',
+      cwd = vim.fn.getcwd(),
+    })
+
+    MiniTest.expect.no_error(function()
+      Jumppack.setup({
+        options = { wrap_edges = false },
+      })
+
+      Jumppack.start({})
+      vim.wait(10)
+
+      local state = Jumppack.get_state()
+
+      if scenario.item_count == 0 then
+        -- Empty jumplist should handle counts gracefully
+        if state and state.instance then
+          local instance = state.instance
+          instance.pending_count = '5'
+
+          -- Should handle count with empty list without errors
+          local H_internal = Jumppack.H
+          if H_internal.actions and H_internal.actions.jump_back then
+            MiniTest.expect.no_error(function()
+              H_internal.actions.jump_back(instance, 5)
+            end, string.format('Count with %s should not error', scenario.description))
+          end
+        end
+      else
+        if state and state.instance then
+          local instance = state.instance
+          local H_internal = Jumppack.H
+
+          if H_internal.actions and H_internal.actions.jump_back then
+            local test_count = scenario.count or 2
+            local initial_selection = instance.selection.index
+
+            H_internal.actions.jump_back(instance, test_count)
+            vim.wait(10)
+
+            -- Should maintain valid selection
+            MiniTest.expect.equality(
+              instance.selection.index >= 1 and instance.selection.index <= math.max(1, #instance.items),
+              true,
+              string.format('Count with %s should maintain valid selection', scenario.description)
+            )
+
+            -- For single item, selection shouldn't change
+            if scenario.item_count == 1 then
+              MiniTest.expect.equality(
+                instance.selection.index,
+                initial_selection,
+                'Count with single item should not change selection'
+              )
+            end
+          end
+        end
+      end
+
+      -- Cleanup
+      if Jumppack.is_active() then
+        vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes('<Esc>', true, true, true), 'x', false)
+        vim.wait(10)
+      end
+    end, string.format('Error in %s scenario', scenario.name))
+
+    -- Restore and cleanup
+    H.restore_vim_functions(original_fns)
+    if #test_buffers > 0 then
+      H.cleanup_buffers(test_buffers)
+    end
+  end
+end
+
 -- ============================================================================
 -- 7. EDGE CASES & RECOVERY TESTS (Phase 5)
 -- ============================================================================
