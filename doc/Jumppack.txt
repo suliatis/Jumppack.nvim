@@ -1,43 +1,37 @@
-*jumppack.txt*    Enhanced jumplist navigation for Neovim
-
-JUMPPACK                                              *jumppack* *jumppack.nvim*
-
-Enhanced jumplist navigation interface with floating window preview.
-Navigate your jump history with visual feedback and flexible controls.
-
-==============================================================================
-CONTENTS                                               *jumppack-contents*
-
-1. Introduction ................... |jumppack-introduction|
-2. Setup .......................... |jumppack-setup|
-3. Configuration .................. |jumppack-configuration|
-4. Usage .......................... |jumppack-usage|
-5. API Functions .................. |jumppack-api|
-6. Navigation ..................... |jumppack-navigation|
-7. Display Options ................ |jumppack-display|
-8. Interface Management ........... |jumppack-interface-management|
-
-==============================================================================
-INTRODUCTION                                       *jumppack-introduction*
-
-Jumppack provides an enhanced navigation interface for Neovim's jumplist.
-The plugin creates a floating window interface that allows users to
-visualize and navigate their jump history with preview functionality.
-
-Features:
-  • Floating window interface for jump navigation
-  • Preview mode showing destination content
-  • Configurable key mappings and window appearance
-  • Filtering options (current working directory only)
-  • Edge wrapping for continuous navigation
-  • Icon support with file type detection
-
-==============================================================================
-SETUP                                                   *jumppack-setup*
-
 ==============================================================================
 ------------------------------------------------------------------------------
-[[Jumppack.nvim - Enhanced jumplist navigation for Neovim]]
+                                                        *jumppack* *jumppack.nvim*
+
+[[*jumppack.txt*    Enhanced jumplist navigation for Neovim]]
+
+
+
+jumplist navigation interface with floating window preview.
+your jump history with visual feedback and flexible controls.
+
+
+                                              *jumppack-contents*
+
+  Introduction |jumppack-introduction| ................ |jumppack| |jumppack.nvim|
+  
+  Setup |jumppack-setup| .............................. |jumppack| |jumppack.nvim|
+  
+  Configuration |jumppack-configuration| .....................................
+  
+  Usage |jumppack-usage| .....................................................
+  
+  API Functions |jumppack-api| ...............................................
+  
+  Navigation |jumppack-navigation| ...........................................
+  
+  Display Options |jumppack-display| .........................................
+  
+  Preview |jumppack-preview| ......................... |Jumppack.preview_item()|
+  
+  Interface Management |jumppack-interface-management| .......................
+  
+
+                                      *jumppack-introduction*
 
 provides an enhanced navigation interface for Neovim's jumplist.
 plugin creates a floating window picker that allows users to visualize
@@ -47,68 +41,20 @@ format: [indicator] [icon] [path/name] [lnum:col] [│ line preview]
 ● 󰢱 src/main.lua 45:12 │ local function init()
          ✗  config.json 10:5 │ "name": "jumppack"
 
+
+ • Floating window interface for jump navigation
+ • Preview mode showing destination content
+ • Configurable key mappings and window appearance
+ • Filtering options (current working directory only)
+ • Edge wrapping for continuous navigation
+ • Icon support with file type detection
+
+
+                                                  *jumppack-setup*
+
 Attila Süli
 2025
 MIT
-
-==============================================================================
-CONFIGURATION                                     *jumppack-configuration*
-
-Jumppack can be configured through the setup() function. All configuration
-options have sensible defaults and are optional.
-
-See the setup() function documentation and configuration examples for
-detailed information about all available options.
-
-==============================================================================
-USAGE                                                   *jumppack-usage*
-
-Basic usage patterns and workflows for Jumppack navigation interface.
-
-Count Support ~
-Jumppack supports Vim-style count prefixes for enhanced navigation:
-
-- `3<C-o>` - Jump back 3 positions in the jumplist
-- `5<C-i>` - Jump forward 5 positions in the jumplist
-
-Count Accumulation ~
-Within the picker interface, you can accumulate counts by typing digits:
-- Type `2`, then `5`, then `<C-o>` to jump back 25 positions
-- Count accumulation times out after `count_timeout_ms` milliseconds (default: 1000ms)
-- Press `<Esc>` to clear an active count without closing the picker
-
-Smart Escape Behavior ~
-The escape key has intelligent behavior:
-- If a count is being accumulated, first `<Esc>` clears the count
-- If no count is active, `<Esc>` closes the picker
-- This prevents accidental picker closure when clearing counts
-
-See the API Functions section for detailed usage examples of all functions.
-
-==============================================================================
-API FUNCTIONS                                             *jumppack-api*
-
-Public API functions for Jumppack navigation interface.
-
-==============================================================================
-NAVIGATION                                           *jumppack-navigation*
-
-Navigation patterns and workflows for jump history management.
-
-==============================================================================
-DISPLAY OPTIONS                                       *jumppack-display*
-
-Display customization and formatting options.
-
-==============================================================================
-INTERFACE MANAGEMENT                         *jumppack-interface-management*
-
-Interface lifecycle management and state control.
-
-==============================================================================
-PREVIEW                                               *jumppack-preview*
-
-Preview functionality and customization options.
 
 ------------------------------------------------------------------------------
 Class ~
@@ -126,7 +72,6 @@ Fields ~
 {cwd_only} `(boolean)` Whether to include only jumps within current working directory
 {wrap_edges} `(boolean)` Whether to wrap around edges when navigating
 {default_view} `(string)` Default view mode ('list' or 'preview')
-{count_timeout_ms} `(number)` Timeout for count accumulation in milliseconds (default: 1000)
 
 ------------------------------------------------------------------------------
 Class ~
@@ -236,11 +181,10 @@ vim.keymap.set('n', '<Leader>i', function() Jumppack.start({ offset = 1 }) end)
 -- Complete configuration with all available options
 require('jumppack').setup({
   options = {
-    cwd_only = true,           -- Only show jumps within current working directory
-    wrap_edges = true,         -- Allow wrapping when navigating with enhanced <C-o>/<C-i>
-    default_view = 'list',     -- Start interface in list mode instead of preview
-    global_mappings = true,    -- Override default jump keys (this is the default)
-    count_timeout_ms = 1000,   -- Timeout for count accumulation (like Vim's timeout)
+    cwd_only = true,        -- Only show jumps within current working directory
+    wrap_edges = true,      -- Allow wrapping when navigating with enhanced <C-o>/<C-i>
+    default_view = 'list',  -- Start interface in list mode instead of preview
+    global_mappings = true  -- Override default jump keys (this is the default)
   },
   mappings = {
     -- Navigation
@@ -282,6 +226,29 @@ require('jumppack').setup({
 
 See also ~
 |jumppack-configuration| For detailed configuration options
+
+------------------------------------------------------------------------------
+
+                                    *jumppack-configuration*
+
+can be configured through the setup() function. All configuration
+have sensible defaults and are optional.
+
+the setup() function documentation and configuration examples for
+information about all available options.
+
+------------------------------------------------------------------------------
+
+                                                  *jumppack-usage*
+
+usage patterns and workflows for Jumppack navigation interface.
+
+the API Functions section for detailed usage examples of all functions.
+
+
+FUNCTIONS                                             *jumppack-api*
+
+API functions for Jumppack navigation interface.
 
 ------------------------------------------------------------------------------
                                                               *Jumppack.start()*
@@ -371,6 +338,17 @@ end, { desc = 'Refresh jumppack interface' })
 
 See also ~
 |jumppack-interface-management| For interface lifecycle management
+
+------------------------------------------------------------------------------
+
+                                          *jumppack-navigation*
+
+patterns and workflows for jump history management.
+
+
+OPTIONS                                       *jumppack-display*
+
+customization and formatting options.
 
 ------------------------------------------------------------------------------
                                                     *H.display.smart_filename()*
@@ -472,6 +450,11 @@ Jumppack.preview_item(preview_buf, item, {
 })
 <
 
+
+                                              *jumppack-preview*
+
+functionality and customization options.
+
 See also ~
 |jumppack-preview| For preview customization
 
@@ -507,8 +490,6 @@ See also ~
 |jumppack-navigation| For jump navigation patterns
 
 ------------------------------------------------------------------------------
-                                                          *Jumppack.is_active()*
-                             `Jumppack.is_active`()
 Check if the navigation interface is currently active
 
 Determines whether the Jumppack navigation interface is currently open and active.
@@ -538,6 +519,12 @@ vim.keymap.set('n', '<Esc>', function()
   end
 end)
 <
+
+
+MANAGEMENT                         *jumppack-interface-management*
+
+lifecycle management and state control.
+
 ------------------------------------------------------------------------------
                                                           *Jumppack.get_state()*
                              `Jumppack.get_state`()
@@ -837,6 +824,20 @@ Return ~
 `(number)` Best selection index
 
 ------------------------------------------------------------------------------
+                                              *H.instance.start_count_timeout()*
+                  `H.instance.start_count_timeout`({instance})
+or restart count timeout timer
+Parameters ~
+{instance} `(Instance)` Picker instance
+
+------------------------------------------------------------------------------
+                                              *H.instance.clear_count_timeout()*
+                  `H.instance.clear_count_timeout`({instance})
+count timeout timer
+Parameters ~
+{instance} `(Instance)` Picker instance
+
+------------------------------------------------------------------------------
                                                     *H.display.item_to_string()*
                    `H.display.item_to_string`({item}, {opts})
 jump item to display string with format: [indicator] [icon] [path/name] [lnum:col]
@@ -1068,6 +1069,10 @@ Parameters ~
 Safely set extmark (ignores errors from invalid buffers)
 Parameters ~
 {...} `(any)` Arguments to nvim_buf_set_extmark
+
+------------------------------------------------------------------------------
+
+
 
 
  vim:tw=78:ts=8:noet:ft=help:norl:

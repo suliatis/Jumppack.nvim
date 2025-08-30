@@ -1,4 +1,21 @@
----@brief [[Jumppack.nvim - Enhanced jumplist navigation for Neovim]]
+---@brief [[*jumppack.txt*    Enhanced jumplist navigation for Neovim]]
+---
+---@tag jumppack jumppack.nvim
+---
+---JUMPPACK
+---
+---Enhanced jumplist navigation interface with floating window preview.
+---Navigate your jump history with visual feedback and flexible controls.
+---
+---==============================================================================
+---CONTENTS                                               *jumppack-contents*
+---
+---@toc
+---
+---==============================================================================
+---INTRODUCTION                                       *jumppack-introduction*
+---
+---@toc_entry Introduction |jumppack-introduction|
 ---
 ---Jumppack provides an enhanced navigation interface for Neovim's jumplist.
 ---The plugin creates a floating window picker that allows users to visualize
@@ -7,6 +24,19 @@
 ---Display format: [indicator] [icon] [path/name] [lnum:col] [│ line preview]
 ---Examples: ● 󰢱 src/main.lua 45:12 │ local function init()
 ---          ✗  config.json 10:5 │ "name": "jumppack"
+---
+---Features:
+---  • Floating window interface for jump navigation
+---  • Preview mode showing destination content
+---  • Configurable key mappings and window appearance
+---  • Filtering options (current working directory only)
+---  • Edge wrapping for continuous navigation
+---  • Icon support with file type detection
+---
+---==============================================================================
+---SETUP                                                   *jumppack-setup*
+---
+---@toc_entry Setup |jumppack-setup|
 ---
 ---@author Attila Süli
 ---@copyright 2025
@@ -77,15 +107,7 @@
 ---@field selection table Current selection info
 ---@field general_info table General picker information
 
--- ============================================================================
--- PUBLIC API
--- ============================================================================
-
 local Jumppack = {}
-
--- ============================================================================
--- INTERNAL MODULES
--- ============================================================================
 
 local H = {}
 H.config = {}
@@ -184,6 +206,17 @@ function Jumppack.setup(config)
   Jumppack.H = H
 end
 
+---==============================================================================
+---CONFIGURATION                                     *jumppack-configuration*
+---
+---@toc_entry Configuration |jumppack-configuration|
+---
+---Jumppack can be configured through the setup() function. All configuration
+---options have sensible defaults and are optional.
+---
+---See the setup() function documentation and configuration examples for
+---detailed information about all available options.
+
 Jumppack.config = {
   options = {
     -- Whether to override default <C-o>/<C-i> jump keys with Jumppack interface
@@ -231,6 +264,22 @@ Jumppack.config = {
     config = nil,
   },
 }
+
+---==============================================================================
+---USAGE                                                   *jumppack-usage*
+---
+---@toc_entry Usage |jumppack-usage|
+---
+---Basic usage patterns and workflows for Jumppack navigation interface.
+---
+---See the API Functions section for detailed usage examples of all functions.
+---
+---==============================================================================
+---API FUNCTIONS                                             *jumppack-api*
+---
+---@toc_entry API Functions |jumppack-api|
+---
+---Public API functions for Jumppack navigation interface.
 
 --- Start the jumplist navigation interface
 ---
@@ -343,12 +392,22 @@ function Jumppack.refresh()
   H.instance.update(H.current_instance, true)
 end
 
--- ============================================================================
--- DISPLAY & RENDERING FUNCTIONS
--- ============================================================================
+---==============================================================================
+---NAVIGATION                                           *jumppack-navigation*
+---
+---@toc_entry Navigation |jumppack-navigation|
+---
+---Navigation patterns and workflows for jump history management.
+---
+---==============================================================================
+---DISPLAY OPTIONS                                       *jumppack-display*
+---
+---@toc_entry Display Options |jumppack-display|
+---
+---Display customization and formatting options.
 
 -- ============================================================================
--- H.display CONSTANTS
+-- DISPLAY & RENDERING FUNCTIONS
 -- ============================================================================
 
 -- Highlight priority constants
@@ -597,6 +656,13 @@ end
 --- })
 --- <
 ---
+---==============================================================================
+---PREVIEW                                               *jumppack-preview*
+---
+---@toc_entry Preview |jumppack-preview|
+---
+---Preview functionality and customization options.
+---
 ---@seealso |jumppack-preview| For preview customization
 function Jumppack.preview_item(buf_id, item, opts)
   if not item or not item.bufnr then
@@ -694,6 +760,14 @@ end
 ---   end
 --- end)
 --- <
+---
+---==============================================================================
+---INTERFACE MANAGEMENT                         *jumppack-interface-management*
+---
+---@toc_entry Interface Management |jumppack-interface-management|
+---
+---Interface lifecycle management and state control.
+
 function Jumppack.is_active()
   return H.current_instance ~= nil
 end
@@ -915,14 +989,7 @@ function H.jumplist.find_target_offset(jumps, target_offset, config)
   return best_same_direction or current_position or 1
 end
 
--- ============================================================================
--- FILTER FUNCTIONS (PHASE 3)
--- ============================================================================
 H.filters = {}
-
--- ============================================================================
--- H.filters CONSTANTS
--- ============================================================================
 
 -- Filter status symbols
 local FILTER_BRACKET_OPEN = '[' -- Filter status opening bracket
@@ -1022,9 +1089,6 @@ function H.filters.get_status_text(filters)
   return FILTER_BRACKET_OPEN .. table.concat(parts, FILTER_SEPARATOR) .. FILTER_BRACKET_CLOSE .. ' '
 end
 
--- ============================================================================
--- HIDE SYSTEM (PHASE 4)
--- ============================================================================
 H.hide = {}
 
 -- Session-only storage for hidden items
@@ -1092,10 +1156,6 @@ function H.hide.mark_items(items)
 
   return items
 end
-
--- ============================================================================
--- CONFIGURATION MANAGEMENT
--- ============================================================================
 
 H.default_config = vim.deepcopy(Jumppack.config)
 
@@ -1301,14 +1361,6 @@ function H.config.validate_opts(opts)
   return opts
 end
 
--- ============================================================================
--- INSTANCE MANAGEMENT
--- ============================================================================
-
--- ============================================================================
--- H.instance CONSTANTS
--- ============================================================================
-
 -- Event loop configuration
 local LOOP_MAX_ITERATIONS = 1000000 -- Prevent infinite loops in run_loop
 local INPUT_DELAY_MS = 10 -- Responsive input without CPU spinning
@@ -1455,14 +1507,6 @@ function H.instance.update(instance, update_window)
   H.display.update_lines(instance)
   H.utils.redraw()
 end
-
--- ============================================================================
--- WINDOW MANAGEMENT
--- ============================================================================
-
--- ============================================================================
--- H.window CONSTANTS
--- ============================================================================
 
 -- UI layout constants
 local GOLDEN_RATIO = 0.618 -- Golden ratio for default window sizing
@@ -1996,10 +2040,6 @@ function H.instance.destroy(instance)
   instance.windows, instance.buffers = {}, {}
 end
 
--- ============================================================================
--- ACTION HANDLERS
--- ============================================================================
-
 H.actions = {
   jump_back = function(instance, count)
     -- Navigate backwards in jump history with count support
@@ -2427,10 +2467,6 @@ function H.display.preview_highlight_region(buf_id, lnum, col, end_lnum, end_col
   H.utils.set_extmark(buf_id, H.ns_id.preview, lnum - 1, col - 1, hl_region_opts)
 end
 
--- ============================================================================
--- UTILITY FUNCTIONS
--- ============================================================================
-
 ---Display error message
 ---@param msg string Error message
 function H.utils.error(msg)
@@ -2617,5 +2653,9 @@ end
 function H.utils.full_path(path)
   return (vim.fn.fnamemodify(path, ':p'):gsub('(.)/$', '%1'))
 end
+
+---==============================================================================
+---
+---vim:tw=78:ts=8:ft=help:norl:
 
 return Jumppack
