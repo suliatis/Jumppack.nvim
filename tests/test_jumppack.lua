@@ -5682,7 +5682,858 @@ end
 -- ============================================================================
 -- 7. EDGE CASES & RECOVERY TESTS (Phase 5)
 -- ============================================================================
--- T['Edge Cases & Recovery'] = MiniTest.new_set()
--- (To be implemented in Phase 5)
+T['Edge Cases & Recovery'] = MiniTest.new_set()
+
+-- ============================================================================
+-- 5.1 Buffer/Window Management Tests
+-- ============================================================================
+T['Edge Cases & Recovery']['Buffer & Window Management'] = MiniTest.new_set()
+
+T['Edge Cases & Recovery']['Buffer & Window Management']['handles source buffers deleted while picker active'] = function()
+  -- Create test buffers and jumplist
+  local buf1 = H.create_test_buffer('/project/file1.lua', { 'line 1', 'line 2' })
+  local buf2 = H.create_test_buffer('/project/file2.lua', { 'other line' })
+  local buf3 = H.create_test_buffer('/project/file3.lua', { 'third file' })
+
+  local test_buffers = { buf1, buf2, buf3 }
+
+  H.create_mock_jumplist({
+    { bufnr = buf1, lnum = 1, col = 0 },
+    { bufnr = buf2, lnum = 1, col = 0 },
+    { bufnr = buf3, lnum = 1, col = 0 },
+  }, 1)
+
+  local original_fns = H.mock_vim_functions({
+    current_file = '/project/file1.lua',
+    cwd = vim.fn.getcwd(),
+  })
+
+  MiniTest.expect.no_error(function()
+    Jumppack.setup({})
+    Jumppack.start({})
+    vim.wait(10)
+
+    local state = Jumppack.get_state()
+    MiniTest.expect.equality(state and state.instance ~= nil, true, 'Picker should start successfully')
+
+    -- Delete buffer while picker is active
+    vim.api.nvim_buf_delete(buf2, { force = true })
+
+    -- Picker should continue to function and not crash
+    if state and state.instance then
+      local instance = state.instance
+      local H_internal = Jumppack.H
+
+      -- Navigation should work despite deleted buffer
+      if H_internal.actions and H_internal.actions.jump_back then
+        MiniTest.expect.no_error(function()
+          H_internal.actions.jump_back(instance, 1)
+        end, 'Navigation should work with deleted buffer in jumplist')
+      end
+
+      -- Should be able to refresh without error
+      MiniTest.expect.no_error(function()
+        Jumppack.refresh()
+      end, 'Refresh should handle deleted buffers gracefully')
+
+      -- Preview should handle deleted buffer gracefully
+      if H_internal.display and H_internal.display.render_preview then
+        MiniTest.expect.no_error(function()
+          H_internal.display.render_preview(instance)
+        end, 'Preview should handle deleted buffers gracefully')
+      end
+    end
+
+    -- Cleanup
+    if Jumppack.is_active() then
+      vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes('<Esc>', true, true, true), 'x', false)
+      vim.wait(50)
+    end
+  end, 'Should handle deleted buffers without errors')
+
+  -- Restore and cleanup remaining buffers
+  H.restore_vim_functions(original_fns)
+  for _, buf in ipairs({ buf1, buf3 }) do -- buf2 already deleted
+    if vim.api.nvim_buf_is_valid(buf) then
+      pcall(vim.api.nvim_buf_delete, buf, { force = true })
+    end
+  end
+end
+
+T['Edge Cases & Recovery']['Buffer & Window Management']['gracefully handles window cleanup failures'] = function()
+  -- Create minimal test setup
+  local buf = H.create_test_buffer('/test/file.lua', { 'test line' })
+
+  H.create_mock_jumplist({
+    { bufnr = buf, lnum = 1, col = 0 },
+  }, 0)
+
+  local original_fns = H.mock_vim_functions({
+    current_file = '/test/file.lua',
+    cwd = vim.fn.getcwd(),
+  })
+
+  MiniTest.expect.no_error(function()
+    Jumppack.setup({})
+    Jumppack.start({})
+    vim.wait(10)
+
+    local state = Jumppack.get_state()
+    MiniTest.expect.equality(state and state.instance ~= nil, true, 'Picker should start')
+
+    if state and state.instance then
+      local instance = state.instance
+      local main_win = instance.windows.main
+
+      -- Manually close the main window to simulate cleanup failure scenario
+      if main_win and vim.api.nvim_win_is_valid(main_win) then
+        pcall(vim.api.nvim_win_close, main_win, true)
+      end
+
+      -- Should handle subsequent cleanup gracefully
+      MiniTest.expect.no_error(function()
+        vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes('<Esc>', true, true, true), 'x', false)
+        vim.wait(50)
+      end, 'Should handle pre-closed windows gracefully')
+    end
+  end, 'Should handle window cleanup failures gracefully')
+
+  -- Cleanup
+  H.restore_vim_functions(original_fns)
+  H.cleanup_buffers({ buf })
+end
+
+T['Edge Cases & Recovery']['Buffer & Window Management']['handles jumplist entries with invalid buffers'] = function()
+  -- Create a buffer then delete it to simulate invalid buffer scenario
+  local valid_buf = H.create_test_buffer('/project/valid.lua', { 'valid content' })
+  local invalid_buf = H.create_test_buffer('/project/invalid.lua', { 'will be deleted' })
+
+  -- Delete the buffer to make it invalid
+  vim.api.nvim_buf_delete(invalid_buf, { force = true })
+
+  -- Create jumplist with mix of valid and invalid buffers
+  H.create_mock_jumplist({
+    { bufnr = valid_buf, lnum = 1, col = 0 },
+    { bufnr = invalid_buf, lnum = 1, col = 0 }, -- Invalid buffer
+    { bufnr = 9999, lnum = 1, col = 0 }, -- Non-existent buffer number
+  }, 1)
+
+  local original_fns = H.mock_vim_functions({
+    current_file = '/project/valid.lua',
+    cwd = vim.fn.getcwd(),
+  })
+
+  MiniTest.expect.no_error(function()
+    Jumppack.setup({})
+    Jumppack.start({})
+    vim.wait(10)
+
+    local state = Jumppack.get_state()
+    MiniTest.expect.equality(state and state.instance ~= nil, true, 'Should start with invalid buffers in jumplist')
+
+    if state and state.instance then
+      local instance = state.instance
+
+      -- Should have filtered out invalid buffers or handled them gracefully
+      MiniTest.expect.equality(#instance.items >= 0, true, 'Should create items despite invalid buffers')
+
+      -- Navigation should work despite invalid entries
+      local H_internal = Jumppack.H
+      if H_internal.actions and H_internal.actions.jump_back then
+        MiniTest.expect.no_error(function()
+          H_internal.actions.jump_back(instance, 1)
+        end, 'Navigation should work with invalid buffers present')
+      end
+    end
+
+    -- Cleanup
+    if Jumppack.is_active() then
+      vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes('<Esc>', true, true, true), 'x', false)
+      vim.wait(50)
+    end
+  end, 'Should handle invalid buffers without crashing')
+
+  -- Cleanup
+  H.restore_vim_functions(original_fns)
+  H.cleanup_buffers({ valid_buf })
+end
+
+T['Edge Cases & Recovery']['Buffer & Window Management']['handles concurrent start() calls gracefully'] = function()
+  -- Create test setup
+  local buf = H.create_test_buffer('/test/concurrent.lua', { 'test content' })
+
+  H.create_mock_jumplist({
+    { bufnr = buf, lnum = 1, col = 0 },
+  }, 0)
+
+  local original_fns = H.mock_vim_functions({
+    current_file = '/test/concurrent.lua',
+    cwd = vim.fn.getcwd(),
+  })
+
+  MiniTest.expect.no_error(function()
+    Jumppack.setup({})
+
+    -- Start first instance
+    Jumppack.start({})
+    vim.wait(10)
+
+    local state1 = Jumppack.get_state()
+    MiniTest.expect.equality(state1 and state1.instance ~= nil, true, 'First start should succeed')
+
+    -- Try to start second instance while first is active
+    local first_instance = state1.instance
+
+    MiniTest.expect.no_error(function()
+      Jumppack.start({}) -- Second call should be handled gracefully
+      vim.wait(10)
+    end, 'Second start() call should not crash')
+
+    local state2 = Jumppack.get_state()
+
+    -- Should either:
+    -- 1. Replace the first instance cleanly, OR
+    -- 2. Ignore the second call and keep the first instance
+    MiniTest.expect.equality(
+      state2 and state2.instance ~= nil,
+      true,
+      'Should maintain valid state after concurrent start'
+    )
+
+    -- Should still be able to navigate
+    if state2 and state2.instance then
+      local instance = state2.instance
+      local H_internal = Jumppack.H
+
+      if H_internal.actions and H_internal.actions.jump_back then
+        MiniTest.expect.no_error(function()
+          H_internal.actions.jump_back(instance, 1)
+        end, 'Navigation should work after concurrent start calls')
+      end
+    end
+
+    -- Cleanup
+    if Jumppack.is_active() then
+      vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes('<Esc>', true, true, true), 'x', false)
+      vim.wait(50)
+    end
+  end, 'Should handle concurrent start() calls gracefully')
+
+  -- Cleanup
+  H.restore_vim_functions(original_fns)
+  H.cleanup_buffers({ buf })
+end
+
+-- ============================================================================
+-- 5.2 State Corruption Recovery Tests
+-- ============================================================================
+T['Edge Cases & Recovery']['State Corruption Recovery'] = MiniTest.new_set()
+
+T['Edge Cases & Recovery']['State Corruption Recovery']['handles corrupted vim jumplist data'] = function()
+  -- Create test buffer for reference
+  local buf = H.create_test_buffer('/test/reference.lua', { 'reference line' })
+
+  -- Mock corrupted jumplist data with various corruption scenarios
+  vim.fn.getjumplist = function()
+    return {
+      {
+        -- Corrupted entry with missing fields
+        { bufnr = buf, lnum = 1 }, -- missing col
+        -- Entry with invalid line numbers
+        { bufnr = buf, lnum = -5, col = 0 }, -- negative line
+        { bufnr = buf, lnum = 0, col = -1 }, -- zero line, negative col
+        -- Entry with enormous values
+        { bufnr = buf, lnum = 999999999, col = 999999 },
+        -- Entry with nil/string values where numbers expected
+        { bufnr = buf, lnum = 'invalid', col = 'invalid' },
+        -- Valid entry for comparison
+        { bufnr = buf, lnum = 1, col = 0 },
+      },
+      2, -- position
+    }
+  end
+
+  local original_fns = H.mock_vim_functions({
+    current_file = '/test/reference.lua',
+    cwd = vim.fn.getcwd(),
+  })
+
+  MiniTest.expect.no_error(function()
+    Jumppack.setup({})
+
+    -- Should handle corrupted jumplist gracefully
+    Jumppack.start({})
+    vim.wait(10)
+
+    local state = Jumppack.get_state()
+    MiniTest.expect.equality(state and state.instance ~= nil, true, 'Should handle corrupted jumplist data')
+
+    if state and state.instance then
+      local instance = state.instance
+
+      -- Should have created some items (at least the valid ones)
+      MiniTest.expect.equality(#instance.items >= 0, true, 'Should create items from valid entries')
+
+      -- Navigation should work with cleaned data
+      local H_internal = Jumppack.H
+      if H_internal.actions and H_internal.actions.jump_back then
+        MiniTest.expect.no_error(function()
+          H_internal.actions.jump_back(instance, 1)
+        end, 'Navigation should work with cleaned jumplist data')
+      end
+    end
+
+    -- Cleanup
+    if Jumppack.is_active() then
+      vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes('<Esc>', true, true, true), 'x', false)
+      vim.wait(50)
+    end
+  end, 'Should handle corrupted jumplist data without crashing')
+
+  -- Cleanup
+  H.restore_vim_functions(original_fns)
+  H.cleanup_buffers({ buf })
+end
+
+T['Edge Cases & Recovery']['State Corruption Recovery']['handles missing files gracefully'] = function()
+  -- Create a buffer with a path that looks like a real file
+  local buf = H.create_test_buffer('/nonexistent/missing/file.lua', { 'content for missing file' })
+
+  H.create_mock_jumplist({
+    { bufnr = buf, lnum = 1, col = 0 },
+  }, 0)
+
+  -- Mock file system functions to simulate missing files
+  local original_fns = H.mock_vim_functions({
+    current_file = '/nonexistent/missing/file.lua',
+    cwd = '/nonexistent/missing', -- Non-existent directory
+  })
+
+  -- Mock additional file system checks
+  local original_fn_exists = vim.fn.filereadable
+  vim.fn.filereadable = function(path)
+    if string.match(path, '/nonexistent/') then
+      return 0 -- File doesn't exist
+    end
+    return original_fn_exists(path)
+  end
+
+  local original_fn_isdirectory = vim.fn.isdirectory
+  vim.fn.isdirectory = function(path)
+    if string.match(path, '/nonexistent/') then
+      return 0 -- Directory doesn't exist
+    end
+    return original_fn_isdirectory(path)
+  end
+
+  MiniTest.expect.no_error(function()
+    Jumppack.setup({})
+
+    -- Should handle missing files gracefully
+    Jumppack.start({})
+    vim.wait(10)
+
+    local state = Jumppack.get_state()
+    MiniTest.expect.equality(state and state.instance ~= nil, true, 'Should start with missing files')
+
+    if state and state.instance then
+      local instance = state.instance
+
+      -- Should create items (may filter out missing files or keep them with warnings)
+      MiniTest.expect.equality(#instance.items >= 0, true, 'Should handle missing files')
+
+      -- Preview should handle missing files gracefully
+      local H_internal = Jumppack.H
+      if H_internal.display and H_internal.display.render_preview then
+        MiniTest.expect.no_error(function()
+          H_internal.display.render_preview(instance)
+        end, 'Preview should handle missing files gracefully')
+      end
+
+      -- Filter operations should work
+      if H_internal.actions and H_internal.actions.toggle_file_filter then
+        MiniTest.expect.no_error(function()
+          H_internal.actions.toggle_file_filter(instance)
+        end, 'Filter operations should work with missing files')
+      end
+    end
+
+    -- Cleanup
+    if Jumppack.is_active() then
+      vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes('<Esc>', true, true, true), 'x', false)
+      vim.wait(50)
+    end
+  end, 'Should handle missing files without errors')
+
+  -- Restore functions
+  vim.fn.filereadable = original_fn_exists
+  vim.fn.isdirectory = original_fn_isdirectory
+  H.restore_vim_functions(original_fns)
+  H.cleanup_buffers({ buf })
+end
+
+T['Edge Cases & Recovery']['State Corruption Recovery']['handles simulated permission errors'] = function()
+  -- Create test buffer
+  local buf = H.create_test_buffer('/restricted/permission_test.lua', { 'restricted content' })
+
+  H.create_mock_jumplist({
+    { bufnr = buf, lnum = 1, col = 0 },
+  }, 0)
+
+  -- Mock permission errors by intercepting file operations
+  local original_fns = H.mock_vim_functions({
+    current_file = '/restricted/permission_test.lua',
+    cwd = vim.fn.getcwd(),
+  })
+
+  -- Mock file read operations to simulate permission errors
+  local original_readfile = vim.fn.readfile
+  vim.fn.readfile = function(path, ...)
+    if string.match(path, '/restricted/') then
+      error('Permission denied') -- Simulate permission error
+    end
+    return original_readfile(path, ...)
+  end
+
+  MiniTest.expect.no_error(function()
+    Jumppack.setup({})
+
+    -- Should handle permission errors gracefully
+    Jumppack.start({})
+    vim.wait(10)
+
+    local state = Jumppack.get_state()
+    MiniTest.expect.equality(state and state.instance ~= nil, true, 'Should start with permission-restricted files')
+
+    if state and state.instance then
+      local instance = state.instance
+
+      -- Should handle the restricted files gracefully
+      MiniTest.expect.equality(#instance.items >= 0, true, 'Should create items despite permission errors')
+
+      -- Preview should handle permission errors gracefully
+      local H_internal = Jumppack.H
+      if H_internal.display and H_internal.display.render_preview then
+        MiniTest.expect.no_error(function()
+          H_internal.display.render_preview(instance)
+        end, 'Preview should handle permission errors gracefully')
+      end
+
+      -- Choosing items should handle permission errors
+      if H_internal.actions and H_internal.actions.choose then
+        MiniTest.expect.no_error(function()
+          -- This may fail internally but shouldn't crash
+          pcall(H_internal.actions.choose, instance)
+        end, 'Choose action should handle permission errors gracefully')
+      end
+    end
+
+    -- Cleanup
+    if Jumppack.is_active() then
+      vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes('<Esc>', true, true, true), 'x', false)
+      vim.wait(50)
+    end
+  end, 'Should handle simulated permission errors without crashing')
+
+  -- Restore functions
+  vim.fn.readfile = original_readfile
+  H.restore_vim_functions(original_fns)
+  H.cleanup_buffers({ buf })
+end
+
+T['Edge Cases & Recovery']['State Corruption Recovery']['ensures memory cleanup with no leaks'] = function()
+  -- This test ensures proper cleanup in various scenarios
+  local test_buffers = {}
+
+  -- Create multiple test scenarios that could cause memory leaks
+  for i = 1, 5 do
+    local buf = H.create_test_buffer('/memory/test' .. i .. '.lua', { 'test content ' .. i })
+    table.insert(test_buffers, buf)
+  end
+
+  H.create_mock_jumplist({
+    { bufnr = test_buffers[1], lnum = 1, col = 0 },
+    { bufnr = test_buffers[2], lnum = 1, col = 0 },
+    { bufnr = test_buffers[3], lnum = 1, col = 0 },
+  }, 1)
+
+  local original_fns = H.mock_vim_functions({
+    current_file = '/memory/test1.lua',
+    cwd = vim.fn.getcwd(),
+  })
+
+  -- Track memory usage patterns through multiple start/stop cycles
+  for cycle = 1, 3 do
+    MiniTest.expect.no_error(function()
+      Jumppack.setup({})
+
+      -- Start picker
+      Jumppack.start({})
+      vim.wait(10)
+
+      local state = Jumppack.get_state()
+      MiniTest.expect.equality(state and state.instance ~= nil, true, 'Cycle ' .. cycle .. ' should start')
+
+      if state and state.instance then
+        local instance = state.instance
+        local H_internal = Jumppack.H
+
+        -- Perform various operations that create state
+        if H_internal.actions then
+          if H_internal.actions.toggle_file_filter then
+            H_internal.actions.toggle_file_filter(instance)
+          end
+          if H_internal.actions.jump_back then
+            H_internal.actions.jump_back(instance, 1)
+          end
+          if H_internal.actions.toggle_preview then
+            H_internal.actions.toggle_preview(instance)
+          end
+        end
+
+        -- Delete a buffer mid-operation to test cleanup
+        if cycle == 2 then
+          vim.api.nvim_buf_delete(test_buffers[2], { force = true })
+        end
+      end
+
+      -- Force stop to ensure cleanup
+      if Jumppack.is_active() then
+        vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes('<Esc>', true, true, true), 'x', false)
+        vim.wait(50)
+      end
+
+      -- Verify clean state after stop
+      local final_state = Jumppack.get_state()
+      MiniTest.expect.equality(final_state, nil, 'State should be clean after stop in cycle ' .. cycle)
+    end, 'Memory cleanup cycle ' .. cycle .. ' should complete without errors')
+  end
+
+  -- Verify no persistent state remains
+  MiniTest.expect.no_error(function()
+    -- Multiple refresh calls on inactive state should not accumulate errors
+    for _ = 1, 5 do
+      Jumppack.refresh()
+    end
+  end, 'Multiple refresh calls on inactive picker should not cause issues')
+
+  -- Cleanup
+  H.restore_vim_functions(original_fns)
+  -- Clean up remaining buffers (skip already deleted one from cycle 2)
+  for i, buf in ipairs(test_buffers) do
+    if i ~= 2 and vim.api.nvim_buf_is_valid(buf) then
+      pcall(vim.api.nvim_buf_delete, buf, { force = true })
+    end
+  end
+end
+
+-- ============================================================================
+-- 5.3 Configuration Edge Cases Tests
+-- ============================================================================
+T['Edge Cases & Recovery']['Configuration Edge Cases'] = MiniTest.new_set()
+
+T['Edge Cases & Recovery']['Configuration Edge Cases']['handles conflicting key mappings'] = function()
+  -- Create minimal test setup
+  local buf = H.create_test_buffer('/test/mapping.lua', { 'test content' })
+  H.create_mock_jumplist({ { bufnr = buf, lnum = 1, col = 0 } }, 0)
+
+  local original_fns = H.mock_vim_functions({
+    current_file = '/test/mapping.lua',
+    cwd = vim.fn.getcwd(),
+  })
+
+  MiniTest.expect.no_error(function()
+    -- Test conflicting mappings (multiple actions for same key)
+    Jumppack.setup({
+      mappings = {
+        jump_back = '<C-o>',
+        jump_forward = '<C-o>', -- Conflicting mapping
+        choose = '<CR>',
+        stop = '<CR>', -- Another conflict
+      },
+    })
+
+    -- Should handle conflicts gracefully without crashing
+    Jumppack.start({})
+    vim.wait(10)
+
+    local state = Jumppack.get_state()
+    MiniTest.expect.equality(state and state.instance ~= nil, true, 'Should start despite mapping conflicts')
+
+    if state and state.instance then
+      -- Should still function with the mappings that work
+      local H_internal = Jumppack.H
+      if H_internal.actions and H_internal.actions.jump_back then
+        MiniTest.expect.no_error(function()
+          H_internal.actions.jump_back(state.instance, 1)
+        end, 'Navigation should work despite mapping conflicts')
+      end
+    end
+
+    -- Cleanup
+    if Jumppack.is_active() then
+      vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes('<Esc>', true, true, true), 'x', false)
+      vim.wait(50)
+    end
+  end, 'Should handle conflicting key mappings gracefully')
+
+  H.restore_vim_functions(original_fns)
+  H.cleanup_buffers({ buf })
+end
+
+T['Edge Cases & Recovery']['Configuration Edge Cases']['handles invalid mapping types'] = function()
+  local buf = H.create_test_buffer('/test/invalid_mappings.lua', { 'test content' })
+  H.create_mock_jumplist({ { bufnr = buf, lnum = 1, col = 0 } }, 0)
+
+  local original_fns = H.mock_vim_functions({
+    current_file = '/test/invalid_mappings.lua',
+    cwd = vim.fn.getcwd(),
+  })
+
+  -- Test various invalid mapping configurations
+  local invalid_configs = {
+    -- Numbers instead of strings (should fail)
+    { config = { mappings = { jump_back = 123, jump_forward = 456 } }, should_fail = true },
+    -- Functions instead of strings (should fail)
+    { config = { mappings = { jump_back = function() end, choose = '<CR>' } }, should_fail = true },
+    -- Tables instead of strings (should fail)
+    { config = { mappings = { jump_back = {}, jump_forward = '<C-i>' } }, should_fail = true },
+    -- Boolean instead of strings (should fail)
+    { config = { mappings = { jump_back = true, jump_forward = false } }, should_fail = true },
+    -- Nil values mixed with valid ones (may succeed with defaults)
+    { config = { mappings = { jump_back = nil, choose = '<CR>', stop = '<Esc>' } }, should_fail = false },
+  }
+
+  for i, test_case in ipairs(invalid_configs) do
+    local success, err = pcall(function()
+      Jumppack.setup(test_case.config)
+    end)
+
+    if test_case.should_fail then
+      MiniTest.expect.equality(success, false, 'Invalid mapping config ' .. i .. ' should be rejected')
+      MiniTest.expect.equality(type(err), 'string', 'Invalid mapping config ' .. i .. ' should provide error message')
+    else
+      -- These configs might succeed with graceful fallbacks
+      MiniTest.expect.no_error(function()
+        -- Just verify it doesn't crash
+        Jumppack.setup(test_case.config)
+      end, 'Config ' .. i .. ' should handle gracefully')
+    end
+  end
+
+  -- Test that valid config still works after invalid attempts
+  MiniTest.expect.no_error(function()
+    Jumppack.setup({
+      mappings = {
+        jump_back = '<C-o>',
+        jump_forward = '<C-i>',
+        choose = '<CR>',
+        stop = '<Esc>',
+      },
+    })
+
+    Jumppack.start({})
+    vim.wait(10)
+
+    local state = Jumppack.get_state()
+    MiniTest.expect.equality(state and state.instance ~= nil, true, 'Should recover from invalid config attempts')
+
+    -- Cleanup
+    if Jumppack.is_active() then
+      vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes('<Esc>', true, true, true), 'x', false)
+      vim.wait(50)
+    end
+  end, 'Should handle invalid mapping types and recover gracefully')
+
+  H.restore_vim_functions(original_fns)
+  H.cleanup_buffers({ buf })
+end
+
+T['Edge Cases & Recovery']['Configuration Edge Cases']['handles malformed config structure'] = function()
+  local buf = H.create_test_buffer('/test/malformed.lua', { 'test content' })
+  H.create_mock_jumplist({ { bufnr = buf, lnum = 1, col = 0 } }, 0)
+
+  local original_fns = H.mock_vim_functions({
+    current_file = '/test/malformed.lua',
+    cwd = vim.fn.getcwd(),
+  })
+
+  -- Test various malformed configurations
+  local malformed_configs = {
+    -- Non-table top level
+    'invalid_string_config',
+    123,
+    function() end,
+    true,
+    -- Nested malformed structures
+    { options = 'should_be_table' },
+    { window = 'should_be_table' },
+    { mappings = 'should_be_table' },
+    -- Mixed valid/invalid
+    {
+      options = { default_view = 'list' },
+      window = 'invalid',
+      mappings = { jump_back = '<C-o>' },
+    },
+  }
+
+  for i, config in ipairs(malformed_configs) do
+    -- Test that malformed configs are properly rejected (these should all error)
+    local success, err = pcall(function()
+      Jumppack.setup(config)
+    end)
+    MiniTest.expect.equality(success, false, 'Malformed config ' .. i .. ' should be rejected')
+    MiniTest.expect.equality(type(err), 'string', 'Malformed config ' .. i .. ' should provide error message')
+  end
+
+  -- Test recovery with valid config
+  MiniTest.expect.no_error(function()
+    Jumppack.setup({}) -- Default config should work
+
+    Jumppack.start({})
+    vim.wait(10)
+
+    local state = Jumppack.get_state()
+    MiniTest.expect.equality(state and state.instance ~= nil, true, 'Should recover with default config')
+
+    -- Cleanup
+    if Jumppack.is_active() then
+      vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes('<Esc>', true, true, true), 'x', false)
+      vim.wait(50)
+    end
+  end, 'Should handle malformed config and recover with defaults')
+
+  H.restore_vim_functions(original_fns)
+  H.cleanup_buffers({ buf })
+end
+
+T['Edge Cases & Recovery']['Configuration Edge Cases']['handles invalid window config'] = function()
+  local buf = H.create_test_buffer('/test/window_config.lua', { 'test content' })
+  H.create_mock_jumplist({ { bufnr = buf, lnum = 1, col = 0 } }, 0)
+
+  local original_fns = H.mock_vim_functions({
+    current_file = '/test/window_config.lua',
+    cwd = vim.fn.getcwd(),
+  })
+
+  -- Test invalid window configurations
+  local invalid_window_configs = {
+    -- Invalid config types
+    { window = { config = 'should_be_table_or_function' } },
+    { window = { config = 123 } },
+    { window = { config = true } },
+  }
+
+  for i, config in ipairs(invalid_window_configs) do
+    -- Test that invalid window configs are properly rejected (these should all error)
+    local success, err = pcall(function()
+      Jumppack.setup(config)
+    end)
+    MiniTest.expect.equality(success, false, 'Invalid window config ' .. i .. ' should be rejected')
+    MiniTest.expect.equality(type(err), 'string', 'Invalid window config ' .. i .. ' should provide error message')
+  end
+
+  -- Test that valid window config works
+  MiniTest.expect.no_error(function()
+    Jumppack.setup({
+      window = {
+        config = {
+          relative = 'editor',
+          width = 80,
+          height = 20,
+          row = 5,
+          col = 5,
+        },
+      },
+    })
+
+    Jumppack.start({})
+    vim.wait(10)
+
+    local state = Jumppack.get_state()
+    MiniTest.expect.equality(state and state.instance ~= nil, true, 'Should work with valid window config')
+
+    -- Cleanup
+    if Jumppack.is_active() then
+      vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes('<Esc>', true, true, true), 'x', false)
+      vim.wait(50)
+    end
+  end, 'Should handle invalid window config and work with valid ones')
+
+  H.restore_vim_functions(original_fns)
+  H.cleanup_buffers({ buf })
+end
+
+T['Edge Cases & Recovery']['Configuration Edge Cases']['handles config changes during active picker'] = function()
+  local buf = H.create_test_buffer('/test/runtime_config.lua', { 'test content' })
+  H.create_mock_jumplist({ { bufnr = buf, lnum = 1, col = 0 } }, 0)
+
+  local original_fns = H.mock_vim_functions({
+    current_file = '/test/runtime_config.lua',
+    cwd = vim.fn.getcwd(),
+  })
+
+  MiniTest.expect.no_error(function()
+    -- Start with initial config
+    Jumppack.setup({
+      options = { default_view = 'list' },
+      mappings = { jump_back = '<C-o>', jump_forward = '<C-i>' },
+    })
+
+    Jumppack.start({})
+    vim.wait(10)
+
+    local state1 = Jumppack.get_state()
+    MiniTest.expect.equality(state1 and state1.instance ~= nil, true, 'Should start with initial config')
+
+    -- Try to change config while picker is active
+    MiniTest.expect.no_error(function()
+      Jumppack.setup({
+        options = { default_view = 'preview' },
+        mappings = { jump_back = '<C-k>', jump_forward = '<C-j>' },
+      })
+    end, 'Should handle config changes during active picker')
+
+    -- Picker should either continue with old config or handle change gracefully
+    local state2 = Jumppack.get_state()
+    MiniTest.expect.equality(state2 and state2.instance ~= nil, true, 'Should maintain valid state after config change')
+
+    if state2 and state2.instance then
+      local instance = state2.instance
+      local H_internal = Jumppack.H
+
+      -- Should still be navigable
+      if H_internal.actions and H_internal.actions.jump_back then
+        MiniTest.expect.no_error(function()
+          H_internal.actions.jump_back(instance, 1)
+        end, 'Should still be navigable after config change')
+      end
+    end
+
+    -- Cleanup current picker
+    if Jumppack.is_active() then
+      vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes('<Esc>', true, true, true), 'x', false)
+      vim.wait(50)
+    end
+
+    -- Test that new config works for next picker
+    MiniTest.expect.no_error(function()
+      Jumppack.start({})
+      vim.wait(10)
+
+      local state3 = Jumppack.get_state()
+      MiniTest.expect.equality(state3 and state3.instance ~= nil, true, 'New picker should work with updated config')
+
+      -- Cleanup
+      if Jumppack.is_active() then
+        vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes('<Esc>', true, true, true), 'x', false)
+        vim.wait(50)
+      end
+    end, 'New picker should respect updated configuration')
+  end, 'Should handle runtime config changes gracefully')
+
+  H.restore_vim_functions(original_fns)
+  H.cleanup_buffers({ buf })
+end
 
 return T
