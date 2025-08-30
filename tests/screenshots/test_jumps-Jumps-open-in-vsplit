@@ -1,0 +1,24 @@
+# Test File 3 - Markdown                │-- Test file 1 for jumplist testing    
+                                        │local M = {}                           
+This is a markdown file for testing jump│                                       
+list functionality.                     │-- Simple function for testing         
+                                        │function M.hello()                     
+## Features                             │  print('Hello from file1')            
+                                        │end                                    
+- **Bold text** for emphasis            │                                       
+- *Italic text* for style               │function M.calculate(a, b)             
+- `Code snippets` for technical content │  return a + b                         
+                                        │end                                    
+## Code Block                           │                                       
+                                        │-- Some more lines to make navigation m
+```lua                                  │eaningful                              
+-- Sample Lua code                      │local function internal_helper()       
+function test()                         │  return 'helper'                      
+  return "hello world"                  │end                                    
+end                                     │                                       
+```                                     │function M.complex_function()          
+                                        │  local result = internal_helper()     
+## List Items                           │  if result == 'helper' then           
+                                        │    return M.calculate(10, 20)         
+</test-files/file3.md 8,1            Top <est-files/file1.lua 20,5           Top
+                                                              8,1            5% 

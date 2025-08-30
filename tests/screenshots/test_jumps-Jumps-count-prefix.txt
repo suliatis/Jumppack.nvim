@@ -1,0 +1,24 @@
+-- ============================================================================ 
+-- JUMPPACK TEST FILE 1 - Lua Module                                            
+-- ============================================================================ 
+--                                                                              
+-- This file provides a sample Lua module for jumplist navigation testing.      
+-- Used in integration tests to create realistic jumplist entries with          
+-- meaningful line positions and content for testing navigation workflows.      
+┌ ↑3  nested/init.lua 15:5 ───────────────────────┐                             
+│-- Test scenarios:                               │                             
+│-- - Ambiguous filename resolution (nested/init.l│                             
+│-- - Directory filtering with nested paths       │                             
+│-- - Complex nested data structures for realistic│                             
+│local init = {}                                  │                             
+│                                                 │                             
+│function init.setup()                            │                             
+│  -- Setup function                              │                             
+│  return true                                    │                             
+│end                                              │                             
+│                                                 │                             
+│function init.run()                              │                             
+│  -- Run function with multiple lines            │                             
+└ Jumplist ──────────────────────────────── ↑2●↓3 ┘                             
+tests/test-files/file1.lua                                    20,5           Top
+                                                              15,5          40% 

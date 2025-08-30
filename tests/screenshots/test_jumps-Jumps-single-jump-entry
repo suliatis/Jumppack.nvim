@@ -1,0 +1,24 @@
+-- Test file 1 for jumplist testing                                             
+local M = {}                                                                    
+                                                                                
+-- Simple function for testing                                                  
+function M.hello()                                                              
+  print('Hello from file1')                                                     
+end                                                                             
+┌ ↑1  file1.lua 1:1 ──────────────────────────────┐                             
+│-- Test file 1 for jumplist testing              │                             
+│local M = {}                                     │                             
+│                                                 │                             
+│-- Simple function for testing                   │                             
+│function M.hello()                               │                             
+│  print('Hello from file1')                      │                             
+│end                                              │                             
+│                                                 │                             
+│function M.calculate(a, b)                       │                             
+│  return a + b                                   │                             
+│end                                              │                             
+│                                                 │                             
+│-- Some more lines to make navigation meaningful │                             
+└ Jumplist ──────────────────────────────── ↑0●↓0 ┘                             
+tests/test-files/file1.lua                                    10,1           Top
+                                                              1,1           Top 

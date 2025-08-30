@@ -1,0 +1,24 @@
+This is a markdown file for testing jumplist functionality.                     
+                                                                                
+## Features                                                                     
+                                                                                
+- **Bold text** for emphasis                                                    
+- *Italic text* for style                                                       
+- `Code snippets` for technical content                                         
+                                                                                
+## Code Block                                                                   
+                                                                                
+```lua                                                                          
+tests/test-files/file3.md                                     8,1            10%
+                                                                                
+-- Some more lines to make navigation meaningful                                
+local function internal_helper()                                                
+  return 'helper'                                                               
+end                                                                             
+                                                                                
+function M.complex_function()                                                   
+  local result = internal_helper()                                              
+  if result == 'helper' then                                                    
+    return M.calculate(10, 20)                                                  
+tests/test-files/file1.lua                                    20,5           68%
+                                                              8,1            5% 

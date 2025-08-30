@@ -1,0 +1,24 @@
+# Test File 3 - Markdown                                                        
+                                                                                
+This is a markdown file for testing jumplist functionality.                     
+                                                                                
+## Features                                                                     
+                                                                                
+- **Bold text** for emphasis                                                    
+- *Italic text* for style                                                       
+- `Code snippets` for technical content                                         
+                                                                                
+## Code Block                                                                   
+                                                                                
+```lua                                                                          
+-- Sample Lua code                                                              
+function test()                                                                 
+  return "hello world"                                                          
+end                                                                             
+```                                                                             
+                                                                                
+## List Items                                                                   
+                                                                                
+1. First item                                                                   
+tests/test-files/file3.md                                     8,1            Top
+                                                              8,1            5% 

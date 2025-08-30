@@ -1,0 +1,24 @@
+This markdown file provides structured content for jumplist navigation testing. 
+Contains headers, code blocks, and lists to create diverse jump targets and     
+test markdown-specific display features in preview mode.                        
+                                                                                
+## Features                                                                     
+                                                                                
+- **Bold text** for emphasis                                                    
+- *Italic text* for style                                                       
+- `Code snippets` for technical content                                         
+                                                                                
+## Code Block                                                                   
+tests/test-files/file3.md                                     8,0-1           9%
+-- - Multiple jump targets within single file                                   
+local M = {}                                                                    
+                                                                                
+-- Simple function for testing                                                  
+function M.hello()                                                              
+  print('Hello from file1')                                                     
+end                                                                             
+                                                                                
+function M.calculate(a, b)                                                      
+  return a + b                                                                  
+tests/test-files/file1.lua                                    20,5           40%
+                                                              8,0-1          5% 

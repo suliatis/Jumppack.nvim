@@ -1211,6 +1211,7 @@ function H.config.setup(config)
       'setup(): options.default_view must be "list" or "preview", got "' .. config.options.default_view .. '"'
     )
   end
+  H.utils.check_type('options.count_timeout_ms', config.options.count_timeout_ms, 'number')
 
   H.utils.check_type('window', config.window, 'table')
   local is_table_or_callable = function(x)

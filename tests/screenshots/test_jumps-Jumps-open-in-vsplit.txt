@@ -1,0 +1,24 @@
+# Jumppack Test File 3 - Markdown Docume│-- This file provides a sample Lua modu
+nt                                      │le for jumplist navigation testing.    
+                                        │-- Used in integration tests to create 
+This markdown file provides structured c│realistic jumplist entries with        
+ontent for jumplist navigation testing. │-- meaningful line positions and conten
+Contains headers, code blocks, and lists│t for testing navigation workflows.    
+ to create diverse jump targets and     │--                                     
+test markdown-specific display features │-- Test scenarios:                     
+in preview mode.                        │-- - Function definitions at various li
+                                        │ne numbers                             
+## Features                             │-- - Mixed code complexity for realisti
+                                        │c navigation                           
+- **Bold text** for emphasis            │-- - Multiple jump targets within singl
+- *Italic text* for style               │e file                                 
+- `Code snippets` for technical content │local M = {}                           
+                                        │                                       
+## Code Block                           │-- Simple function for testing         
+                                        │function M.hello()                     
+```lua                                  │  print('Hello from file1')            
+-- Sample Lua code                      │end                                    
+function test()                         │                                       
+  return "hello world"                  │function M.calculate(a, b)             
+</test-files/file3.md 8,0-1          Top <est-files/file1.lua 20,5           19%
+                                                              8,0-1          5% 

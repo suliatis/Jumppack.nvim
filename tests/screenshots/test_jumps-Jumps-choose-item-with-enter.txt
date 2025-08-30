@@ -1,0 +1,24 @@
+# Jumppack Test File 3 - Markdown Document                                      
+                                                                                
+This markdown file provides structured content for jumplist navigation testing. 
+Contains headers, code blocks, and lists to create diverse jump targets and     
+test markdown-specific display features in preview mode.                        
+                                                                                
+## Features                                                                     
+                                                                                
+- **Bold text** for emphasis                                                    
+- *Italic text* for style                                                       
+- `Code snippets` for technical content                                         
+                                                                                
+## Code Block                                                                   
+                                                                                
+```lua                                                                          
+-- Sample Lua code                                                              
+function test()                                                                 
+  return "hello world"                                                          
+end                                                                             
+```                                                                             
+                                                                                
+## List Items                                                                   
+tests/test-files/file3.md                                     8,0-1          Top
+                                                              8,0-1          5% 

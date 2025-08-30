@@ -1,0 +1,24 @@
+-- ============================================================================ 
+-- JUMPPACK TEST FILE 1 - Lua Module                                            
+-- ============================================================================ 
+--                                                                              
+-- This file provides a sample Lua module for jumplist navigation testing.      
+-- Used in integration tests to create realistic jumplist entries with          
+-- meaningful line positions and content for testing navigation workflows.      
+┌ ↑2  file3.md 8:1 ───────────────────────────────┐                             
+│                                                 │                             
+│This markdown file provides structured content fo│                             
+│Contains headers, code blocks, and lists to creat│                             
+│test markdown-specific display features in previe│                             
+│                                                 │                             
+│## Features                                      │                             
+│                                                 │                             
+│- **Bold text** for emphasis                     │                             
+│- *Italic text* for style                        │                             
+│- `Code snippets` for technical content          │                             
+│                                                 │                             
+│## Code Block                                    │                             
+│                                                 │                             
+└ Jumplist ──────────────────────────────── ↑0●↓4 ┘                             
+tests/test-files/file1.lua                                    20,5           Top
+                                                              8,0-1          5% 

@@ -1,0 +1,28 @@
+==========================================================================
+JUMPPACK TEST FILE 2 - Plain Text Document  
+==========================================================================
+
+This is a plain text file used for jumplist navigation testing.
+Provides diverse content types and section headers for testing
+file filtering and preview functionality.
+It contains multiple lines with different content.
+
+Section 1: Introduction
+----------------------
+Lorem ipsum dolor sit amet, consectetur adipiscing elit.
+Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.
+Ut enim ad minim veniam, quis nostrud exercitation ullamco.
+
+Section 2: Main Content
+----------------------
+Laboris nisi ut aliquip ex ea commodo consequat.
+Duis aute irure dolor in reprehenderit in voluptate velit esse.
+Cillum dolore eu fugiat nulla pariatur.
+
+Section 3: Conclusion
+--------------------
+Excepteur sint occaecat cupidatat non proident.
+Sunt in culpa qui officia deserunt mollit anim id est laborum.
+This line has some important content for testing.
+
+End of file.

@@ -1,0 +1,24 @@
+-- ============================================================================ 
+-- JUMPPACK TEST FILE 1 - Lua Module                                            
+-- ============================================================================ 
+--                                                                              
+-- This file provides a sample Lua module for jumplist navigation testing.      
+-- Used in integration tests to create realistic jumplist entries with          
+-- meaningful line positions and content for testing navigation workflows.      
+┌ ↑1  file.lua 18:3 ──────────────────────────────┐                             
+│-- - CWD filtering behavior with nested structure│                             
+│local deeply_nested = {}                         │                             
+│                                                 │                             
+│function deeply_nested.test_function()           │                             
+│  local data = {                                 │                             
+│    very_long_variable_name = 'test_value',      │                             
+│    another_long_name = 'another_value',         │                             
+│  }                                              │                             
+│                                                 │                             
+│  return data                                    │                             
+│end                                              │                             
+│                                                 │                             
+│-- More content for meaningful line numbers      │                             
+└ Jumplist ──────────────────────────────── ↑0●↓5 ┘                             
+tests/test-files/file1.lua                                    20,5           Top
+                                                              18,3          61% 

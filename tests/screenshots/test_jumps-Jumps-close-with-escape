@@ -1,0 +1,24 @@
+-- Test file 1 for jumplist testing                                             
+local M = {}                                                                    
+                                                                                
+-- Simple function for testing                                                  
+function M.hello()                                                              
+  print('Hello from file1')                                                     
+end                                                                             
+                                                                                
+function M.calculate(a, b)                                                      
+  return a + b                                                                  
+end                                                                             
+                                                                                
+-- Some more lines to make navigation meaningful                                
+local function internal_helper()                                                
+  return 'helper'                                                               
+end                                                                             
+                                                                                
+function M.complex_function()                                                   
+  local result = internal_helper()                                              
+  if result == 'helper' then                                                    
+    return M.calculate(10, 20)                                                  
+  end                                                                           
+tests/test-files/file1.lua                                    20,5           Top
+                                                              18,3          Bot 

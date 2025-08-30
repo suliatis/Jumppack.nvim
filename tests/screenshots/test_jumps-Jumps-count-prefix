@@ -1,0 +1,24 @@
+-- Test file 1 for jumplist testing                                             
+local M = {}                                                                    
+                                                                                
+-- Simple function for testing                                                  
+function M.hello()                                                              
+  print('Hello from file1')                                                     
+end                                                                             
+┌ ↑3  nested/init.lua 15:5 ───────────────────────┐                             
+│  return true                                    │                             
+│end                                              │                             
+│                                                 │                             
+│function init.run()                              │                             
+│  -- Run function with multiple lines            │                             
+│  local config = {                               │                             
+│    setting1 = 'value1',                         │                             
+│    setting2 = 'value2',                         │                             
+│    setting3 = {                                 │                             
+│      nested_setting = 'nested_value',           │                             
+│    },                                           │                             
+│  }                                              │                             
+│                                                 │                             
+└ Jumplist ──────────────────────────────── ↑2●↓3 ┘                             
+tests/test-files/file1.lua                                    20,5           Top
+                                                              15,5          66% 

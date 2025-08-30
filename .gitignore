@@ -1,2 +1,6 @@
 .DS_Store
 doc/tags
+
+# Test artifacts
+tests/screenshots/*.actual
+/tmp/jumppack-doccheck/

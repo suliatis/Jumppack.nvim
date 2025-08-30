@@ -1,0 +1,24 @@
+-- Test file 1 for jumplist testing                                             
+local M = {}                                                                    
+                                                                                
+-- Simple function for testing                                                  
+function M.hello()                                                              
+  print('Hello from file1')                                                     
+end                                                                             
+┌ ↑2  file3.md 8:1 ───────────────────────────────┐                             
+│                                                 │                             
+│This is a markdown file for testing jumplist func│                             
+│                                                 │                             
+│## Features                                      │                             
+│                                                 │                             
+│- **Bold text** for emphasis                     │                             
+│- *Italic text* for style                        │                             
+│- `Code snippets` for technical content          │                             
+│                                                 │                             
+│## Code Block                                    │                             
+│                                                 │                             
+│```lua                                           │                             
+│-- Sample Lua code                               │                             
+└ Jumplist ──────────────────────────────── ↑1●↓4 ┘                             
+tests/test-files/file1.lua                                    20,5           Top
+                                                              8,1            5% 

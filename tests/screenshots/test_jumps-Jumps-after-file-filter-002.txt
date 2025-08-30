@@ -1,0 +1,24 @@
+-- ============================================================================ 
+-- JUMPPACK TEST FILE 1 - Lua Module                                            
+-- ============================================================================ 
+--                                                                              
+-- This file provides a sample Lua module for jumplist navigation testing.      
+-- Used in integration tests to create realistic jumplist entries with          
+-- meaningful line positions and content for testing navigation workflows.      
+┌ ↑5  file1.lua 6:3 ──────────────────────────────┐                             
+│-- ==============================================│                             
+│-- JUMPPACK TEST FILE 1 - Lua Module             │                             
+│-- ==============================================│                             
+│--                                               │                             
+│-- This file provides a sample Lua module for jum│                             
+│-- Used in integration tests to create realistic │                             
+│-- meaningful line positions and content for test│                             
+│--                                               │                             
+│-- Test scenarios:                               │                             
+│-- - Function definitions at various line numbers│                             
+│-- - Mixed code complexity for realistic navigati│                             
+│-- - Multiple jump targets within single file    │                             
+│local M = {}                                     │                             
+└ Jumplist ───────────────────────── ↑0●↓1 │ [f]  ┘                             
+tests/test-files/file1.lua                                    20,5           Top
+                                                              6,3           Top 

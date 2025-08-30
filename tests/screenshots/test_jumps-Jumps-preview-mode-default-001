@@ -1,0 +1,24 @@
+-- Test file 1 for jumplist testing                                             
+local M = {}                                                                    
+                                                                                
+-- Simple function for testing                                                  
+function M.hello()                                                              
+  print('Hello from file1')                                                     
+end                                                                             
+┌ ↑1  file.lua 18:3 ──────────────────────────────┐                             
+│                                                 │                             
+│  return data                                    │                             
+│end                                              │                             
+│                                                 │                             
+│-- More content for meaningful line numbers      │                             
+│function deeply_nested.another_function()        │                             
+│  print('Testing line positioning')              │                             
+│  print('With multiple print statements')        │                             
+│  print('For cursor position testing')           │                             
+│end                                              │                             
+│                                                 │                             
+│return deeply_nested                             │                             
+│                                                 │                             
+└ Jumplist ──────────────────────────────── ↑0●↓5 ┘                             
+tests/test-files/file1.lua                                    20,5           Top
+                                                              18,3          Bot 

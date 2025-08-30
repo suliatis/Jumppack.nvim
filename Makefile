@@ -1,12 +1,20 @@
 # Makefile for Jumppack plugin
 
-.PHONY: test test-interactive format format-check lint ci ci-act doc doc-check help
+# Discover all test files and extract their base names
+TEST_FILES := $(wildcard tests/test_*.lua)
+TEST_NAMES := $(patsubst tests/test_%.lua,%,$(TEST_FILES))
+
+.PHONY: test test-interactive test-list format format-check lint ci ci-act doc doc-check help screenshots screenshots-clean screenshots-diff
 
 # Default target
 help:
 	@echo "Available targets:"
-	@echo "  test           - Run tests in headless mode"
-	@echo "  test-interactive - Run tests in interactive mode"
+	@echo "  test           - Run all tests in headless mode"
+	@echo "  test-interactive - Run all tests in interactive mode"
+	@echo "  test-list      - List all available test targets"
+	@echo "  test:NAME      - Run specific test file (e.g., test:setup)"
+	@echo "  test:NAME-interactive - Run specific test file interactively"
+	@echo "    Optional: CASE=\"test name\" to run specific test case"
 	@echo "  format         - Format Lua code with stylua"
 	@echo "  format-check   - Check code formatting (for CI)"
 	@echo "  lint           - Lint Lua code with luacheck"
@@ -14,6 +22,9 @@ help:
 	@echo "  doc-check      - Check documentation generation (for CI)"
 	@echo "  ci             - Run all CI checks locally"
 	@echo "  ci-act         - Run GitHub Actions workflow locally with act"
+	@echo "  screenshots        - Update reference screenshots for tests"
+	@echo "  screenshots-clean  - Clean actual screenshots (failed comparisons)"
+	@echo "  screenshots-diff   - View differences between expected and actual screenshots"
 	@echo "  help           - Show this help message"
 
 # Run tests in headless mode (suitable for CI)
@@ -25,6 +36,46 @@ test:
 test-interactive:
 	@echo "Running tests in interactive mode..."
 	nvim -u scripts/minimal_init.lua -c "luafile scripts/test.lua"
+
+# List all available test targets
+test-list:
+	@echo "Available test targets:"
+	@echo ""
+	@echo "Run all tests:"
+	@echo "  make test                    # Run all tests (headless)"
+	@echo "  make test-interactive        # Run all tests (interactive)"
+	@echo ""
+	@echo "Run specific test files:"
+	@for name in $(TEST_NAMES); do \
+		echo "  make test:$$name             # Run test_$$name.lua (headless)"; \
+		echo "  make test:$$name-interactive # Run test_$$name.lua (interactive)"; \
+	done
+	@echo ""
+	@echo "Run specific test case (example):"
+	@echo "  make test:setup CASE=\"creates globals\""
+	@echo "  make test:show-interactive CASE=\"handles hidden items correctly\""
+
+# Generate test:name targets using the unified test script
+define make_test_target
+test\:$(1):
+	@echo "Running test_$(1).lua tests..."
+	@if [ -n "$$(CASE)" ]; then \
+		echo "  Running specific case: $$(CASE)"; \
+	fi
+	@TEST_FILE="tests/test_$(1).lua" TEST_CASE="$$(CASE)" \
+		nvim --headless --noplugin -u scripts/minimal_init.lua -c "luafile scripts/test.lua"
+
+test\:$(1)-interactive:
+	@echo "Running test_$(1).lua tests interactively..."
+	@if [ -n "$$(CASE)" ]; then \
+		echo "  Running specific case: $$(CASE)"; \
+	fi
+	@TEST_FILE="tests/test_$(1).lua" TEST_CASE="$$(CASE)" \
+		nvim -u scripts/minimal_init.lua -c "luafile scripts/test.lua"
+endef
+
+# Create targets for all discovered test files
+$(foreach name,$(TEST_NAMES),$(eval $(call make_test_target,$(name))))
 
 # Format code with stylua (if available)
 format:
@@ -109,4 +160,33 @@ ci-act:
 	else \
 		echo "act not found. Install with: brew install act"; \
 		exit 1; \
+	fi
+
+# Screenshot management targets
+screenshots:
+	@echo "Updating reference screenshots..."
+	JUMPPACK_TEST_SCREENSHOTS=update $(MAKE) test:jumps
+	@echo "Reference screenshots updated!"
+
+screenshots-clean:
+	@echo "Cleaning actual screenshots..."
+	@rm -f tests/screenshots/*.actual
+	@echo "Actual screenshots cleaned!"
+
+screenshots-diff:
+	@echo "Showing differences between expected and actual screenshots..."
+	@found_diffs=0; \
+	for actual in tests/screenshots/*.actual; do \
+		if [ -f "$$actual" ]; then \
+			ref=$${actual%.actual}; \
+			if [ -f "$$ref" ]; then \
+				echo "=== Diff for $$ref ==="; \
+				diff -u "$$ref" "$$actual" || true; \
+				echo ""; \
+				found_diffs=1; \
+			fi; \
+		fi; \
+	done; \
+	if [ $$found_diffs -eq 0 ]; then \
+		echo "No screenshot differences found!"; \
 	fi
