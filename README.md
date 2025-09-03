@@ -25,7 +25,7 @@
 
 ```lua
 {
-  'suliatis/jumppack',
+  'suliatis/Jumppack.nvim',
   config = true,
 }
 ```
@@ -37,10 +37,10 @@
 local add = MiniDeps.add
 
 add({
-  source = 'suliatis/jumppack',
+  source = 'suliatis/Jumppack.nvim',
 })
 
-require('jumppack').setup()
+require('Jumppack.nvim').setup()
 ```
 
 ### Manual installation
@@ -48,14 +48,14 @@ require('jumppack').setup()
 Clone the repository into your Neovim packages directory:
 
 ```bash
-git clone https://github.com/suliatis/jumppack.git \
+git clone https://github.com/suliatis/Jumppack.nvim.git \
   ~/.local/share/nvim/site/pack/plugins/start/jumppack
 ```
 
 Then add to your init.lua:
 
 ```lua
-require('jumppack').setup()
+require('Jumppack.nvim').setup()
 ```
 
 ## 🚀 Quick Start
@@ -67,12 +67,12 @@ By default, Jumppack enhances the standard jump commands with its visual picker:
 ```lua
 -- lazy.nvim
 {
-  'suliatis/jumppack',
+  'suliatis/Jumppack.nvim',
   config = true,
 }
 
 -- mini.deps
-require('jumppack').setup()
+require('Jumppack.nvim').setup()
 ```
 
 ### Keep original jump behavior
@@ -80,7 +80,7 @@ require('jumppack').setup()
 To preserve Vim's default `<C-o>`/`<C-i>` and use custom keymaps:
 
 ```lua
-require('jumppack').setup({
+require('Jumppack.nvim').setup({
   options = {
     global_mappings = false,  -- Preserve original <C-o>/<C-i>
   },
@@ -88,18 +88,18 @@ require('jumppack').setup({
 
 -- Custom keymaps
 vim.keymap.set('n', '<leader>jo', function()
-  require('jumppack').start({ offset = -1 })
+  require('Jumppack.nvim').start({ offset = -1 })
 end, { desc = 'Jump back with picker' })
 
 vim.keymap.set('n', '<leader>ji', function()
-  require('jumppack').start({ offset = 1 })
+  require('Jumppack.nvim').start({ offset = 1 })
 end, { desc = 'Jump forward with picker' })
 ```
 
 ### Custom configuration example
 
 ```lua
-local Jumppack = require('jumppack')
+local Jumppack = require('Jumppack.nvim')
 Jumppack.setup({
     options = {
       global_mappings = true,   -- Override <C-o>/<C-i> with Jumppack
@@ -181,7 +181,7 @@ end
 You can also use the module directly without the global variable:
 
 ```lua
-local jumppack = require('jumppack')
+local jumppack = require('Jumppack.nvim')
 jumppack.start({ offset = -1 })
 ```
 
@@ -228,7 +228,7 @@ Jumppack uses the format: **`[indicator] [icon] [path/name] [lnum:col] [│ line
 ### Default configuration
 
 ```lua
-require('jumppack').setup({
+require('Jumppack.nvim').setup({
   options = {
     -- Override default <C-o>/<C-i> with Jumppack interface
     global_mappings = true,
@@ -279,7 +279,7 @@ require('jumppack').setup({
 ### Window customization
 
 ```lua
-require('jumppack').setup({
+require('Jumppack.nvim').setup({
   window = {
     config = function()
       local height = math.floor(vim.o.lines * 0.5)
@@ -314,7 +314,7 @@ Jumppack uses these highlight groups (linked to defaults):
 
 ```bash
 # Clone the repository
-git clone https://github.com/suliatis/Jumppack.git
+git clone https://github.com/suliatis/Jumppack.nvim.git
 cd Jumppack
 
 # Run tests
