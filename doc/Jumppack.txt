@@ -620,6 +620,60 @@ Return ~
 `(string)` Filter status text
 
 ------------------------------------------------------------------------------
+                                                       *H.filters.toggle_file()*
+                       `H.filters.toggle_file`({filters})
+file-only filter state
+Parameters ~
+{filters} `(FilterState)` Filter state to modify
+Return ~
+`(FilterState)` Modified filter state
+
+------------------------------------------------------------------------------
+                                                        *H.filters.toggle_cwd()*
+                       `H.filters.toggle_cwd`({filters})
+current working directory filter state
+Parameters ~
+{filters} `(FilterState)` Filter state to modify
+Return ~
+`(FilterState)` Modified filter state
+
+------------------------------------------------------------------------------
+                                                     *H.filters.toggle_hidden()*
+                      `H.filters.toggle_hidden`({filters})
+show hidden items filter state
+Parameters ~
+{filters} `(FilterState)` Filter state to modify
+Return ~
+`(FilterState)` Modified filter state
+
+------------------------------------------------------------------------------
+                                                             *H.filters.reset()*
+                          `H.filters.reset`({filters})
+all filter states to defaults
+Parameters ~
+{filters} `(FilterState)` Filter state to reset
+Return ~
+`(FilterState)` Reset filter state
+
+------------------------------------------------------------------------------
+                                                         *H.filters.is_active()*
+                        `H.filters.is_active`({filters})
+if any filter is currently active
+Parameters ~
+{filters} `(FilterState)` Filter state to check
+Return ~
+`(boolean)` True if any filter is active
+
+------------------------------------------------------------------------------
+                                                   *H.filters.get_active_list()*
+                     `H.filters.get_active_list`({filters})
+list of currently active filters
+Parameters ~
+{filters} `(FilterState)` Filter state to check
+Return ~
+`(string[])` List of active filter names
+
+------------------------------------------------------------------------------
                                                                  *H.hide.load()*
                                 `H.hide.load`()
 hidden items from session storage

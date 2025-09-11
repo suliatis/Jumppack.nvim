@@ -1073,6 +1073,64 @@ function H.filters.get_status_text(filters)
   return FILTER_BRACKET_OPEN .. table.concat(parts, FILTER_SEPARATOR) .. FILTER_BRACKET_CLOSE .. ' '
 end
 
+---Toggle file-only filter state
+---@param filters FilterState Filter state to modify
+---@return FilterState Modified filter state
+function H.filters.toggle_file(filters)
+  filters.file_only = not filters.file_only
+  return filters
+end
+
+---Toggle current working directory filter state
+---@param filters FilterState Filter state to modify
+---@return FilterState Modified filter state
+function H.filters.toggle_cwd(filters)
+  filters.cwd_only = not filters.cwd_only
+  return filters
+end
+
+---Toggle show hidden items filter state
+---@param filters FilterState Filter state to modify
+---@return FilterState Modified filter state
+function H.filters.toggle_hidden(filters)
+  filters.show_hidden = not filters.show_hidden
+  return filters
+end
+
+---Reset all filter states to defaults
+---@param filters FilterState Filter state to reset
+---@return FilterState Reset filter state
+function H.filters.reset(filters)
+  filters.file_only = false
+  filters.cwd_only = false
+  filters.show_hidden = false -- Default to hiding hidden items
+  return filters
+end
+
+---Check if any filter is currently active
+---@param filters FilterState Filter state to check
+---@return boolean True if any filter is active
+function H.filters.is_active(filters)
+  return filters.file_only or filters.cwd_only or filters.show_hidden
+end
+
+---Get list of currently active filters
+---@param filters FilterState Filter state to check
+---@return string[] List of active filter names
+function H.filters.get_active_list(filters)
+  local active = {}
+  if filters.file_only then
+    table.insert(active, 'file_only')
+  end
+  if filters.cwd_only then
+    table.insert(active, 'cwd_only')
+  end
+  if filters.show_hidden then
+    table.insert(active, 'show_hidden')
+  end
+  return active
+end
+
 H.hide = {}
 
 -- Session-only storage for hidden items
@@ -2073,24 +2131,22 @@ H.actions = {
 
   -- Filter actions
   toggle_file_filter = function(instance, _)
-    instance.filters.file_only = not instance.filters.file_only
+    H.filters.toggle_file(instance.filters)
     H.instance.apply_filters_and_update(instance)
   end,
 
   toggle_cwd_filter = function(instance, _)
-    instance.filters.cwd_only = not instance.filters.cwd_only
+    H.filters.toggle_cwd(instance.filters)
     H.instance.apply_filters_and_update(instance)
   end,
 
   toggle_show_hidden = function(instance, _)
-    instance.filters.show_hidden = not instance.filters.show_hidden
+    H.filters.toggle_hidden(instance.filters)
     H.instance.apply_filters_and_update(instance)
   end,
 
   reset_filters = function(instance, _)
-    instance.filters.file_only = false
-    instance.filters.cwd_only = false
-    instance.filters.show_hidden = false -- Default to hiding hidden items
+    H.filters.reset(instance.filters)
     H.instance.apply_filters_and_update(instance)
   end,
 
