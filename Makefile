@@ -116,23 +116,23 @@ doc:
 		$(MAKE) create-doc-script; \
 		nvim --headless --noplugin -u scripts/minimal_init.lua -c "luafile scripts/generate_docs.lua" -c "qa!"; \
 	fi
-	@echo "Documentation generated in doc/jumppack.txt"
+	@echo "Documentation generated in doc/Jumppack.txt"
 
 # Check documentation generation (for CI)
 doc-check:
 	@echo "Checking if documentation is up-to-date..."
-	@if [ ! -f doc/jumppack.txt ]; then \
-		echo "Error: doc/jumppack.txt not found. Run 'make doc' first."; \
+	@if [ ! -f doc/Jumppack.txt ]; then \
+		echo "Error: doc/Jumppack.txt not found. Run 'make doc' first."; \
 		exit 1; \
 	fi
 	@echo "Backing up existing documentation..."
-	@cp doc/jumppack.txt doc/jumppack.txt.backup
+	@cp doc/Jumppack.txt doc/Jumppack.txt.backup
 	@echo "Generating temporary documentation for comparison..."
 	@mkdir -p /tmp/jumppack-doccheck
-	@if TEMP_DOC=/tmp/jumppack-doccheck/jumppack.txt nvim --headless --noplugin \
+	@if TEMP_DOC=/tmp/jumppack-doccheck/Jumppack.txt nvim --headless --noplugin \
 		-u scripts/minimal_init.lua -c "luafile scripts/generate_docs.lua" -c "qa!" 2>/dev/null; then \
-		mv doc/jumppack.txt.backup doc/jumppack.txt; \
-		if diff -q doc/jumppack.txt /tmp/jumppack-doccheck/jumppack.txt >/dev/null 2>&1; then \
+		mv doc/Jumppack.txt.backup doc/Jumppack.txt; \
+		if diff -q doc/Jumppack.txt /tmp/jumppack-doccheck/Jumppack.txt >/dev/null 2>&1; then \
 			echo "✓ Documentation is up-to-date"; \
 			rm -rf /tmp/jumppack-doccheck; \
 		else \
@@ -142,7 +142,7 @@ doc-check:
 			exit 1; \
 		fi; \
 	else \
-		mv doc/jumppack.txt.backup doc/jumppack.txt 2>/dev/null || true; \
+		mv doc/Jumppack.txt.backup doc/Jumppack.txt 2>/dev/null || true; \
 		echo "✗ Failed to generate documentation"; \
 		rm -rf /tmp/jumppack-doccheck; \
 		exit 1; \
