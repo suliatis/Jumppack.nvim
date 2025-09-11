@@ -10,6 +10,7 @@ jobs:
   test:
     name: Test - Neovim ${{ matrix.nvim-version }}
     runs-on: ubuntu-latest
+    continue-on-error: ${{ matrix.nvim-version == 'nightly' }}
     strategy:
       fail-fast: false
       matrix:
