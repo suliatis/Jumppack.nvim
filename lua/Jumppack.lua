@@ -130,7 +130,7 @@ H.utils = {}
 ---
 --- Should be called once during plugin initialization, typically in your init.lua.
 ---
----@param config Config|nil Configuration table with options, mappings, and window settings
+-- config: Configuration table with options, mappings, and window settings
 ---
 ---@usage >lua
 --- -- Basic setup with defaults (overrides <C-o>/<C-i>)
@@ -202,8 +202,6 @@ function Jumppack.setup(config)
 
   -- Set global for convenient access
   _G.Jumppack = Jumppack
-  -- Expose H for testing
-  Jumppack.H = H
 end
 
 ---==============================================================================
@@ -288,13 +286,13 @@ Jumppack.config = {
 --- and filtering options. The interface allows interactive selection and navigation
 --- through your jump history with vim.jumplist.
 ---
----@param opts table|nil Navigation options with the following fields:
+-- opts: Navigation options with the following fields:
 ---   - offset (number): Navigation offset from current position. Negative for backward
 ---     jumps (e.g., -1 for previous position), positive for forward jumps (e.g., 1 for next).
 ---     If offset exceeds available range, falls back to nearest valid position.
 ---   - source (table): Custom source configuration (advanced usage)
 ---
----@return JumpItem|nil Selected jump item if user chose one, nil if cancelled
+-- returns: Selected jump item if user chose one, nil if cancelled
 ---
 ---@usage >lua
 --- -- Open interface showing previous jump position
@@ -432,9 +430,10 @@ local SEPARATOR_SPACED = ' │ ' -- Spaced separator
 
 --- Smart filename display that handles ambiguous names
 ---
----@param filepath string Full file path
----@param cwd string|nil Current working directory
----@return string Smart filename for display
+-- Get smart filename for display
+-- filepath: Full file path
+-- cwd: Current working directory (optional)
+-- returns: Smart filename string
 function H.display.smart_filename(filepath, cwd)
   if not filepath then
     return ''
@@ -494,8 +493,9 @@ end
 
 --- Get position marker for jump item
 ---
----@param item JumpItem Jump item to get marker for
----@return string Position marker (●, ↑N, ↓N)
+-- Get position marker for jump item
+-- item: Jump item to get marker for
+-- returns: Position marker (●, ↑N, ↓N)
 function H.display.get_position_marker(item)
   if not item then
     return ' '
@@ -514,8 +514,9 @@ end
 
 --- Get line preview content for item
 ---
----@param item JumpItem Jump item to get preview for
----@return string Line content preview
+-- Get line preview content for jump item
+-- item: Jump item to get preview for
+-- returns: Line content preview string
 function H.display.get_line_preview(item)
   if not item or not item.bufnr or not item.lnum then
     return ''
@@ -542,9 +543,9 @@ end
 --- Handles item formatting, icon display, position markers, and line preview. The format includes
 --- position indicators, file type icons, smart filenames, line:column position, and optional line content preview.
 ---
----@param buf_id number Buffer ID to display items in
----@param items JumpItem[] List of jump items to display with path, lnum, col, offset, and optional hidden field
----@param opts table|nil Display options with fields:
+-- buf_id: Buffer ID to display items in
+-- items: List of jump items to display with path, lnum, col, offset, and optional hidden field
+-- opts: Display options with fields:
 ---   - show_icons (boolean): Whether to show file type icons (default: true)
 ---   - icons (table): Custom icon mapping for file types
 ---
@@ -634,9 +635,9 @@ end
 --- content around the jump target with syntax highlighting and cursor positioning.
 --- Used by the interface's preview mode to show file content before navigation.
 ---
----@param buf_id number Buffer ID for preview content (must be a valid buffer)
----@param item JumpItem|nil Jump item to preview. If nil, clears the preview buffer
----@param opts table|nil Preview options with fields:
+-- buf_id: Buffer ID for preview content (must be a valid buffer)
+-- item: Jump item to preview. If nil, clears the preview buffer
+-- opts: Preview options with fields:
 ---   - context_lines (number): Number of lines to show around target (default: varies)
 ---   - syntax_highlight (boolean): Whether to apply syntax highlighting (default: true)
 ---
@@ -700,7 +701,7 @@ end
 --- jumps using Vim's jump commands (Ctrl-o and Ctrl-i). This function performs the
 --- actual jump navigation and closes the navigation interface.
 ---
----@param item JumpItem Jump item to navigate to with offset field for direction:
+-- item: Jump item to navigate to with offset field for direction:
 ---   - Negative offset: Navigate backward in jumplist (uses <C-o>)
 ---   - Positive offset: Navigate forward in jumplist (uses <C-i>)
 ---   - Zero offset: Stay at current position
@@ -738,7 +739,7 @@ end
 ---@text Determines whether the Jumppack navigation interface is currently open and active.
 --- Useful for conditional operations and preventing conflicts with multiple instances.
 ---
----@return boolean True if interface is active, false otherwise
+-- returns: True if interface is active, false otherwise
 ---
 ---@usage >lua
 --- -- Check before performing operations
@@ -778,7 +779,7 @@ end
 --- selection, and general information. Returns nil if no interface is active. Useful
 --- for inspecting interface state and implementing custom behaviors.
 ---
----@return PickerState|nil Current interface state with fields:
+-- returns: Current interface state with fields:
 ---   - items (JumpItem[]): Available jump items
 ---   - selection (table): Current selection with index
 ---   - general_info (table): Interface metadata and configuration
@@ -824,8 +825,8 @@ end
 -- ============================================================================
 
 ---Create jumplist source for picker
----@param opts table Picker options
----@return table|nil Jumplist source or nil if no jumps
+-- opts: Picker options
+-- returns: Jumplist source or nil if no jumps
 function H.jumplist.create_source(opts)
   opts = vim.tbl_deep_extend('force', { offset = -1 }, opts)
 
@@ -848,8 +849,8 @@ function H.jumplist.create_source(opts)
 end
 
 ---Get all valid jumps from jumplist
----@param config Config|nil Configuration
----@return JumpItem[] List of valid jump items
+-- config: Configuration
+-- returns: List of valid jump items
 function H.jumplist.get_all(config)
   local jumps = vim.fn.getjumplist()
   local jumplist = jumps[1]
@@ -893,10 +894,10 @@ function H.jumplist.get_all(config)
 end
 
 ---Create jump item from jumplist entry
----@param jump table Vim jumplist entry
----@param i number Jump index
----@param current number Current position index
----@return JumpItem|nil Jump item or nil if invalid
+-- jump: Vim jumplist entry
+-- i: Jump index
+-- current: Current position index
+-- returns: Jump item or nil if invalid
 function H.jumplist.create_item(jump, i, current)
   local bufname = vim.fn.bufname(jump.bufnr)
   if bufname == '' then
@@ -928,10 +929,10 @@ function H.jumplist.create_item(jump, i, current)
 end
 
 ---Find best matching jump for target offset
----@param jumps JumpItem[] Available jump items
----@param target_offset number Target navigation offset
----@param config Config Configuration
----@return number Index of best matching jump
+-- jumps: Available jump items
+-- target_offset: Target navigation offset
+-- config: Configuration
+-- returns: Index of best matching jump
 function H.jumplist.find_target_offset(jumps, target_offset, config)
   config = config or Jumppack.config
   local wrap_edges = config.options and config.options.wrap_edges
@@ -1000,10 +1001,10 @@ local FILTER_CWD = 'c' -- Current directory filter indicator
 local FILTER_HIDDEN = '.' -- Show hidden filter indicator
 
 ---Apply filters to jump items
----@param items JumpItem[] Jump items to filter
----@param filters FilterState Filter state
----@param filter_context table Filter context with original_file and original_cwd
----@return JumpItem[] Filtered jump items
+-- items: Jump items to filter
+-- filters: Filter state
+-- filter_context: Filter context with original_file and original_cwd
+-- returns: Filtered jump items
 function H.filters.apply(items, filters, filter_context)
   if not items or #items == 0 then
     return items
@@ -1048,8 +1049,8 @@ function H.filters.apply(items, filters, filter_context)
 end
 
 ---Get filter status text for display
----@param filters FilterState Filter state
----@return string Filter status text
+-- filters: Filter state
+-- returns: Filter status text
 function H.filters.get_status_text(filters)
   local parts = {}
 
@@ -1074,32 +1075,32 @@ function H.filters.get_status_text(filters)
 end
 
 ---Toggle file-only filter state
----@param filters FilterState Filter state to modify
----@return FilterState Modified filter state
+-- filters: Filter state to modify
+-- returns: Modified filter state
 function H.filters.toggle_file(filters)
   filters.file_only = not filters.file_only
   return filters
 end
 
 ---Toggle current working directory filter state
----@param filters FilterState Filter state to modify
----@return FilterState Modified filter state
+-- filters: Filter state to modify
+-- returns: Modified filter state
 function H.filters.toggle_cwd(filters)
   filters.cwd_only = not filters.cwd_only
   return filters
 end
 
 ---Toggle show hidden items filter state
----@param filters FilterState Filter state to modify
----@return FilterState Modified filter state
+-- filters: Filter state to modify
+-- returns: Modified filter state
 function H.filters.toggle_hidden(filters)
   filters.show_hidden = not filters.show_hidden
   return filters
 end
 
 ---Reset all filter states to defaults
----@param filters FilterState Filter state to reset
----@return FilterState Reset filter state
+-- filters: Filter state to reset
+-- returns: Reset filter state
 function H.filters.reset(filters)
   filters.file_only = false
   filters.cwd_only = false
@@ -1108,15 +1109,15 @@ function H.filters.reset(filters)
 end
 
 ---Check if any filter is currently active
----@param filters FilterState Filter state to check
----@return boolean True if any filter is active
+-- filters: Filter state to check
+-- returns: True if any filter is active
 function H.filters.is_active(filters)
   return filters.file_only or filters.cwd_only or filters.show_hidden
 end
 
 ---Get list of currently active filters
----@param filters FilterState Filter state to check
----@return string[] List of active filter names
+-- filters: Filter state to check
+-- returns: List of active filter names
 function H.filters.get_active_list(filters)
   local active = {}
   if filters.file_only then
@@ -1137,27 +1138,27 @@ H.hide = {}
 H.hide.storage = {}
 
 ---Get hidden items from session storage
----@return table Hidden items keyed by path:lnum
+-- returns: Hidden items keyed by path:lnum
 function H.hide.load()
   return H.hide.storage
 end
 
 ---Save hidden items to session storage
----@param hidden table Hidden items keyed by path:lnum
+-- hidden: Hidden items keyed by path:lnum
 function H.hide.save(hidden)
   H.hide.storage = hidden
 end
 
 ---Get hide key for jump item
----@param item JumpItem Jump item
----@return string Hide key
+-- item: Jump item
+-- returns: Hide key
 function H.hide.get_key(item)
   return item.path .. ':' .. item.lnum
 end
 
 ---Check if item is hidden
----@param item JumpItem Jump item
----@return boolean True if hidden
+-- item: Jump item
+-- returns: True if hidden
 function H.hide.is_hidden(item)
   local hidden = H.hide.load()
   local key = H.hide.get_key(item)
@@ -1165,8 +1166,8 @@ function H.hide.is_hidden(item)
 end
 
 ---Toggle hide status for item
----@param item JumpItem Jump item
----@return boolean New hide status
+-- item: Jump item
+-- returns: New hide status
 function H.hide.toggle(item)
   local hidden = H.hide.load()
   local key = H.hide.get_key(item)
@@ -1182,8 +1183,8 @@ function H.hide.toggle(item)
 end
 
 ---Mark items with their hide status
----@param items JumpItem[] Jump items
----@return JumpItem[] Items with hide status marked
+-- items: Jump items
+-- returns: Items with hide status marked
 function H.hide.mark_items(items)
   if not items then
     return items
@@ -1220,8 +1221,8 @@ H.current_instance = nil
 H.cache = {}
 
 ---Setup and validate configuration
----@param config Config|nil Configuration table
----@return Config Validated configuration
+-- config: Configuration table
+-- returns: Validated configuration
 function H.config.setup(config)
   H.utils.check_type('config', config, 'table', true)
   config = vim.tbl_deep_extend('force', vim.deepcopy(H.default_config), config or {})
@@ -1267,19 +1268,19 @@ function H.config.setup(config)
 end
 
 ---Apply configuration to Jumppack
----@param config Config Configuration to apply
+-- config: Configuration to apply
 function H.config.apply(config)
   Jumppack.config = config
 end
 
 ---Get merged configuration
----@param config Config|nil Override configuration
----@return Config Merged configuration
+-- config: Override configuration
+-- returns: Merged configuration
 function H.config.get(config)
   return vim.tbl_deep_extend('force', Jumppack.config, vim.b.minipick_config or {}, config or {})
 end
 
----Setup autocommands for Jumppack
+-- Setup autocommands for Jumppack
 function H.config.setup_autocommands()
   local gr = vim.api.nvim_create_augroup('Jumppack', {})
 
@@ -1291,7 +1292,7 @@ function H.config.setup_autocommands()
   au('ColorScheme', '*', H.config.setup_highlights, 'Ensure colors')
 end
 
----Setup default highlight groups
+-- Setup default highlight groups
 function H.config.setup_highlights()
   local hi = function(name, opts)
     opts.default = true
@@ -1319,7 +1320,7 @@ end
 --- commands with Jumppack's enhanced interface. Only runs if global_mappings option
 --- is enabled. The mappings support count prefixes (e.g., 3<C-o> for 3 jumps back).
 ---
----@param config Config Configuration with mappings
+-- config: Configuration with mappings
 function H.config.setup_mappings(config)
   if not config.options.global_mappings then
     return
@@ -1336,8 +1337,8 @@ function H.config.setup_mappings(config)
 end
 
 ---Validate picker options
----@param opts table|nil Options to validate
----@return table Validated options
+-- opts: Options to validate
+-- returns: Validated options
 function H.config.validate_opts(opts)
   opts = opts or {}
   if type(opts) ~= 'table' then
@@ -1412,8 +1413,8 @@ local INPUT_DELAY_MS = 10 -- Responsive input without CPU spinning
 local FOCUS_CHECK_INTERVAL = 1000 -- Focus tracking timer interval (ms)
 
 ---Create new picker instance
----@param opts table Validated picker options
----@return Instance New picker instance
+-- opts: Validated picker options
+-- returns: New picker instance
 function H.instance.create(opts)
   -- Create buffer
   local buf_id = H.window.create_buffer()
@@ -1466,8 +1467,8 @@ function H.instance.create(opts)
 end
 
 ---Run main picker event loop
----@param instance Instance Picker instance
----@return JumpItem|nil Selected item or nil if aborted
+-- instance: Picker instance
+-- returns: Selected item or nil if aborted
 function H.instance.run_loop(instance)
   vim.schedule(function()
     vim.api.nvim_exec_autocmds('User', { pattern = 'JumppackStart' })
@@ -1538,8 +1539,8 @@ function H.instance.run_loop(instance)
 end
 
 ---Update picker instance display
----@param instance Instance Picker instance
----@param update_window boolean|nil Whether to update window config
+-- instance: Picker instance
+-- update_window: Whether to update window config
 function H.instance.update(instance, update_window)
   if update_window then
     local config = H.window.compute_config(instance.opts.window.config)
@@ -1556,7 +1557,7 @@ local GOLDEN_RATIO = 0.618 -- Golden ratio for default window sizing
 local WINDOW_ZINDEX = 251 -- Float window z-index for layering
 
 ---Create scratch buffer for picker
----@return number Buffer ID
+-- returns: Buffer ID
 function H.window.create_buffer()
   local buf_id = H.utils.create_scratch_buf('main')
   vim.bo[buf_id].filetype = 'minipick'
@@ -1564,10 +1565,10 @@ function H.window.create_buffer()
 end
 
 ---Create floating window for picker
----@param buf_id number Buffer ID to display
----@param win_config table|function|nil Window configuration
----@param cwd string Current working directory
----@return number Window ID
+-- buf_id: Buffer ID to display
+-- win_config: Window configuration
+-- cwd: Current working directory
+-- returns: Window ID
 function H.window.create_window(buf_id, win_config, cwd)
   -- Hide cursor while instance is active (to not be visible in the window)
   -- This mostly follows a hack from 'folke/noice.nvim'
@@ -1595,9 +1596,9 @@ function H.window.create_window(buf_id, win_config, cwd)
 end
 
 ---Compute window configuration
----@param win_config table|function|nil Window config or callable
----@param is_for_open boolean|nil Whether config is for opening window
----@return table Computed window configuration
+-- win_config: Window config or callable
+-- is_for_open: Whether config is for opening window
+-- returns: Computed window configuration
 function H.window.compute_config(win_config, is_for_open)
   local has_tabline = vim.o.showtabline == 2 or (vim.o.showtabline == 1 and #vim.api.nvim_list_tabpages() > 1)
   local has_statusline = vim.o.laststatus > 0
@@ -1631,7 +1632,7 @@ function H.window.compute_config(win_config, is_for_open)
 end
 
 ---Track focus loss for picker instance
----@param instance Instance Picker instance
+-- instance: Picker instance
 function H.instance.track_focus(instance)
   local track = vim.schedule_wrap(function()
     local is_cur_win = vim.api.nvim_get_current_win() == instance.windows.main
@@ -1649,9 +1650,9 @@ function H.instance.track_focus(instance)
 end
 
 ---Set items and initial selection for instance
----@param instance Instance Picker instance
----@param items JumpItem[] Jump items
----@param initial_selection number|nil Initial selection index
+-- instance: Picker instance
+-- items: Jump items
+-- initial_selection: Initial selection index
 function H.instance.set_items(instance, items, initial_selection)
   -- Store original items before any filtering for session state
   instance.original_items = vim.deepcopy(items)
@@ -1675,10 +1676,10 @@ function H.instance.set_items(instance, items, initial_selection)
 end
 
 ---Calculate initial selection when items are filtered
----@param original_items JumpItem[] Original items
----@param filtered_items JumpItem[] Filtered items
----@param original_selection number|nil Original selection index
----@return number Adjusted selection index
+-- original_items: Original items
+-- filtered_items: Filtered items
+-- original_selection: Original selection index
+-- returns: Adjusted selection index
 function H.instance.calculate_filtered_initial_selection(original_items, filtered_items, original_selection)
   if not original_selection or original_selection <= 0 or #original_items == 0 then
     return 1
@@ -1712,7 +1713,7 @@ function H.instance.calculate_filtered_initial_selection(original_items, filtere
 end
 
 ---Apply filters and update display
----@param instance Instance Picker instance
+-- instance: Picker instance
 function H.instance.apply_filters_and_update(instance)
   if not instance.original_items then
     -- Store original items on first filter
@@ -1747,9 +1748,9 @@ function H.instance.apply_filters_and_update(instance)
 end
 
 ---Find best selection index when items are filtered
----@param instance Instance Picker instance
----@param filtered_items JumpItem[] Filtered items
----@return number Best selection index
+-- instance: Picker instance
+-- filtered_items: Filtered items
+-- returns: Best selection index
 function H.instance.find_best_selection(instance, filtered_items)
   if not instance.original_items or #filtered_items == 0 then
     return 1
@@ -1782,7 +1783,7 @@ function H.instance.find_best_selection(instance, filtered_items)
 end
 
 ---Start or restart count timeout timer
----@param instance Instance Picker instance
+-- instance: Picker instance
 function H.instance.start_count_timeout(instance)
   -- Clear existing timer
   H.instance.clear_count_timeout(instance)
@@ -1799,7 +1800,7 @@ function H.instance.start_count_timeout(instance)
 end
 
 ---Clear count timeout timer
----@param instance Instance Picker instance
+-- instance: Picker instance
 function H.instance.clear_count_timeout(instance)
   if instance.count_timer then
     vim.fn.timer_stop(instance.count_timer)
@@ -1808,9 +1809,9 @@ function H.instance.clear_count_timeout(instance)
 end
 
 ---Convert jump item to display string with format: [indicator] [icon] [path/name] [lnum:col]
----@param item JumpItem Jump item to convert
----@param opts table|nil Display options with show_preview, show_icons, icons, cwd fields
----@return string Display string
+-- item: Jump item to convert
+-- opts: Display options with show_preview, show_icons, icons, cwd fields
+-- returns: Display string
 function H.display.item_to_string(item, opts)
   if not item then
     return ''
@@ -1863,9 +1864,9 @@ function H.display.item_to_string(item, opts)
 end
 
 ---Set current selection index
----@param instance Instance Picker instance
----@param ind number Selection index
----@param force_update boolean|nil Force visible range update
+-- instance: Picker instance
+-- ind: Selection index
+-- force_update: Force visible range update
 function H.instance.set_selection(instance, ind, force_update)
   -- Early validation - guard clause
   if not instance or not instance.items or #instance.items == 0 then
@@ -1895,7 +1896,7 @@ function H.instance.set_selection(instance, ind, force_update)
 end
 
 ---Update buffer lines with current items
----@param instance Instance Picker instance
+-- instance: Picker instance
 function H.display.update_lines(instance)
   -- Early validation - guard clauses
   if not instance then
@@ -1960,8 +1961,8 @@ function H.display.update_lines(instance)
 end
 
 ---Normalize key mappings for actions
----@param mappings ConfigMappings Key mappings
----@return table Normalized action mappings
+-- mappings: Key mappings
+-- returns: Normalized action mappings
 function H.config.normalize_mappings(mappings)
   local res = {}
   local add_to_res = function(char, data)
@@ -1981,7 +1982,7 @@ function H.config.normalize_mappings(mappings)
 end
 
 ---Update window border text
----@param instance Instance Picker instance
+-- instance: Picker instance
 function H.display.update_border(instance)
   local win_id = instance.windows.main
   if not H.utils.is_valid_win(win_id) then
@@ -2026,9 +2027,9 @@ function H.display.update_border(instance)
 end
 
 ---Compute footer content for window
----@param instance Instance Picker instance
----@param win_id number Window ID
----@return table Footer content
+-- instance: Picker instance
+-- win_id: Window ID
+-- returns: Footer content
 function H.display.compute_footer(instance, win_id)
   local info = H.display.get_general_info(instance)
   local source_name = string.format(' %s ', info.source_name)
@@ -2048,7 +2049,7 @@ function H.display.compute_footer(instance, win_id)
 end
 
 ---Destroy picker instance and cleanup
----@param instance Instance Picker instance
+-- instance: Picker instance
 function H.instance.destroy(instance)
   vim.tbl_map(function(timer)
     pcall(vim.uv.timer_stop, timer)
@@ -2195,9 +2196,9 @@ H.actions = {
 }
 
 ---Choose current item with optional pre-command
----@param instance Instance Picker instance
----@param pre_command string|nil Command to execute before choosing
----@return boolean True if should stop picker
+-- instance: Picker instance
+-- pre_command: Command to execute before choosing
+-- returns: True if should stop picker
 function H.actions.choose(instance, pre_command)
   -- Early validation - guard clause
   local cur_item = H.instance.get_selection(instance)
@@ -2235,9 +2236,9 @@ function H.actions.choose(instance, pre_command)
 end
 
 ---Move current selection by offset or to position
----@param instance Instance Picker instance
----@param by number Movement offset
----@param to number|nil Target position
+-- instance: Picker instance
+-- by: Movement offset
+-- to: Target position
 function H.instance.move_selection(instance, by, to)
   -- Early validation - guard clauses
   if not instance or not instance.items or #instance.items == 0 then
@@ -2276,8 +2277,8 @@ function H.instance.move_selection(instance, by, to)
 end
 
 ---Get currently selected item
----@param instance Instance Picker instance
----@return JumpItem|nil Current selection or nil
+-- instance: Picker instance
+-- returns: Current selection or nil
 function H.instance.get_selection(instance)
   -- Early validation - return nil for invalid state
   if not instance or not instance.items or #instance.items == 0 then
@@ -2287,7 +2288,7 @@ function H.instance.get_selection(instance)
 end
 
 ---Render list buffer view
----@param instance Instance Picker instance
+-- instance: Picker instance
 function H.display.render_list(instance)
   H.utils.set_winbuf(instance.windows.main, instance.buffers.main)
   instance.view_state = 'list'
@@ -2295,7 +2296,7 @@ function H.display.render_list(instance)
 end
 
 ---Render current view based on instance view state
----@param instance Instance Picker instance
+-- instance: Picker instance
 function H.display.render(instance)
   if instance.view_state == 'preview' then
     H.display.render_preview(instance)
@@ -2305,8 +2306,8 @@ function H.display.render(instance)
 end
 
 ---Get general information about picker state
----@param instance Instance Picker instance
----@return table General information including position indicator for selected item
+-- instance: Picker instance
+-- returns: General information including position indicator for selected item
 function H.display.get_general_info(instance)
   local has_items = instance.items ~= nil
 
@@ -2356,7 +2357,7 @@ function H.display.get_general_info(instance)
 end
 
 ---Render preview buffer view
----@param instance Instance Picker instance
+-- instance: Picker instance
 function H.display.render_preview(instance)
   -- Early validation - guard clause
   local item = H.instance.get_selection(instance)
@@ -2376,9 +2377,9 @@ function H.display.render_preview(instance)
 end
 
 ---Get icon for item
----@param item JumpItem Item to get icon for
----@param icons table Icon configuration
----@return table Icon data with text and highlight
+-- item: Item to get icon for
+-- icons: Icon configuration
+-- returns: Icon data with text and highlight
 function H.display.get_icon(item, icons)
   local path = item.path or ''
   local path_type = H.utils.get_fs_type(path)
@@ -2405,8 +2406,8 @@ function H.display.get_icon(item, icons)
 end
 
 ---Get filesystem type for path
----@param path string File path
----@return string Type: 'file', 'directory', or 'none'
+-- path: File path
+-- returns: Type: 'file', 'directory', or 'none'
 function H.utils.get_fs_type(path)
   if path == '' then
     return 'none'
@@ -2421,9 +2422,9 @@ function H.utils.get_fs_type(path)
 end
 
 --- Set lines in preview buffer with syntax highlighting
----@param buf_id number Preview buffer id
----@param lines string[] Lines to display
----@param extra table Extra info with lnum, col, end_lnum, end_col, filetype, path
+-- buf_id: Preview buffer id
+-- lines: Lines to display
+-- extra: Extra info with lnum, col, end_lnum, end_col, filetype, path
 function H.display.preview_set_lines(buf_id, lines, extra)
   -- Lines
   H.utils.set_buflines(buf_id, lines)
@@ -2460,8 +2461,8 @@ function H.display.preview_set_lines(buf_id, lines, extra)
 end
 
 --- Check if preview buffer should be syntax highlighted based on size limits
----@param buf_id number Buffer id to check
----@return boolean # True if buffer should be highlighted
+-- buf_id: Buffer id to check
+-- returns: # True if buffer should be highlighted
 function H.display.preview_should_highlight(buf_id)
   -- Highlight if buffer size is not too big, both in total and per line
   local buf_size = vim.api.nvim_buf_call(buf_id, function()
@@ -2471,11 +2472,11 @@ function H.display.preview_should_highlight(buf_id)
 end
 
 --- Highlight specific region in preview buffer
----@param buf_id number Buffer id to highlight in
----@param lnum number|nil Line number to highlight (1-indexed)
----@param col number|nil Column number for region start
----@param end_lnum number|nil End line number for region
----@param end_col number|nil End column number for region
+-- buf_id: Buffer id to highlight in
+-- lnum: Line number to highlight (1-indexed)
+-- col: Column number for region start
+-- end_lnum: End line number for region
+-- end_col: End column number for region
 function H.display.preview_highlight_region(buf_id, lnum, col, end_lnum, end_col)
   -- Highlight line
   if lnum == nil then
@@ -2503,16 +2504,16 @@ function H.display.preview_highlight_region(buf_id, lnum, col, end_lnum, end_col
 end
 
 ---Display error message
----@param msg string Error message
+-- msg: Error message
 function H.utils.error(msg)
   error('(jumppack) ' .. msg, 0)
 end
 
 ---Check value type and error if invalid
----@param name string Parameter name
----@param val any Value to check
----@param ref string Expected type
----@param allow_nil boolean|nil Allow nil values
+-- name: Parameter name
+-- val: Value to check
+-- ref: Expected type
+-- allow_nil: Allow nil values
 function H.utils.check_type(name, val, ref, allow_nil)
   if type(val) == ref or (ref == 'callable' and vim.is_callable(val)) or (allow_nil and val == nil) then
     return
@@ -2525,29 +2526,29 @@ function H.utils.set_buf_name(buf_id, name)
 end
 
 ---Display notification message
----@param msg string Message to display
----@param level_name string|nil Log level name
+-- msg: Message to display
+-- level_name: Log level name
 function H.utils.notify(msg, level_name)
   vim.notify('(jumppack) ' .. msg, vim.log.levels[level_name])
 end
 
 ---Check if buffer ID is valid
----@param buf_id number Buffer ID
----@return boolean True if valid
+-- buf_id: Buffer ID
+-- returns: True if valid
 function H.utils.is_valid_buf(buf_id)
   return type(buf_id) == 'number' and vim.api.nvim_buf_is_valid(buf_id)
 end
 
 ---Check if window ID is valid
----@param win_id number Window ID
----@return boolean True if valid
+-- win_id: Window ID
+-- returns: True if valid
 function H.utils.is_valid_win(win_id)
   return type(win_id) == 'number' and vim.api.nvim_win_is_valid(win_id)
 end
 
 ---Create scratch buffer
----@param name string Buffer name
----@return number Buffer ID
+-- name: Buffer name
+-- returns: Buffer ID
 function H.utils.create_scratch_buf(name)
   local buf_id = vim.api.nvim_create_buf(false, true)
   H.utils.set_buf_name(buf_id, name)
@@ -2558,21 +2559,21 @@ function H.utils.create_scratch_buf(name)
 end
 
 --- Safely set buffer lines (ignores errors from invalid buffers)
----@param buf_id number Buffer id
----@param lines string[] Lines to set
+-- buf_id: Buffer id
+-- lines: Lines to set
 function H.utils.set_buflines(buf_id, lines)
   pcall(vim.api.nvim_buf_set_lines, buf_id, 0, -1, false, lines)
 end
 
 --- Set window buffer
----@param win_id number Window id
----@param buf_id number Buffer id to set
+-- win_id: Window id
+-- buf_id: Buffer id to set
 function H.utils.set_winbuf(win_id, buf_id)
   vim.api.nvim_win_set_buf(win_id, buf_id)
 end
 
 --- Safely set extmark (ignores errors from invalid buffers)
----@param ... any Arguments to nvim_buf_set_extmark
+-- Arguments passed to nvim_buf_set_extmark
 function H.utils.set_extmark(...)
   pcall(vim.api.nvim_buf_set_extmark, ...)
 end

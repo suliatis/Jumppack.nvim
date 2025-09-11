@@ -146,8 +146,6 @@ Fields ~
 {general_info} `(table)` General picker information
 
 ------------------------------------------------------------------------------
-                                                              *Jumppack.setup()*
-                           `Jumppack.setup`({config})
 Setup Jumppack with optional configuration
 
 Initialize Jumppack plugin with custom configuration. This function merges
@@ -160,8 +158,9 @@ setting `options.global_mappings = false` and creating custom mappings.
 
 Should be called once during plugin initialization, typically in your init.lua.
 
-Parameters ~
-{config} `(Config|nil)` Configuration table with options, mappings, and window settings
+------------------------------------------------------------------------------
+                                                              *Jumppack.setup()*
+                           `Jumppack.setup`({config})
 
 Usage ~
 >lua
@@ -251,8 +250,6 @@ FUNCTIONS                                             *jumppack-api*
 API functions for Jumppack navigation interface.
 
 ------------------------------------------------------------------------------
-                                                              *Jumppack.start()*
-                            `Jumppack.start`({opts})
 Start the jumplist navigation interface
 
 Opens the jumplist navigation interface with a floating window. Displays available
@@ -260,15 +257,15 @@ jump positions with navigation preview. Supports directional navigation with off
 and filtering options. The interface allows interactive selection and navigation
 through your jump history with vim.jumplist.
 
-Parameters ~
-{opts} `(table|nil)` Navigation options with the following fields:
+------------------------------------------------------------------------------
   - offset (number): Navigation offset from current position. Negative for backward
     jumps (e.g., -1 for previous position), positive for forward jumps (e.g., 1 for next).
     If offset exceeds available range, falls back to nearest valid position.
   - source (table): Custom source configuration (advanced usage)
 
-Return ~
-`(JumpItem|nil)` Selected jump item if user chose one, nil if cancelled
+------------------------------------------------------------------------------
+                                                              *Jumppack.start()*
+                            `Jumppack.start`({opts})
 
 Usage ~
 >lua
@@ -351,49 +348,24 @@ OPTIONS                                       *jumppack-display*
 customization and formatting options.
 
 ------------------------------------------------------------------------------
-                                                    *H.display.smart_filename()*
-                 `H.display.smart_filename`({filepath}, {cwd})
 Smart filename display that handles ambiguous names
 
-Parameters ~
-{filepath} `(string)` Full file path
-{cwd} `(string|nil)` Current working directory
-Return ~
-`(string)` Smart filename for display
-
 ------------------------------------------------------------------------------
-                                               *H.display.get_position_marker()*
-                    `H.display.get_position_marker`({item})
 Get position marker for jump item
 
-Parameters ~
-{item} `(JumpItem)` Jump item to get marker for
-Return ~
-`(string)` Position marker (●, ↑N, ↓N)
-
 ------------------------------------------------------------------------------
-                                                  *H.display.get_line_preview()*
-                      `H.display.get_line_preview`({item})
 Get line preview content for item
 
-Parameters ~
-{item} `(JumpItem)` Jump item to get preview for
-Return ~
-`(string)` Line content preview
-
 ------------------------------------------------------------------------------
-                                                         *Jumppack.show_items()*
-                `Jumppack.show_items`({buf_id}, {items}, {opts})
 Display items in a buffer with syntax highlighting
 
 Renders jump items in the navigation buffer with integrated format: [indicator] [icon] [path/name] [lnum:col]
 Handles item formatting, icon display, position markers, and line preview. The format includes
 position indicators, file type icons, smart filenames, line:column position, and optional line content preview.
 
-Parameters ~
-{buf_id} `(number)` Buffer ID to display items in
-{items} `(JumpItem[])` List of jump items to display with path, lnum, col, offset, and optional hidden field
-{opts} `(table|nil)` Display options with fields:
+------------------------------------------------------------------------------
+                                                         *Jumppack.show_items()*
+                `Jumppack.show_items`({buf_id}, {items}, {opts})
   - show_icons (boolean): Whether to show file type icons (default: true)
   - icons (table): Custom icon mapping for file types
 
@@ -418,18 +390,15 @@ See also ~
 |jumppack-display| For display customization options
 
 ------------------------------------------------------------------------------
-                                                       *Jumppack.preview_item()*
-               `Jumppack.preview_item`({buf_id}, {item}, {opts})
 Preview a jump item in a buffer
 
 Displays a preview of the jump destination in the preview buffer. Shows the
 content around the jump target with syntax highlighting and cursor positioning.
 Used by the interface's preview mode to show file content before navigation.
 
-Parameters ~
-{buf_id} `(number)` Buffer ID for preview content (must be a valid buffer)
-{item} `(JumpItem|nil)` Jump item to preview. If nil, clears the preview buffer
-{opts} `(table|nil)` Preview options with fields:
+------------------------------------------------------------------------------
+                                                       *Jumppack.preview_item()*
+               `Jumppack.preview_item`({buf_id}, {item}, {opts})
   - context_lines (number): Number of lines to show around target (default: varies)
   - syntax_highlight (boolean): Whether to apply syntax highlighting (default: true)
 
@@ -459,16 +428,15 @@ See also ~
 |jumppack-preview| For preview customization
 
 ------------------------------------------------------------------------------
-                                                        *Jumppack.choose_item()*
-                         `Jumppack.choose_item`({item})
 Choose and navigate to a jump item
 
 Executes navigation to the selected jump item. Handles backward and forward
 jumps using Vim's jump commands (Ctrl-o and Ctrl-i). This function performs the
 actual jump navigation and closes the navigation interface.
 
-Parameters ~
-{item} `(JumpItem)` Jump item to navigate to with offset field for direction:
+------------------------------------------------------------------------------
+                                                        *Jumppack.choose_item()*
+                         `Jumppack.choose_item`({item})
   - Negative offset: Navigate backward in jumplist (uses <C-o>)
   - Positive offset: Navigate forward in jumplist (uses <C-i>)
   - Zero offset: Stay at current position
@@ -495,8 +463,7 @@ Check if the navigation interface is currently active
 Determines whether the Jumppack navigation interface is currently open and active.
 Useful for conditional operations and preventing conflicts with multiple instances.
 
-Return ~
-`(boolean)` True if interface is active, false otherwise
+------------------------------------------------------------------------------
 
 Usage ~
 >lua
@@ -526,16 +493,15 @@ MANAGEMENT                         *jumppack-interface-management*
 lifecycle management and state control.
 
 ------------------------------------------------------------------------------
-                                                          *Jumppack.get_state()*
-                             `Jumppack.get_state`()
 Get the current state of the active navigation interface
 
 Retrieves the current state of the active interface instance, including items,
 selection, and general information. Returns nil if no interface is active. Useful
 for inspecting interface state and implementing custom behaviors.
 
-Return ~
-`(PickerState|nil)` Current interface state with fields:
+------------------------------------------------------------------------------
+                                                          *Jumppack.get_state()*
+                             `Jumppack.get_state`()
   - items (JumpItem[]): Available jump items
   - selection (table): Current selection with index
   - general_info (table): Interface metadata and configuration
@@ -560,576 +526,200 @@ vim.keymap.set('n', '<C-g>', function()
 end, { desc = 'Show current jump info' })
 <
 ------------------------------------------------------------------------------
-                                                    *H.jumplist.create_source()*
-                       `H.jumplist.create_source`({opts})
 jumplist source for picker
-Parameters ~
-{opts} `(table)` Picker options
-Return ~
-`(table|nil)` Jumplist source or nil if no jumps
 
 ------------------------------------------------------------------------------
-                                                          *H.jumplist.get_all()*
-                         `H.jumplist.get_all`({config})
 all valid jumps from jumplist
-Parameters ~
-{config} `(Config|nil)` Configuration
-Return ~
-`(JumpItem[])` List of valid jump items
 
 ------------------------------------------------------------------------------
-                                                      *H.jumplist.create_item()*
-                `H.jumplist.create_item`({jump}, {i}, {current})
 jump item from jumplist entry
-Parameters ~
-{jump} `(table)` Vim jumplist entry
-{i} `(number)` Jump index
-{current} `(number)` Current position index
-Return ~
-`(JumpItem|nil)` Jump item or nil if invalid
 
 ------------------------------------------------------------------------------
-                                               *H.jumplist.find_target_offset()*
-      `H.jumplist.find_target_offset`({jumps}, {target_offset}, {config})
 best matching jump for target offset
-Parameters ~
-{jumps} `(JumpItem[])` Available jump items
-{target_offset} `(number)` Target navigation offset
-{config} `(Config)` Configuration
-Return ~
-`(number)` Index of best matching jump
 
 ------------------------------------------------------------------------------
-                                                             *H.filters.apply()*
-            `H.filters.apply`({items}, {filters}, {filter_context})
 filters to jump items
-Parameters ~
-{items} `(JumpItem[])` Jump items to filter
-{filters} `(FilterState)` Filter state
-{filter_context} `(table)` Filter context with original_file and original_cwd
-Return ~
-`(JumpItem[])` Filtered jump items
 
 ------------------------------------------------------------------------------
-                                                   *H.filters.get_status_text()*
-                     `H.filters.get_status_text`({filters})
 filter status text for display
-Parameters ~
-{filters} `(FilterState)` Filter state
-Return ~
-`(string)` Filter status text
 
 ------------------------------------------------------------------------------
-                                                       *H.filters.toggle_file()*
-                       `H.filters.toggle_file`({filters})
 file-only filter state
-Parameters ~
-{filters} `(FilterState)` Filter state to modify
-Return ~
-`(FilterState)` Modified filter state
 
 ------------------------------------------------------------------------------
-                                                        *H.filters.toggle_cwd()*
-                       `H.filters.toggle_cwd`({filters})
 current working directory filter state
-Parameters ~
-{filters} `(FilterState)` Filter state to modify
-Return ~
-`(FilterState)` Modified filter state
 
 ------------------------------------------------------------------------------
-                                                     *H.filters.toggle_hidden()*
-                      `H.filters.toggle_hidden`({filters})
 show hidden items filter state
-Parameters ~
-{filters} `(FilterState)` Filter state to modify
-Return ~
-`(FilterState)` Modified filter state
 
 ------------------------------------------------------------------------------
-                                                             *H.filters.reset()*
-                          `H.filters.reset`({filters})
 all filter states to defaults
-Parameters ~
-{filters} `(FilterState)` Filter state to reset
-Return ~
-`(FilterState)` Reset filter state
 
 ------------------------------------------------------------------------------
-                                                         *H.filters.is_active()*
-                        `H.filters.is_active`({filters})
 if any filter is currently active
-Parameters ~
-{filters} `(FilterState)` Filter state to check
-Return ~
-`(boolean)` True if any filter is active
 
 ------------------------------------------------------------------------------
-                                                   *H.filters.get_active_list()*
-                     `H.filters.get_active_list`({filters})
 list of currently active filters
-Parameters ~
-{filters} `(FilterState)` Filter state to check
-Return ~
-`(string[])` List of active filter names
 
 ------------------------------------------------------------------------------
-                                                                 *H.hide.load()*
-                                `H.hide.load`()
 hidden items from session storage
-Return ~
-`(table)` Hidden items keyed by path:lnum
 
 ------------------------------------------------------------------------------
-                                                                 *H.hide.save()*
-                            `H.hide.save`({hidden})
 hidden items to session storage
-Parameters ~
-{hidden} `(table)` Hidden items keyed by path:lnum
 
 ------------------------------------------------------------------------------
-                                                              *H.hide.get_key()*
-                            `H.hide.get_key`({item})
 hide key for jump item
-Parameters ~
-{item} `(JumpItem)` Jump item
-Return ~
-`(string)` Hide key
 
 ------------------------------------------------------------------------------
-                                                            *H.hide.is_hidden()*
-                           `H.hide.is_hidden`({item})
 if item is hidden
-Parameters ~
-{item} `(JumpItem)` Jump item
-Return ~
-`(boolean)` True if hidden
 
 ------------------------------------------------------------------------------
-                                                               *H.hide.toggle()*
-                            `H.hide.toggle`({item})
 hide status for item
-Parameters ~
-{item} `(JumpItem)` Jump item
-Return ~
-`(boolean)` New hide status
 
 ------------------------------------------------------------------------------
-                                                           *H.hide.mark_items()*
-                          `H.hide.mark_items`({items})
 items with their hide status
-Parameters ~
-{items} `(JumpItem[])` Jump items
-Return ~
-`(JumpItem[])` Items with hide status marked
 
 ------------------------------------------------------------------------------
-                                                              *H.config.setup()*
-                           `H.config.setup`({config})
 and validate configuration
-Parameters ~
-{config} `(Config|nil)` Configuration table
-Return ~
-`(Config)` Validated configuration
 
 ------------------------------------------------------------------------------
-                                                              *H.config.apply()*
-                           `H.config.apply`({config})
 configuration to Jumppack
-Parameters ~
-{config} `(Config)` Configuration to apply
 
 ------------------------------------------------------------------------------
-                                                                *H.config.get()*
-                            `H.config.get`({config})
 merged configuration
-Parameters ~
-{config} `(Config|nil)` Override configuration
-Return ~
-`(Config)` Merged configuration
 
 ------------------------------------------------------------------------------
-                                                 *H.config.setup_autocommands()*
-                        `H.config.setup_autocommands`()
-autocommands for Jumppack
-
-------------------------------------------------------------------------------
-                                                   *H.config.setup_highlights()*
-                         `H.config.setup_highlights`()
-default highlight groups
-
-------------------------------------------------------------------------------
-                                                     *H.config.setup_mappings()*
-                      `H.config.setup_mappings`({config})
 Setup global key mappings that override default jump behavior
 
 Sets up global keymaps that replace Vim's default <C-o> and <C-i> jump
 commands with Jumppack's enhanced interface. Only runs if global_mappings option
 is enabled. The mappings support count prefixes (e.g., 3<C-o> for 3 jumps back).
 
-Parameters ~
-{config} `(Config)` Configuration with mappings
-
 ------------------------------------------------------------------------------
-                                                      *H.config.validate_opts()*
-                        `H.config.validate_opts`({opts})
 picker options
-Parameters ~
-{opts} `(table|nil)` Options to validate
-Return ~
-`(table)` Validated options
 
 ------------------------------------------------------------------------------
-                                                           *H.instance.create()*
-                          `H.instance.create`({opts})
 new picker instance
-Parameters ~
-{opts} `(table)` Validated picker options
-Return ~
-`(Instance)` New picker instance
 
 ------------------------------------------------------------------------------
-                                                         *H.instance.run_loop()*
-                       `H.instance.run_loop`({instance})
 main picker event loop
-Parameters ~
-{instance} `(Instance)` Picker instance
-Return ~
-`(JumpItem|nil)` Selected item or nil if aborted
 
 ------------------------------------------------------------------------------
-                                                           *H.instance.update()*
-                `H.instance.update`({instance}, {update_window})
 picker instance display
-Parameters ~
-{instance} `(Instance)` Picker instance
-{update_window} `(boolean|nil)` Whether to update window config
 
 ------------------------------------------------------------------------------
-                                                      *H.window.create_buffer()*
-                           `H.window.create_buffer`()
 scratch buffer for picker
-Return ~
-`(number)` Buffer ID
 
 ------------------------------------------------------------------------------
-                                                      *H.window.create_window()*
-            `H.window.create_window`({buf_id}, {win_config}, {cwd})
 floating window for picker
-Parameters ~
-{buf_id} `(number)` Buffer ID to display
-{win_config} `(table|function|nil)` Window configuration
-{cwd} `(string)` Current working directory
-Return ~
-`(number)` Window ID
 
 ------------------------------------------------------------------------------
-                                                     *H.window.compute_config()*
-             `H.window.compute_config`({win_config}, {is_for_open})
 window configuration
-Parameters ~
-{win_config} `(table|function|nil)` Window config or callable
-{is_for_open} `(boolean|nil)` Whether config is for opening window
-Return ~
-`(table)` Computed window configuration
 
 ------------------------------------------------------------------------------
-                                                      *H.instance.track_focus()*
-                      `H.instance.track_focus`({instance})
 focus loss for picker instance
-Parameters ~
-{instance} `(Instance)` Picker instance
 
 ------------------------------------------------------------------------------
-                                                        *H.instance.set_items()*
-        `H.instance.set_items`({instance}, {items}, {initial_selection})
 items and initial selection for instance
-Parameters ~
-{instance} `(Instance)` Picker instance
-{items} `(JumpItem[])` Jump items
-{initial_selection} `(number|nil)` Initial selection index
 
 ------------------------------------------------------------------------------
-                             *H.instance.calculate_filtered_initial_selection()*
-`H.instance.calculate_filtered_initial_selection`({original_items}, {filtered_items}, {original_selection})
 initial selection when items are filtered
-Parameters ~
-{original_items} `(JumpItem[])` Original items
-{filtered_items} `(JumpItem[])` Filtered items
-{original_selection} `(number|nil)` Original selection index
-Return ~
-`(number)` Adjusted selection index
 
 ------------------------------------------------------------------------------
-                                         *H.instance.apply_filters_and_update()*
-               `H.instance.apply_filters_and_update`({instance})
 filters and update display
-Parameters ~
-{instance} `(Instance)` Picker instance
 
 ------------------------------------------------------------------------------
-                                              *H.instance.find_best_selection()*
-         `H.instance.find_best_selection`({instance}, {filtered_items})
 best selection index when items are filtered
-Parameters ~
-{instance} `(Instance)` Picker instance
-{filtered_items} `(JumpItem[])` Filtered items
-Return ~
-`(number)` Best selection index
 
 ------------------------------------------------------------------------------
-                                              *H.instance.start_count_timeout()*
-                  `H.instance.start_count_timeout`({instance})
 or restart count timeout timer
-Parameters ~
-{instance} `(Instance)` Picker instance
 
 ------------------------------------------------------------------------------
-                                              *H.instance.clear_count_timeout()*
-                  `H.instance.clear_count_timeout`({instance})
 count timeout timer
-Parameters ~
-{instance} `(Instance)` Picker instance
 
 ------------------------------------------------------------------------------
-                                                    *H.display.item_to_string()*
-                   `H.display.item_to_string`({item}, {opts})
 jump item to display string with format: [indicator] [icon] [path/name] [lnum:col]
-Parameters ~
-{item} `(JumpItem)` Jump item to convert
-{opts} `(table|nil)` Display options with show_preview, show_icons, icons, cwd fields
-Return ~
-`(string)` Display string
 
 ------------------------------------------------------------------------------
-                                                    *H.instance.set_selection()*
-         `H.instance.set_selection`({instance}, {ind}, {force_update})
 current selection index
-Parameters ~
-{instance} `(Instance)` Picker instance
-{ind} `(number)` Selection index
-{force_update} `(boolean|nil)` Force visible range update
 
 ------------------------------------------------------------------------------
-                                                      *H.display.update_lines()*
-                      `H.display.update_lines`({instance})
 buffer lines with current items
-Parameters ~
-{instance} `(Instance)` Picker instance
 
 ------------------------------------------------------------------------------
-                                                 *H.config.normalize_mappings()*
-                   `H.config.normalize_mappings`({mappings})
 key mappings for actions
-Parameters ~
-{mappings} `(ConfigMappings)` Key mappings
-Return ~
-`(table)` Normalized action mappings
 
 ------------------------------------------------------------------------------
-                                                     *H.display.update_border()*
-                     `H.display.update_border`({instance})
 window border text
-Parameters ~
-{instance} `(Instance)` Picker instance
 
 ------------------------------------------------------------------------------
-                                                    *H.display.compute_footer()*
-                `H.display.compute_footer`({instance}, {win_id})
 footer content for window
-Parameters ~
-{instance} `(Instance)` Picker instance
-{win_id} `(number)` Window ID
-Return ~
-`(table)` Footer content
 
 ------------------------------------------------------------------------------
-                                                          *H.instance.destroy()*
-                        `H.instance.destroy`({instance})
 picker instance and cleanup
-Parameters ~
-{instance} `(Instance)` Picker instance
 
 ------------------------------------------------------------------------------
-                                                            *H.actions.choose()*
-                 `H.actions.choose`({instance}, {pre_command})
 current item with optional pre-command
-Parameters ~
-{instance} `(Instance)` Picker instance
-{pre_command} `(string|nil)` Command to execute before choosing
-Return ~
-`(boolean)` True if should stop picker
 
 ------------------------------------------------------------------------------
-                                                   *H.instance.move_selection()*
-              `H.instance.move_selection`({instance}, {by}, {to})
 current selection by offset or to position
-Parameters ~
-{instance} `(Instance)` Picker instance
-{by} `(number)` Movement offset
-{to} `(number|nil)` Target position
 
 ------------------------------------------------------------------------------
-                                                    *H.instance.get_selection()*
-                     `H.instance.get_selection`({instance})
 currently selected item
-Parameters ~
-{instance} `(Instance)` Picker instance
-Return ~
-`(JumpItem|nil)` Current selection or nil
 
 ------------------------------------------------------------------------------
-                                                       *H.display.render_list()*
-                      `H.display.render_list`({instance})
 list buffer view
-Parameters ~
-{instance} `(Instance)` Picker instance
 
 ------------------------------------------------------------------------------
-                                                            *H.display.render()*
-                         `H.display.render`({instance})
 current view based on instance view state
-Parameters ~
-{instance} `(Instance)` Picker instance
 
 ------------------------------------------------------------------------------
-                                                  *H.display.get_general_info()*
-                    `H.display.get_general_info`({instance})
 general information about picker state
-Parameters ~
-{instance} `(Instance)` Picker instance
-Return ~
-`(table)` General information including position indicator for selected item
 
 ------------------------------------------------------------------------------
-                                                    *H.display.render_preview()*
-                     `H.display.render_preview`({instance})
 preview buffer view
-Parameters ~
-{instance} `(Instance)` Picker instance
 
 ------------------------------------------------------------------------------
-                                                          *H.display.get_icon()*
-                     `H.display.get_icon`({item}, {icons})
 icon for item
-Parameters ~
-{item} `(JumpItem)` Item to get icon for
-{icons} `(table)` Icon configuration
-Return ~
-`(table)` Icon data with text and highlight
 
 ------------------------------------------------------------------------------
-                                                         *H.utils.get_fs_type()*
-                         `H.utils.get_fs_type`({path})
 filesystem type for path
-Parameters ~
-{path} `(string)` File path
-Return ~
-`(string)` Type: 'file', 'directory', or 'none'
 
 ------------------------------------------------------------------------------
-                                                 *H.display.preview_set_lines()*
-           `H.display.preview_set_lines`({buf_id}, {lines}, {extra})
 Set lines in preview buffer with syntax highlighting
-Parameters ~
-{buf_id} `(number)` Preview buffer id
-{lines} `(string[])` Lines to display
-{extra} `(table)` Extra info with lnum, col, end_lnum, end_col, filetype, path
 
 ------------------------------------------------------------------------------
-                                          *H.display.preview_should_highlight()*
-                 `H.display.preview_should_highlight`({buf_id})
 Check if preview buffer should be syntax highlighted based on size limits
-Parameters ~
-{buf_id} `(number)` Buffer id to check
-Return ~
-`(boolean)` # True if buffer should be highlighted
 
 ------------------------------------------------------------------------------
-                                          *H.display.preview_highlight_region()*
-`H.display.preview_highlight_region`({buf_id}, {lnum}, {col}, {end_lnum}, {end_col})
 Highlight specific region in preview buffer
-Parameters ~
-{buf_id} `(number)` Buffer id to highlight in
-{lnum} `(number|nil)` Line number to highlight (1-indexed)
-{col} `(number|nil)` Column number for region start
-{end_lnum} `(number|nil)` End line number for region
-{end_col} `(number|nil)` End column number for region
 
 ------------------------------------------------------------------------------
-                                                               *H.utils.error()*
-                             `H.utils.error`({msg})
 error message
-Parameters ~
-{msg} `(string)` Error message
 
 ------------------------------------------------------------------------------
-                                                          *H.utils.check_type()*
-            `H.utils.check_type`({name}, {val}, {ref}, {allow_nil})
 value type and error if invalid
-Parameters ~
-{name} `(string)` Parameter name
-{val} `(any)` Value to check
-{ref} `(string)` Expected type
-{allow_nil} `(boolean|nil)` Allow nil values
 
 ------------------------------------------------------------------------------
-                                                              *H.utils.notify()*
-                     `H.utils.notify`({msg}, {level_name})
 notification message
-Parameters ~
-{msg} `(string)` Message to display
-{level_name} `(string|nil)` Log level name
 
 ------------------------------------------------------------------------------
-                                                        *H.utils.is_valid_buf()*
-                        `H.utils.is_valid_buf`({buf_id})
 if buffer ID is valid
-Parameters ~
-{buf_id} `(number)` Buffer ID
-Return ~
-`(boolean)` True if valid
 
 ------------------------------------------------------------------------------
-                                                        *H.utils.is_valid_win()*
-                        `H.utils.is_valid_win`({win_id})
 if window ID is valid
-Parameters ~
-{win_id} `(number)` Window ID
-Return ~
-`(boolean)` True if valid
 
 ------------------------------------------------------------------------------
-                                                  *H.utils.create_scratch_buf()*
-                      `H.utils.create_scratch_buf`({name})
 scratch buffer
-Parameters ~
-{name} `(string)` Buffer name
-Return ~
-`(number)` Buffer ID
 
 ------------------------------------------------------------------------------
-                                                        *H.utils.set_buflines()*
-                   `H.utils.set_buflines`({buf_id}, {lines})
 Safely set buffer lines (ignores errors from invalid buffers)
-Parameters ~
-{buf_id} `(number)` Buffer id
-{lines} `(string[])` Lines to set
 
 ------------------------------------------------------------------------------
-                                                          *H.utils.set_winbuf()*
-                    `H.utils.set_winbuf`({win_id}, {buf_id})
 Set window buffer
-Parameters ~
-{win_id} `(number)` Window id
-{buf_id} `(number)` Buffer id to set
 
 ------------------------------------------------------------------------------
-                                                         *H.utils.set_extmark()*
-                          `H.utils.set_extmark`({...})
 Safely set extmark (ignores errors from invalid buffers)
-Parameters ~
-{...} `(any)` Arguments to nvim_buf_set_extmark
 
 ------------------------------------------------------------------------------
 
