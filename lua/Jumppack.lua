@@ -1668,7 +1668,7 @@ function H.instance.set_items(instance, items, initial_selection)
     -- Force update with the new index
     H.instance.set_selection(instance, initial_ind, true)
     -- Show preview by default instead of main
-    H.display.render_preview(instance)
+    H.display.render(instance)
   end
 
   H.instance.update(instance)
@@ -1731,11 +1731,7 @@ function H.instance.apply_filters_and_update(instance)
     H.instance.set_selection(instance, new_selection, true)
 
     -- Preserve current view mode when applying filters
-    if instance.view_state == 'preview' then
-      H.display.render_preview(instance)
-    else
-      H.display.render_list(instance)
-    end
+    H.display.render(instance)
   else
     -- Handle empty filter results gracefully
     -- Set minimal state to prevent errors
@@ -1744,11 +1740,7 @@ function H.instance.apply_filters_and_update(instance)
     instance.shown_inds = {}
 
     -- Preserve current view mode even when no items match
-    if instance.view_state == 'preview' then
-      H.display.render_preview(instance)
-    else
-      H.display.render_list(instance)
-    end
+    H.display.render(instance)
   end
 
   H.instance.update(instance)
@@ -2157,9 +2149,6 @@ H.actions = {
       return
     end
 
-    -- Store current view state before hiding
-    local current_view = instance.view_state
-
     -- Toggle hide status in session storage
     local new_status = H.hide.toggle(cur_item)
 
@@ -2187,12 +2176,8 @@ H.actions = {
         H.instance.set_selection(instance, 1, true)
       end
 
-      -- Re-render in the original view mode
-      if current_view == 'preview' then
-        H.display.render_preview(instance)
-      else
-        H.display.render_list(instance)
-      end
+      -- Re-render to reflect changes
+      H.display.render(instance)
     end
   end,
 
