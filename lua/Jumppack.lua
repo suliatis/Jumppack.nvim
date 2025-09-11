@@ -233,7 +233,7 @@ Jumppack.config = {
     -- Navigation
     jump_back = '<C-o>',
     jump_forward = '<C-i>',
-    jump_to_top = 'g',
+    jump_to_top = 'gg',
     jump_to_bottom = 'G',
 
     -- Selection
