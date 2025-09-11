@@ -1,2 +1,3 @@
 local MiniDoc = require('mini.doc')
-MiniDoc.generate({ 'lua/Jumppack.lua' }, 'doc/Jumppack.txt')
+local output_path = vim.env.TEMP_DOC or 'doc/jumppack.txt'
+MiniDoc.generate({ 'lua/Jumppack.lua' }, output_path)

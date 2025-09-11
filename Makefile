@@ -130,7 +130,7 @@ doc-check:
 	@echo "Generating temporary documentation for comparison..."
 	@mkdir -p /tmp/jumppack-doccheck
 	@if TEMP_DOC=/tmp/jumppack-doccheck/jumppack.txt nvim --headless --noplugin \
-		-u scripts/minimal_init.lua -c "luafile scripts/generate_docs.lua" 2>/dev/null; then \
+		-u scripts/minimal_init.lua -c "luafile scripts/generate_docs.lua" -c "qa!" 2>/dev/null; then \
 		mv doc/jumppack.txt.backup doc/jumppack.txt; \
 		if diff -q doc/jumppack.txt /tmp/jumppack-doccheck/jumppack.txt >/dev/null 2>&1; then \
 			echo "✓ Documentation is up-to-date"; \
