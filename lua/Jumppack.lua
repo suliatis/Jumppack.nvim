@@ -2309,6 +2309,16 @@ function H.display.render_list(instance)
   H.display.update_border(instance)
 end
 
+---Render current view based on instance view state
+---@param instance Instance Picker instance
+function H.display.render(instance)
+  if instance.view_state == 'preview' then
+    H.display.render_preview(instance)
+  else
+    H.display.render_list(instance)
+  end
+end
+
 ---Get general information about picker state
 ---@param instance Instance Picker instance
 ---@return table General information including position indicator for selected item

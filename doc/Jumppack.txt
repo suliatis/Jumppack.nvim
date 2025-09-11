@@ -986,6 +986,13 @@ Parameters ~
 {instance} `(Instance)` Picker instance
 
 ------------------------------------------------------------------------------
+                                                            *H.display.render()*
+                         `H.display.render`({instance})
+current view based on instance view state
+Parameters ~
+{instance} `(Instance)` Picker instance
+
+------------------------------------------------------------------------------
                                                   *H.display.get_general_info()*
                     `H.display.get_general_info`({instance})
 general information about picker state
