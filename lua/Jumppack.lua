@@ -1211,7 +1211,9 @@ H.ns_id = {
 
 -- Timers
 H.timers = {
+  ---@diagnostic disable-next-line: undefined-field
   focus = vim.uv.new_timer(),
+  ---@diagnostic disable-next-line: undefined-field
   getcharstr = vim.uv.new_timer(),
 }
 
@@ -1475,6 +1477,7 @@ function H.instance.run_loop(instance)
   end)
 
   local is_aborted = false
+  ---@diagnostic disable-next-line: unused-local
   for _ = 1, LOOP_MAX_ITERATIONS do
     H.instance.update(instance)
 
@@ -1882,7 +1885,7 @@ function H.instance.set_selection(instance, ind, force_update)
 
   -- (Re)Compute visible range (centers current index if it is currently outside)
   local from, to = instance.visible_range.from, instance.visible_range.to
-  local needs_update = from == nil or to == nil or not (from <= ind and ind <= to)
+  local needs_update = not from or not to or not (from <= ind and ind <= to)
   if (force_update or needs_update) and H.utils.is_valid_win(instance.windows.main) then
     local win_height = vim.api.nvim_win_get_height(instance.windows.main)
     to = math.min(n_matches, math.floor(ind + 0.5 * win_height))
@@ -1995,7 +1998,7 @@ function H.display.update_border(instance)
 
   -- Only show title in preview mode
   if view_state == 'preview' then
-    local has_items = instance.items ~= nil
+    local has_items = instance.items
     if has_items and instance.current_ind then
       local current_item = instance.items[instance.current_ind]
       if current_item then
@@ -2052,6 +2055,7 @@ end
 -- instance: Picker instance
 function H.instance.destroy(instance)
   vim.tbl_map(function(timer)
+    ---@diagnostic disable-next-line: undefined-field
     pcall(vim.uv.timer_stop, timer)
   end, H.timers)
 
@@ -2309,7 +2313,7 @@ end
 -- instance: Picker instance
 -- returns: General information including position indicator for selected item
 function H.display.get_general_info(instance)
-  local has_items = instance.items ~= nil
+  local has_items = instance.items
 
   -- Calculate position information (↑N●↓N format) based on selected item
   local position_indicator = SYMBOL_CURRENT
@@ -2683,7 +2687,8 @@ function H.utils.get_next_char_bytecol(line_str, col)
     return col
   end
   local utf_index = vim.str_utfindex(line_str, math.min(line_str:len(), col))
-  return vim.str_byteindex(line_str, utf_index, false)
+  ---@diagnostic disable-next-line: missing-parameter, param-type-mismatch
+  return vim.str_byteindex(line_str, utf_index, true)
 end
 
 function H.utils.full_path(path)
