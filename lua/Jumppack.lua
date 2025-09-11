@@ -212,6 +212,54 @@ end
 ---Jumppack can be configured through the setup() function. All configuration
 ---options have sensible defaults and are optional.
 ---
+---Default Configuration Values ~
+---
+---Options:
+---|  Option              |  Default    |  Description                                |
+---|---------------------|-------------|---------------------------------------------|
+---|  global_mappings     |  true       |  Override <C-o>/<C-i> with Jumppack        |
+---|  cwd_only            |  false      |  Show only jumps in current directory      |
+---|  wrap_edges          |  false      |  Wrap around list edges                    |
+---|  default_view        |  'preview'  |  Initial view mode (list or preview)       |
+---|  count_timeout_ms    |  1000       |  Timeout for count accumulation (ms)       |
+---
+---Default Keymaps ~
+---
+---Navigation:
+---|  Key     |  Action              |  Description                              |
+---|----------|----------------------|-------------------------------------------|
+---|  <C-o>   |  jump_back           |  Navigate backward in jumplist           |
+---|  <C-i>   |  jump_forward        |  Navigate forward in jumplist            |
+---|  gg      |  jump_to_top         |  Jump to top of list                     |
+---|  G       |  jump_to_bottom      |  Jump to bottom of list                  |
+---
+---Selection:
+---|  Key     |  Action              |  Description                              |
+---|----------|----------------------|-------------------------------------------|
+---|  <CR>    |  choose              |  Go to selected jump location            |
+---|  <C-s>   |  choose_in_split     |  Open in horizontal split                |
+---|  <C-v>   |  choose_in_vsplit    |  Open in vertical split                  |
+---|  <C-t>   |  choose_in_tabpage   |  Open in new tab                         |
+---
+---Control:
+---|  Key     |  Action              |  Description                              |
+---|----------|----------------------|-------------------------------------------|
+---|  <Esc>   |  stop                |  Close picker                            |
+---|  p       |  toggle_preview      |  Toggle preview mode                     |
+---
+---Filtering:
+---|  Key     |  Action              |  Description                              |
+---|----------|----------------------|-------------------------------------------|
+---|  f       |  toggle_file_filter  |  Toggle current file filter              |
+---|  c       |  toggle_cwd_filter   |  Toggle current directory filter         |
+---|  .       |  toggle_show_hidden  |  Toggle visibility of hidden items       |
+---|  r       |  reset_filters       |  Clear all active filters                |
+---
+---Hide Management:
+---|  Key     |  Action              |  Description                              |
+---|----------|----------------------|-------------------------------------------|
+---|  x       |  toggle_hidden       |  Mark/unmark item as hidden              |
+---
 ---See the setup() function documentation and configuration examples for
 ---detailed information about all available options.
 
