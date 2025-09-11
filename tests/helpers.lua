@@ -4,11 +4,6 @@ local MiniTest = require('mini.test')
 
 local H = {}
 
--- Store original functions for cleanup
-local original_getjumplist = vim.fn.getjumplist
-local original_notify = vim.notify
-local original_keymap_set = vim.keymap.set
-
 ---=== CORE TEST INFRASTRUCTURE ===---
 
 --- Creates a new child neovim process for integration testing
@@ -26,7 +21,7 @@ H.new_child_neovim = function()
     child.lua([[
       -- Clear any existing autocmds that might interfere
       vim.api.nvim_clear_autocmds({})
-      
+
       -- Reset window/buffer state
       vim.cmd('only')
       vim.cmd('enew')

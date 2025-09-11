@@ -1042,22 +1042,6 @@ function H.filters.apply(items, filters, filter_context)
     if should_include then
       table.insert(filtered, item)
     end
-
-    -- Debug individual item processing
-    if debug_filters and filters.file_only then
-      print(
-        string.format(
-          'JUMPPACK DEBUG: Item %s -> %s (path: %s)',
-          item.path,
-          should_include and 'INCLUDED' or 'FILTERED',
-          item_path
-        )
-      )
-    end
-  end
-
-  if debug_filters and filters.file_only then
-    print('JUMPPACK DEBUG: Filter result - filtered items:', #filtered)
   end
 
   return filtered
@@ -1790,7 +1774,7 @@ function H.display.item_to_string(item, opts)
   -- For jump items, construct the display text using format: [indicator] [icon] [path/name] [lnum:col]
   if item.offset ~= nil and item.lnum then
     -- Get indicator (hidden marker or position marker)
-    local indicator = ''
+    local indicator
     if item.hidden then
       indicator = SYMBOL_HIDDEN
     else
@@ -2117,8 +2101,7 @@ H.actions = {
       return
     end
 
-    -- Store current selection index and view state before hiding
-    local current_index = instance.current
+    -- Store current view state before hiding
     local current_view = instance.view_state
 
     -- Toggle hide status in session storage
