@@ -17,7 +17,7 @@
 
 ## 📼 Demo
 
-![Jumppack Demo](res/main-demo.mov)
+![Jumppack Demo](res/main-demo.gif)
 
 ## 📦 Installation
 
