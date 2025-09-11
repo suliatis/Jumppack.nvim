@@ -310,28 +310,6 @@ Jumppack uses these highlight groups (linked to defaults):
 - `JumppackFileName` - File names (links to `Directory`)
 - `JumppackLineNumber` - Line numbers (links to `Number`)
 
-## 🧪 Development
-
-```bash
-# Clone the repository
-git clone https://github.com/suliatis/Jumppack.nvim.git
-cd Jumppack.nvim
-
-# Run tests
-make test              # Run in headless mode
-make test-interactive  # Run with UI for debugging
-
-# Code quality
-make format  # Format with stylua
-make lint    # Lint with luacheck
-
-# Generate documentation
-make doc
-
-# Run all CI checks locally
-make ci
-```
-
 ## 📄 License
 
 MIT License - see [LICENSE](LICENSE) for details.
