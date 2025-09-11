@@ -214,6 +214,12 @@ end
 -- Edge cases
 T['Jumps']['handles empty jumplist gracefully'] = function()
   -- Don't setup jumplist, start with clean state
+  -- Create a clean empty buffer to avoid version-specific startup screen
+  child.cmd('enew')
+  child.cmd('set shortmess+=I') -- Disable intro message
+  child.cmd('redraw!')
+  child.wait(100)
+
   child.type_keys('<C-o>')
   H.expect_screenshot(child, 'Jumps', 'empty-jumplist')
 
