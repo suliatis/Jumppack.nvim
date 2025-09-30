@@ -48,6 +48,7 @@ format: [indicator] [icon] [path/name] [lnum:col] [│ line preview]
  • Filtering options (current working directory only)
  • Edge wrapping for continuous navigation
  • Icon support with file type detection
+ • Hide system with optional session persistence
 
 
                                                   *jumppack-setup*
@@ -280,6 +281,30 @@ Management:
  Key     |  Action              |  Description                              |
 
  x       |  toggle_hidden       |  Mark/unmark item as hidden              |
+
+Persistence ~
+
+items can persist across Neovim sessions using the global variable
+This integrates with Neovim's built-in session management.
+
+Session persistence requires 'globals' in your sessionoptions.
+default sessionoptions does NOT include 'globals', so you must add it manually.
+
+for persistence:**
+>lua
+-- Add to your init.lua to enable global variable saving in sessions
+vim.opt.sessionoptions:append('globals')
+<
+
+
+ 1. Ensure 'globals' is in sessionoptions (see setup above)
+ 2. Hide items using `x` key in the picker interface
+ 3. Save session with `:mksession` or `:mks`
+ 4. Restart Neovim and restore session with `:source Session.vim`
+ 5. Hidden items persist automatically across sessions
+
+Without 'globals' in sessionoptions, hidden items reset on restart.
+is standard Neovim behavior - global variables are not saved by default.
 
 the setup() function documentation and configuration examples for
 information about all available options.
@@ -610,10 +635,10 @@ if any filter is currently active
 list of currently active filters
 
 ------------------------------------------------------------------------------
-hidden items from session storage
+hidden items from global variable (session-persistent)
 
 ------------------------------------------------------------------------------
-hidden items to session storage
+hidden items to global variable (session-persistent)
 
 ------------------------------------------------------------------------------
 hide key for jump item

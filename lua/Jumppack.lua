@@ -32,6 +32,7 @@
 ---  • Filtering options (current working directory only)
 ---  • Edge wrapping for continuous navigation
 ---  • Icon support with file type detection
+---  • Hide system with optional session persistence
 ---
 ---==============================================================================
 ---SETUP                                                   *jumppack-setup*
@@ -259,6 +260,30 @@ end
 ---|  Key     |  Action              |  Description                              |
 ---|----------|----------------------|-------------------------------------------|
 ---|  x       |  toggle_hidden       |  Mark/unmark item as hidden              |
+---
+---Session Persistence ~
+---
+---Hidden items can persist across Neovim sessions using the global variable
+---`g:Jumppack_hidden_items`. This integrates with Neovim's built-in session management.
+---
+---**IMPORTANT**: Session persistence requires 'globals' in your sessionoptions.
+---The default sessionoptions does NOT include 'globals', so you must add it manually.
+---
+---**Setup for persistence:**
+--- >lua
+--- -- Add to your init.lua to enable global variable saving in sessions
+--- vim.opt.sessionoptions:append('globals')
+--- <
+---
+---**Usage:**
+---  1. Ensure 'globals' is in sessionoptions (see setup above)
+---  2. Hide items using `x` key in the picker interface
+---  3. Save session with `:mksession` or `:mks`
+---  4. Restart Neovim and restore session with `:source Session.vim`
+---  5. Hidden items persist automatically across sessions
+---
+---**Note**: Without 'globals' in sessionoptions, hidden items reset on restart.
+---This is standard Neovim behavior - global variables are not saved by default.
 ---
 ---See the setup() function documentation and configuration examples for
 ---detailed information about all available options.
@@ -1182,26 +1207,40 @@ end
 
 H.hide = {}
 
--- Session-only storage for hidden items
-H.hide.storage = {}
-
----Get hidden items from session storage
--- returns: Hidden items keyed by path:lnum
+---Get hidden items from global variable (session-persistent)
+-- Returns existing hidden items or empty table if none exist.
+-- This function is read-only and never modifies the global variable.
+-- Deserializes newline-separated string to table (Vim sessions only save strings/numbers).
+-- returns: Hidden items keyed by path:lnum:col
 function H.hide.load()
-  return H.hide.storage
+  local str = vim.g.Jumppack_hidden_items or ''
+  if str == '' then
+    return {}
+  end
+
+  local hidden = {}
+  for _, key in ipairs(vim.split(str, '\n', { plain = true, trimempty = true })) do
+    hidden[key] = true
+  end
+  return hidden
 end
 
----Save hidden items to session storage
--- hidden: Hidden items keyed by path:lnum
+---Save hidden items to global variable (session-persistent)
+-- This is the ONLY function that writes to the global variable.
+-- The global variable is automatically saved/restored by :mksession when
+-- 'globals' is in sessionoptions.
+-- Serializes table to newline-separated string (Vim sessions only save strings/numbers).
+-- hidden: Hidden items keyed by path:lnum:col
 function H.hide.save(hidden)
-  H.hide.storage = hidden
+  local keys = vim.tbl_keys(hidden)
+  vim.g.Jumppack_hidden_items = table.concat(keys, '\n')
 end
 
 ---Get hide key for jump item
 -- item: Jump item
 -- returns: Hide key
 function H.hide.get_key(item)
-  return item.path .. ':' .. item.lnum
+  return item.path .. ':' .. item.lnum .. ':' .. item.col
 end
 
 ---Check if item is hidden
