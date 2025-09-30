@@ -9,32 +9,122 @@ Jumppack is a Neovim plugin that provides an enhanced navigation interface for V
 - **Language**: Lua (LuaJIT)
 - **LSP**: Configured via `.luarc.json` for Neovim development
 - **Code Style**: StyLua with 2-space indentation, 120 character width
-- **Plugin Structure**: Single-file plugin in `lua/Jumppack.lua` (~2,400 lines)
+- **Plugin Structure**: Modular architecture in `lua/Jumppack/` (~3,276 lines across 9 files)
 
 ## Code Architecture
-The plugin follows a modular flat namespace design pattern:
-- **Jumppack** namespace: Public API (`setup()`, `start()`, `refresh()`)
-- **H** namespace: Internal helper functions organized by responsibility
-- **Flat Structure**: All functions use `H.namespace.function()` pattern (no deep nesting)
-- **Instance Management**: Single active instance with state tracking
 
-### H Namespace Organization
-- **H.jumplist**: Jumplist processing and source creation
-- **H.display**: ALL rendering, formatting, and preview functionality
-- **H.instance**: ALL state management and lifecycle operations
-- **H.filters**: Filter logic and toggles (file_only, cwd_only, show_hidden)
-- **H.window**: Window creation and management
-- **H.actions**: User action handlers (choose, move, toggle)
-- **H.utils**: Shared utilities and error handling
-- **H.hide**: Persistent hide system for jump entries
+The plugin follows a **modular flat namespace design** with clean separation of concerns and explicit dependency injection.
+
+### Module Structure
+
+```
+lua/Jumppack/
+├── init.lua         (1,067 lines) - Main entry point, public API, config, logging
+├── utils.lua        (341 lines)   - Utilities & logging (no dependencies)
+├── hide.lua         (93 lines)    - Session-persistent hide system
+├── filters.lua      (191 lines)   - Filter logic (file/cwd/hidden)
+├── window.lua       (85 lines)    - Float window creation & management
+├── display.lua      (546 lines)   - Rendering, formatting, preview
+├── sources.lua     (190 lines)   - Jumplist processing & source creation
+├── instance.lua     (565 lines)   - Instance lifecycle & state (singleton)
+└── actions.lua      (198 lines)   - User action handlers
+```
+
+### Module Dependencies (Clean DAG)
+
+```
+utils (logging, errors, vim helpers)
+  ↓
+hide (session persistence)
+filters (file/cwd/hidden filtering)
+window (float windows)
+  ↓
+display (rendering, preview) ← filters, window
+sources (jumplist processing) ← utils, filters, hide
+  ↓
+instance (lifecycle, state) ← window, display, filters, hide, sources
+  ↓
+actions (user handlers) ← instance, filters, hide, display
+  ↓
+init (public API, config) ← all modules
+```
+
+**Key architectural principles:**
+- **No circular dependencies**: Clean dependency graph
+- **Flat structure**: All modules export `H` table, accessed as `H.module_name.*`
+- **Explicit dependencies**: Modules receive dependencies via `set_*()` injection functions
+- **Singleton state**: Only `instance.lua` manages stateful singleton (active picker instance)
+- **Pure functions**: Most modules are stateless, working with passed data
+
+### Module Responsibilities
+
+**init.lua** - Entry point
+- Public API (`Jumppack.setup()`, `Jumppack.start()`, etc.)
+- Configuration management (`H.config.*`)
+- Logging system (`H.log.*`) with levels (trace/debug/info/warn/error)
+- Module coordination and dependency injection
+
+**utils.lua** - Foundation utilities
+- Error handling (`H.error()`, `H.check_type()`)
+- Buffer/window operations (`H.create_scratch_buf()`, `H.set_buflines()`)
+- Vim API wrappers (safe operations that pcall internally)
+- Path utilities (`H.full_path()`, `H.get_fs_type()`)
+- No dependencies on other modules
+
+**hide.lua** - Hide system
+- Session-persistent hide management via `vim.g.Jumppack_hidden_items`
+- Functions: `H.load()`, `H.save()`, `H.toggle()`, `H.is_hidden()`, `H.mark_items()`
+- Storage: Newline-separated string (Vim sessions only save strings/numbers)
+- Depends on: utils (for logging)
+
+**filters.lua** - Filter logic
+- Runtime filters: file_only, cwd_only, show_hidden
+- Functions: `H.apply()`, `H.toggle_*()`, `H.reset()`, `H.is_active()`, `H.get_status_text()`
+- Filters are NOT persistent (reset when picker closes)
+- Depends on: utils (for path operations)
+
+**window.lua** - Window management
+- Float window creation and configuration
+- Functions: `H.create_buffer()`, `H.create_window()`, `H.compute_config()`
+- Constants: GOLDEN_RATIO (0.618), WINDOW_ZINDEX (251)
+- Depends on: utils
+
+**display.lua** - Rendering & preview
+- ALL rendering logic: list view, preview mode, border updates
+- Item formatting: `H.item_to_string()` with icon/path/position/preview
+- Preview with syntax highlighting: `H.render_preview()`, `H.preview_set_lines()`
+- Smart filename display for ambiguous names
+- Depends on: utils, window, filters (injected), instance (injected)
+
+**sources.lua** - Jumplist processing
+- Processes Vim's jumplist into picker items
+- Functions: `H.create_source()`, `H.get_all()`, `H.create_item()`, `H.find_target_offset()`
+- Handles offset calculation for navigation (backward/forward)
+- Depends on: utils, filters, hide
+
+**instance.lua** - Instance lifecycle (stateful singleton)
+- **ONLY module with singleton state**: `local active = nil`
+- Instance creation, event loop, state management
+- Functions: `H.create()`, `H.run_loop()`, `H.update()`, `H.set_items()`, `H.get_active()`
+- Selection management: `H.set_selection()`, `H.move_selection()`, `H.get_selection()`
+- Focus tracking and cleanup: `H.track_focus()`, `H.destroy()`
+- Depends on: utils, window, display, filters, hide
+
+**actions.lua** - User actions
+- Action handlers for all keymaps
+- Functions: `H.jump_back()`, `H.jump_forward()`, `H.choose()`, `H.toggle_*()`, etc.
+- Integrates with instance, filters, and hide systems
+- Depends on: instance, filters, hide, display, utils
 
 ### Key Components
-- **Picker Interface**: Float window with item selection and preview
-- **Jumplist Integration**: Processes Vim's jumplist in `H.jumplist.create_source()`
-- **Action System**: Configurable keymaps for different navigation actions
-- **Preview System**: Syntax-highlighted preview of jump locations
-- **Icon Support**: Integration with MiniIcons and nvim-web-devicons
-- **Filter System**: Real-time filtering by file, directory, or visibility
+
+- **Picker Interface**: Float window with item selection and preview (instance + display + window)
+- **Jumplist Integration**: Processes Vim's jumplist (sources.lua)
+- **Action System**: Configurable keymaps (actions.lua)
+- **Preview System**: Syntax-highlighted preview (display.lua)
+- **Icon Support**: Integration with MiniIcons and nvim-web-devicons (display.lua)
+- **Filter System**: Real-time filtering (filters.lua)
+- **Hide System**: Persistent hide storage (hide.lua)
 
 ## Common Development Commands
 
@@ -202,7 +292,7 @@ H.utils.error('start(): options must be a table, got ' .. type(opts))
 H.utils.error('setup(): window.config must be table or callable, got ' .. type(config))
 
 -- Internal functions return nil/false for expected conditions
-function H.jumplist.create_source(opts)
+function H.sources.create_source(opts)
   if #all_jumps == 0 then
     return nil  -- Expected condition, handled by caller
   end
@@ -222,13 +312,43 @@ end
 ```
 
 ## Code Structure Notes
-- Main plugin logic in `lua/Jumppack.lua` (~2,400 lines)
-- Uses Neovim's floating window API extensively
-- Jumplist processing happens in `H.jumplist.create_source()`
-- Preview functionality in `H.display.render_preview()` and `Jumppack.preview_item()`
-- Item formatting in `H.display.item_to_string()` and `Jumppack.show_items()`
-- Instance management through `H.instance` with proper cleanup
-- Constants defined at namespace level close to usage (not centralized)
+
+### Entry Points
+- **User entry**: `lua/Jumppack/init.lua` exports `Jumppack` table (public API)
+- **Module loading**: `require('jumppack')` loads init.lua which coordinates all submodules
+- **Global access**: After `setup()`, global `Jumppack` variable is available
+
+### State Management
+- **Singleton pattern**: Only `instance.lua` maintains stateful singleton (`local active = nil`)
+- **State access**: Other modules call `Instance.get_active()` to access current picker state
+- **State lifecycle**: Created in `H.instance.create()`, destroyed in `H.instance.destroy()`
+- **No global state**: All other modules are stateless, working with passed data
+
+### Dependency Injection Pattern
+All module dependencies are injected explicitly in `init.lua`:
+```lua
+-- Example injections
+H.filters.set_logger(H.log)
+H.display.set_namespaces(H.ns_id)
+H.display.set_filters(H.filters)
+H.display.set_instance(H.instance)
+H.instance.set_display(H.display)
+H.actions.set_instance(H.instance)
+```
+
+This approach:
+- Avoids circular dependencies
+- Makes dependencies explicit and testable
+- Allows independent module testing with mocks
+
+### Important Implementation Details
+- **Flat namespace**: All functions use `H.namespace.function()` pattern (no deep nesting)
+- **Constants**: Defined at module level close to usage (not centralized)
+- **Floating window API**: Extensive use of Neovim's float window APIs (window.lua)
+- **Jumplist processing**: Core logic in `sources.lua` (`H.create_source()`, `H.get_all()`)
+- **Preview rendering**: Syntax highlighting in `display.lua` (`H.render_preview()`, `H.preview_set_lines()`)
+- **Item formatting**: Display strings in `display.lua` (`H.item_to_string()`)
+- **Action handlers**: All user actions in `actions.lua` as `H.action_name()` functions
 
 ## Configuration
 Default keymaps:
@@ -239,15 +359,50 @@ Default keymaps:
 - `<C-p>`: Toggle preview
 
 ## Development Guidelines
-- Follow existing code patterns in the H namespace for internal functions
+
+### Module Development
+- **Adding new functionality**: Place in appropriate existing module based on responsibility
+- **Creating new modules**: Rare - only if responsibility doesn't fit existing modules
+- **Module exports**: Always export `H` table (not `M`), maintain `H.function_name()` pattern
+- **Dependencies**: Use dependency injection via `set_*()` functions, never `require()` other jumppack modules directly
+- **State**: Keep modules stateless unless managing the singleton (only `instance.lua`)
+
+### Code Style
 - Use 2-space indentation and single quotes (enforced by StyLua)
-- Maintain compatibility with Neovim's floating window API
-- Keep all functionality in the single main file unless absolutely necessary
-- **Constants**: Define at namespace level close to usage (not centralized)
+- Prefer `local function name() ... end` over `local name = function() ... end`
+- **Constants**: Define at module level close to usage (not centralized)
 - **Error Handling**: Use guard clauses and early returns, follow established patterns
-- **Flat Structure**: Maintain `H.namespace.function()` pattern, avoid deep nesting
+- **Flat Structure**: Maintain `H.function_name()` pattern, avoid deep nesting
+- **Comments**: Document "why" not "what", use concise explanations
+
+### Testing & Quality
 - Run tests before committing changes: `make test`
 - Run full CI suite before major changes: `make ci`
+- Update screenshots if UI changes: `make screenshots`
+- Maintain compatibility with Neovim's floating window API
+- All new functions should follow existing error handling patterns
+
+### Working with Modules
+
+**When modifying display logic:**
+- Edit `lua/Jumppack/display.lua`
+- Rendering functions use injected dependencies (filters, instance)
+- Test with both list and preview modes
+
+**When modifying user actions:**
+- Edit `lua/Jumppack/actions.lua`
+- Actions receive instance via `Instance.get_active()`
+- Follow existing action signature: `function(instance, count)`
+
+**When modifying filters:**
+- Edit `lua/Jumppack/filters.lua`
+- Filters are runtime-only (not persistent)
+- Test with combinations of filters active
+
+**When modifying state management:**
+- Edit `lua/Jumppack/instance.lua` with extreme care
+- This is the ONLY stateful module
+- Ensure proper cleanup in `H.destroy()`
 
 ## Dependencies and Installation
 - **stylua**: Required for code formatting (`cargo install stylua`)

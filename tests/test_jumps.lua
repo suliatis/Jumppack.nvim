@@ -54,8 +54,16 @@ local T = MiniTest.new_set({
       -- Wait for startup to complete
       child.wait(100)
 
+      -- Ensure package.path includes lua directory for submodule loading
+      -- This is necessary for requiring jumppack.filters and other submodules
+      child.lua([[
+        local plugin_dir = vim.fn.getcwd()
+        local lua_path = plugin_dir .. '/lua/?.lua;' .. plugin_dir .. '/lua/?/init.lua'
+        package.path = lua_path .. ';' .. package.path
+      ]])
+
       -- Setup Jumppack with default configuration
-      child.lua([[require('lua.Jumppack').setup()]])
+      child.lua([[require('Jumppack').setup()]])
     end,
     post_case = function()
       -- Stop child process (this handles cleanup)
