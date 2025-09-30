@@ -3,11 +3,11 @@
 
 local H = {}
 H.utils = require('Jumppack.utils')
+H.window = require('Jumppack.window')
+H.display = require('Jumppack.display')
+H.filters = require('Jumppack.filters')
 
 -- Forward declarations for injected dependencies
-local Window = nil
-local Display = nil
-local Filters = nil
 local Jumppack_config = nil
 local H_config = nil
 
@@ -52,14 +52,14 @@ function H.create(opts)
   log.trace('Creating picker instance')
 
   -- Create buffer
-  local buf_id = Window.create_buffer()
+  local buf_id = H.window.create_buffer()
 
   -- Create window and store original context
   local win_target = vim.api.nvim_get_current_win()
   -- Get the file path from the target window's buffer to ensure correct context
   local original_file = vim.api.nvim_buf_get_name(vim.api.nvim_win_get_buf(win_target))
   local original_cwd = vim.fn.getcwd() -- Store current working directory
-  local win_id = Window.create_window(buf_id, opts.window.config, opts.source.cwd, cache)
+  local win_id = H.window.create_window(buf_id, opts.window.config, opts.source.cwd, cache)
 
   -- Construct and return object
   local instance = {
@@ -190,12 +190,12 @@ end
 -- update_window: Whether to update window config
 function H.update(instance, update_window)
   if update_window then
-    local config = Window.compute_config(instance.opts.window.config)
+    local config = H.window.compute_config(instance.opts.window.config)
     vim.api.nvim_win_set_config(instance.windows.main, config)
     H.set_selection(instance, instance.current_ind, true)
   end
-  Display.update_border(instance)
-  Display.update_lines(instance)
+  H.display.update_border(instance)
+  H.display.update_lines(instance)
   H.utils.redraw()
 end
 
@@ -233,7 +233,7 @@ function H.set_items(instance, items, initial_selection)
   instance.original_initial_selection = initial_selection
 
   -- Apply current filter settings to items immediately
-  local filtered_items = Filters.apply(items, instance.filters, instance.filter_context)
+  local filtered_items = H.filters.apply(items, instance.filters, instance.filter_context)
   instance.items = filtered_items
 
   log.trace('set_items: filtered_items_count=', #filtered_items)
@@ -246,7 +246,7 @@ function H.set_items(instance, items, initial_selection)
     -- Force update with the new index
     H.set_selection(instance, initial_ind, true)
     -- Show preview by default instead of main
-    Display.render(instance)
+    H.display.render(instance)
   end
 
   H.update(instance)
@@ -298,7 +298,7 @@ function H.apply_filters_and_update(instance)
   end
 
   -- Apply filters to original items
-  local filtered_items = Filters.apply(instance.original_items, instance.filters, instance.filter_context)
+  local filtered_items = H.filters.apply(instance.original_items, instance.filters, instance.filter_context)
 
   -- Update items and preserve best selection after filtering
   instance.items = filtered_items
@@ -309,7 +309,7 @@ function H.apply_filters_and_update(instance)
     H.set_selection(instance, new_selection, true)
 
     -- Preserve current view mode when applying filters
-    Display.render(instance)
+    H.display.render(instance)
   else
     -- Handle empty filter results gracefully
     -- Set minimal state to prevent errors
@@ -318,7 +318,7 @@ function H.apply_filters_and_update(instance)
     instance.shown_inds = {}
 
     -- Preserve current view mode even when no items match
-    Display.render(instance)
+    H.display.render(instance)
   end
 
   H.update(instance)
@@ -372,7 +372,7 @@ function H.start_count_timeout(instance)
   instance.count_timer = vim.fn.timer_start(timeout_ms, function()
     instance.pending_count = ''
     instance.count_timer = nil
-    Display.render(instance)
+    H.display.render(instance)
   end)
 end
 
@@ -471,7 +471,7 @@ function H.move_selection(instance, by, to)
 
   -- Update not main buffer(s)
   if instance.view_state == 'preview' then
-    Display.render_preview(instance)
+    H.display.render_preview(instance)
   end
 end
 
@@ -522,19 +522,7 @@ function H.destroy(instance)
   log.debug('destroy: cleanup complete')
 end
 
--- Dependency injection
-function H.set_window(window)
-  Window = window
-end
-
-function H.set_display(display)
-  Display = display
-end
-
-function H.set_filters(filters)
-  Filters = filters
-end
-
+-- Dependency injection (only for config from init.lua)
 function H.set_config(config)
   Jumppack_config = config
 end

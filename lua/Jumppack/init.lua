@@ -1038,22 +1038,13 @@ end
 -- DEPENDENCY INJECTION
 -- ============================================================================
 
--- Inject config into modules
+-- Inject config and namespaces (only what can't be imported)
 H.utils.set_config(Jumppack.config)
 H.filters.set_logger(H.utils.get_logger())
 H.display.set_namespaces(ns_id)
-H.display.set_filters(H.filters)
-H.display.set_instance(H.instance)
 H.sources.set_config(Jumppack.config)
-H.instance.set_window(H.window)
-H.instance.set_display(H.display)
-H.instance.set_filters(H.filters)
 H.instance.set_config(Jumppack.config)
 H.instance.set_config_module(H.config)
-H.actions.set_instance(H.instance)
-H.actions.set_filters(H.filters)
-H.actions.set_hide(H.hide)
-H.actions.set_display(H.display)
 
 ---==============================================================================
 ---

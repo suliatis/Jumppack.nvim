@@ -6,6 +6,7 @@
 
 local H = {}
 H.utils = require('Jumppack.utils')
+H.filters = require('Jumppack.filters')
 
 -- Highlight priority constants
 local PRIORITY_CURRENT_MATCH = 201
@@ -26,25 +27,11 @@ local SEPARATOR_SPACED = ' │ '
 
 -- Dependencies (will be injected)
 local ns_id = {}
-local filters = nil
-local instance_module = nil
 
 --Set namespace IDs for this module
 -- namespaces: Table with ranges and preview namespace IDs
 function H.set_namespaces(namespaces)
   ns_id = namespaces
-end
-
---Set filters module reference
--- filters_module: Filters module reference
-function H.set_filters(filters_module)
-  filters = filters_module
-end
-
---Set instance module reference
--- inst_module: Instance module reference
-function H.set_instance(inst_module)
-  instance_module = inst_module
 end
 
 --- Smart filename display that handles ambiguous names
@@ -226,7 +213,7 @@ function H.update_lines(instance)
 
   -- Handle empty items case - show message instead of returning early
   if not instance.items or #instance.items == 0 then
-    local filter_status = filters.get_status_text(instance.filters)
+    local filter_status = H.filters.get_status_text(instance.filters)
     local empty_message = #filter_status > 0 and 'No matching items' or 'No items available'
     instance.shown_inds = {}
 
@@ -391,7 +378,7 @@ function H.get_general_info(instance)
   end
 
   -- Build filter indicators
-  local filter_text = filters.get_status_text(instance.filters)
+  local filter_text = H.filters.get_status_text(instance.filters)
   if filter_text ~= '' then
     filter_text = SEPARATOR_SPACED .. filter_text
   end
@@ -416,7 +403,10 @@ end
 -- instance: Picker instance
 function H.render_preview(instance)
   -- Early validation - guard clause
-  local item = instance_module.get_selection(instance)
+  if not instance or not instance.items or #instance.items == 0 then
+    return
+  end
+  local item = instance.items[instance.current_ind]
   if not item then
     return
   end
