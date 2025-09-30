@@ -77,7 +77,7 @@ endef
 # Create targets for all discovered test files
 $(foreach name,$(TEST_NAMES),$(eval $(call make_test_target,$(name))))
 
-# Format code with stylua (if available)
+# Format code with stylua and format markdown tables (if available)
 format:
 	@if command -v stylua >/dev/null 2>&1; then \
 		echo "Formatting Lua code..."; \
@@ -85,8 +85,10 @@ format:
 	else \
 		echo "stylua not found. Install with: cargo install stylua"; \
 	fi
+	@echo "Formatting markdown tables in doc comments..."
+	@lua scripts/format_tables.lua lua/ tests/ scripts/
 
-# Check code formatting with stylua (for CI)
+# Check code formatting with stylua and table formatting (for CI)
 format-check:
 	@if command -v stylua >/dev/null 2>&1; then \
 		echo "Checking Lua code formatting..."; \
@@ -95,6 +97,8 @@ format-check:
 		echo "stylua not found. Install with: cargo install stylua"; \
 		exit 1; \
 	fi
+	@echo "Checking markdown table formatting in doc comments..."
+	@lua scripts/format_tables.lua --check lua/ tests/ scripts/
 
 # Lint code with luacheck (if available)
 lint:
