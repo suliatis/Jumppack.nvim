@@ -195,11 +195,13 @@ H.utils = {}
 ---
 ---@seealso |jumppack-configuration| For detailed configuration options
 function Jumppack.setup(config)
+  H.log.debug('setup() called')
   config = H.config.setup(config)
   H.config.apply(config)
   H.config.setup_autocommands()
   H.config.setup_highlights()
   H.config.setup_mappings(config)
+  H.log.debug('setup: configuration complete, log_level=', Jumppack.config.options.log_level)
 
   -- Set global for convenient access
   _G.Jumppack = Jumppack
@@ -300,6 +302,9 @@ Jumppack.config = {
     default_view = 'preview',
     -- Timeout in milliseconds for count accumulation (like Vim's timeout)
     count_timeout_ms = 1000,
+    -- Log level: 'off', 'error', 'warn', 'info', 'debug', 'trace'
+    -- Can be overridden by JUMPPACK_LOG_LEVEL environment variable
+    log_level = 'off',
   },
   -- Keys for performing actions. See `:h Jumppack-actions`.
   mappings = {
@@ -408,10 +413,13 @@ Jumppack.config = {
 ---
 ---@seealso |jumppack-navigation| For navigation patterns and workflows
 function Jumppack.start(opts)
+  H.log.debug('start() called with offset=', opts and opts.offset or 'nil')
+  H.log.info('Starting jumplist picker')
   H.cache = {}
 
   -- Early validation with clear error messages
   if opts ~= nil and type(opts) ~= 'table' then
+    H.log.error('start(): invalid opts type:', type(opts))
     H.utils.error('start(): options must be a table, got ' .. type(opts))
   end
 
@@ -420,6 +428,7 @@ function Jumppack.start(opts)
   -- Create jumplist source with user feedback
   local jumplist_source = H.jumplist.create_source(opts)
   if not jumplist_source then
+    H.log.warn('start(): No jumps available')
     H.utils.notify('No jumps available')
     return -- No jumps available - not an error, just nothing to do
   end
@@ -740,8 +749,11 @@ end
 ---@seealso |jumppack-preview| For preview customization
 function Jumppack.preview_item(buf_id, item, opts)
   if not item or not item.bufnr then
+    H.log.trace('preview_item: invalid item or bufnr')
     return
   end
+
+  H.log.debug('preview_item: buf_id=', buf_id, 'item.path=', item.path, 'lnum=', item.lnum, 'col=', item.col)
 
   opts = vim.tbl_deep_extend('force', { n_context_lines = 2 * vim.o.lines, line_position = 'center' }, opts or {})
 
@@ -756,6 +768,8 @@ function Jumppack.preview_item(buf_id, item, opts)
   vim.fn.bufload(buf_id_source)
   vim.o.eventignore = cache_eventignore
   local lines = vim.api.nvim_buf_get_lines(buf_id_source, 0, (item.lnum or 1) + opts.n_context_lines, false)
+
+  H.log.trace('preview_item: loaded', #lines, 'lines from buffer')
 
   -- Prepare data for preview_set_lines
   local preview_data = {
@@ -793,6 +807,8 @@ end
 ---
 ---@seealso |jumppack-navigation| For jump navigation patterns
 function Jumppack.choose_item(item)
+  H.log.debug('choose_item: offset=', item.offset, 'path=', item.path, 'lnum=', item.lnum)
+  H.log.info('Navigating to', item.path, 'at', item.lnum, ':', item.col, '(offset=', item.offset, ')')
   vim.schedule(function()
     if item.offset < 0 then
       -- Use vim.cmd with proper command syntax
@@ -802,6 +818,7 @@ function Jumppack.choose_item(item)
       vim.cmd('execute "normal! ' .. item.offset .. '\\<C-i>"')
     elseif item.offset == 0 then
       -- Already at current position, do nothing
+      H.log.info('Already at current position')
       H.utils.notify('Already at current position')
     end
   end)
@@ -903,13 +920,20 @@ end
 function H.jumplist.create_source(opts)
   opts = vim.tbl_deep_extend('force', { offset = -1 }, opts)
 
+  H.log.debug('create_source: requested offset=', opts.offset)
+
   local all_jumps = H.jumplist.get_all(Jumppack.config)
 
+  H.log.debug('create_source: found', #all_jumps, 'jumps')
+
   if #all_jumps == 0 then
+    H.log.warn('create_source: no jumps available')
     return nil
   end
 
   local initial_selection = H.jumplist.find_target_offset(all_jumps, opts.offset, Jumppack.config)
+
+  H.log.debug('create_source: initial_selection=', initial_selection)
 
   return {
     name = 'Jumplist',
@@ -1080,8 +1104,20 @@ local FILTER_HIDDEN = '.' -- Show hidden filter indicator
 -- returns: Filtered jump items
 function H.filters.apply(items, filters, filter_context)
   if not items or #items == 0 then
+    H.log.trace('filters.apply: empty items')
     return items
   end
+
+  H.log.debug(
+    'filters.apply: items_count=',
+    #items,
+    'file_only=',
+    filters.file_only,
+    'cwd_only=',
+    filters.cwd_only,
+    'show_hidden=',
+    filters.show_hidden
+  )
 
   local filtered = {}
   -- Use stored context instead of runtime evaluation to avoid picker buffer context
@@ -1118,6 +1154,11 @@ function H.filters.apply(items, filters, filter_context)
     end
   end
 
+  H.log.debug('filters.apply: filtered from', #items, 'to', #filtered, 'items')
+  if #filtered == 0 then
+    H.log.warn('filters.apply: all items filtered out')
+  end
+
   return filtered
 end
 
@@ -1152,6 +1193,8 @@ end
 -- returns: Modified filter state
 function H.filters.toggle_file(filters)
   filters.file_only = not filters.file_only
+  H.log.debug('toggle_file: file_only=', filters.file_only)
+  H.log.info('File filter', filters.file_only and 'enabled' or 'disabled')
   return filters
 end
 
@@ -1160,6 +1203,8 @@ end
 -- returns: Modified filter state
 function H.filters.toggle_cwd(filters)
   filters.cwd_only = not filters.cwd_only
+  H.log.debug('toggle_cwd: cwd_only=', filters.cwd_only)
+  H.log.info('CWD filter', filters.cwd_only and 'enabled' or 'disabled')
   return filters
 end
 
@@ -1168,6 +1213,8 @@ end
 -- returns: Modified filter state
 function H.filters.toggle_hidden(filters)
   filters.show_hidden = not filters.show_hidden
+  H.log.debug('toggle_hidden: show_hidden=', filters.show_hidden)
+  H.log.info('Show hidden', filters.show_hidden and 'enabled' or 'disabled')
   return filters
 end
 
@@ -1175,6 +1222,8 @@ end
 -- filters: Filter state to reset
 -- returns: Reset filter state
 function H.filters.reset(filters)
+  H.log.debug('reset: resetting all filters')
+  H.log.info('All filters reset')
   filters.file_only = false
   filters.cwd_only = false
   filters.show_hidden = false -- Default to hiding hidden items
@@ -1234,6 +1283,7 @@ end
 function H.hide.save(hidden)
   local keys = vim.tbl_keys(hidden)
   vim.g.Jumppack_hidden_items = table.concat(keys, '\n')
+  H.log.debug('hide.save: saved', #keys, 'hidden items')
 end
 
 ---Get hide key for jump item
@@ -1249,7 +1299,9 @@ end
 function H.hide.is_hidden(item)
   local hidden = H.hide.load()
   local key = H.hide.get_key(item)
-  return hidden[key] == true
+  local is_hidden = hidden[key] == true
+  H.log.trace('hide.is_hidden:', key, '=', is_hidden)
+  return is_hidden
 end
 
 ---Toggle hide status for item
@@ -1259,14 +1311,19 @@ function H.hide.toggle(item)
   local hidden = H.hide.load()
   local key = H.hide.get_key(item)
 
+  local new_state
   if hidden[key] then
     hidden[key] = nil
+    new_state = false
   else
     hidden[key] = true
+    new_state = true
   end
 
   H.hide.save(hidden)
-  return hidden[key] == true
+  H.log.debug('hide.toggle:', key, 'new_state=', new_state)
+  H.log.info('Item', new_state and 'hidden' or 'unhidden', ':', key)
+  return new_state
 end
 
 ---Mark items with their hide status
@@ -1344,6 +1401,14 @@ function H.config.setup(config)
     )
   end
   H.utils.check_type('options.count_timeout_ms', config.options.count_timeout_ms, 'number')
+  H.utils.check_type('options.log_level', config.options.log_level, 'string')
+  if not vim.tbl_contains({ 'off', 'error', 'warn', 'info', 'debug', 'trace' }, config.options.log_level) then
+    H.utils.error(
+      'setup(): options.log_level must be one of: off, error, warn, info, debug, trace, got "'
+        .. config.options.log_level
+        .. '"'
+    )
+  end
 
   H.utils.check_type('window', config.window, 'table')
   local is_table_or_callable = function(x)
@@ -1505,6 +1570,8 @@ local FOCUS_CHECK_INTERVAL = 1000 -- Focus tracking timer interval (ms)
 -- opts: Validated picker options
 -- returns: New picker instance
 function H.instance.create(opts)
+  H.log.trace('Creating picker instance')
+
   -- Create buffer
   local buf_id = H.window.create_buffer()
 
@@ -1551,6 +1618,17 @@ function H.instance.create(opts)
     pending_count = '',
     count_timer = nil,
   }
+
+  H.log.trace(
+    'Created instance: buf_id=',
+    buf_id,
+    'win_id=',
+    win_id,
+    'win_target=',
+    win_target,
+    'view_state=',
+    instance.view_state
+  )
 
   return instance
 end
@@ -1724,12 +1802,14 @@ end
 ---Track focus loss for picker instance
 -- instance: Picker instance
 function H.instance.track_focus(instance)
+  H.log.trace('Starting focus tracking')
   local track = vim.schedule_wrap(function()
     local is_cur_win = vim.api.nvim_get_current_win() == instance.windows.main
     local is_proper_focus = is_cur_win and (H.cache.is_in_getcharstr or vim.fn.mode() ~= 'n')
     if is_proper_focus then
       return
     end
+    H.log.trace('Focus lost, destroying instance')
     if H.cache.is_in_getcharstr then
       -- sends <C-c>
       return vim.api.nvim_feedkeys('\3', 't', true)
@@ -1744,6 +1824,8 @@ end
 -- items: Jump items
 -- initial_selection: Initial selection index
 function H.instance.set_items(instance, items, initial_selection)
+  H.log.trace('set_items: items_count=', #items, 'initial_selection=', initial_selection)
+
   -- Store original items before any filtering for session state
   instance.original_items = vim.deepcopy(items)
   instance.original_initial_selection = initial_selection
@@ -1752,9 +1834,12 @@ function H.instance.set_items(instance, items, initial_selection)
   local filtered_items = H.filters.apply(items, instance.filters, instance.filter_context)
   instance.items = filtered_items
 
+  H.log.trace('set_items: filtered_items_count=', #filtered_items)
+
   if #filtered_items > 0 then
     -- Calculate initial selection that works with filtered items
     local initial_ind = H.instance.calculate_filtered_initial_selection(items, filtered_items, initial_selection)
+    H.log.trace('set_items: calculated_initial_ind=', initial_ind)
     H.instance.set_selection(instance, initial_ind)
     -- Force update with the new index
     H.instance.set_selection(instance, initial_ind, true)
@@ -1960,15 +2045,20 @@ end
 function H.instance.set_selection(instance, ind, force_update)
   -- Early validation - guard clause
   if not instance or not instance.items or #instance.items == 0 then
+    H.log.trace('set_selection: empty items or invalid instance')
     if instance then
       instance.current_ind, instance.visible_range = nil, {}
     end
     return
   end
 
+  local old_ind = instance.current_ind
+
   -- Wrap index around edges (trusted state after validation)
   local n_matches = #instance.items
   ind = (ind - 1) % n_matches + 1
+
+  H.log.trace('set_selection: old_ind=', old_ind, 'new_ind=', ind, 'force_update=', force_update)
 
   -- (Re)Compute visible range (centers current index if it is currently outside)
   local from, to = instance.visible_range.from, instance.visible_range.to
@@ -2141,6 +2231,9 @@ end
 ---Destroy picker instance and cleanup
 -- instance: Picker instance
 function H.instance.destroy(instance)
+  H.log.debug('destroy: cleaning up instance')
+  H.log.info('Picker closed')
+
   vim.tbl_map(function(timer)
     ---@diagnostic disable-next-line: undefined-field
     pcall(vim.uv.timer_stop, timer)
@@ -2155,6 +2248,7 @@ function H.instance.destroy(instance)
   end)
 
   if instance == nil then
+    H.log.trace('destroy: instance already nil')
     return
   end
 
@@ -2165,6 +2259,8 @@ function H.instance.destroy(instance)
   pcall(vim.api.nvim_win_close, instance.windows.main, true)
   pcall(vim.api.nvim_buf_delete, instance.buffers.main, { force = true })
   instance.windows, instance.buffers = {}, {}
+
+  H.log.debug('destroy: cleanup complete')
 end
 
 H.actions = {
@@ -2333,6 +2429,7 @@ end
 function H.instance.move_selection(instance, by, to)
   -- Early validation - guard clauses
   if not instance or not instance.items or #instance.items == 0 then
+    H.log.trace('move_selection: empty items or invalid instance')
     return
   end
 
@@ -2342,22 +2439,31 @@ function H.instance.move_selection(instance, by, to)
     local wrap_edges = Jumppack.config.options and Jumppack.config.options.wrap_edges
     to = instance.current_ind
 
+    H.log.trace('move_selection: by=', by, 'from=', to, 'wrap_edges=', wrap_edges)
+
     if wrap_edges then
       -- Wrap around edges when enabled
       if to == 1 and by < 0 then
         to = n_matches
+        H.log.trace('move_selection: wrapped to end')
       elseif to == n_matches and by > 0 then
         to = 1
+        H.log.trace('move_selection: wrapped to start')
       else
         to = to + by
       end
     else
       -- No wrapping when disabled - clamp to edges
       to = to + by
+      if to < 1 or to > n_matches then
+        H.log.debug('move_selection: edge reached, no wrap, clamping')
+      end
     end
 
     to = math.min(math.max(to, 1), n_matches)
   end
+
+  H.log.trace('move_selection: final selection=', to)
 
   H.instance.set_selection(instance, to)
 
@@ -2597,6 +2703,7 @@ end
 ---Display error message
 -- msg: Error message
 function H.utils.error(msg)
+  H.log.error('error:', msg)
   error('(jumppack) ' .. msg, 0)
 end
 
@@ -2780,6 +2887,120 @@ end
 
 function H.utils.full_path(path)
   return (vim.fn.fnamemodify(path, ':p'):gsub('(.)/$', '%1'))
+end
+
+-- Logging
+-- =======
+
+H.log = {}
+
+-- Log level constants
+local LOG_LEVELS = {
+  trace = 1,
+  debug = 2,
+  info = 3,
+  warn = 4,
+  error = 5,
+  off = 99,
+}
+
+-- Initialize logging configuration
+local function init_log_config()
+  -- Check environment variable first, then fall back to config
+  local env_level = vim.fn.getenv('JUMPPACK_LOG_LEVEL')
+  if env_level == vim.NIL then
+    env_level = nil
+  end
+
+  local level = env_level or (Jumppack.config and Jumppack.config.options.log_level) or 'off'
+  level = level:lower()
+
+  if not LOG_LEVELS[level] then
+    level = 'off'
+  end
+
+  return {
+    level = level,
+    level_num = LOG_LEVELS[level],
+    outfile = vim.fn.stdpath('state') .. '/jumppack.log',
+  }
+end
+
+-- Format log message with source location
+local function format_message(level_name, ...)
+  local info = debug.getinfo(3, 'Sl')
+  local source = info.source:sub(2) -- Remove '@' prefix
+  local line = info.currentline
+
+  -- Get filename only for cleaner logs
+  local filename = vim.fn.fnamemodify(source, ':t')
+
+  -- Build message from varargs
+  local parts = {}
+  for i = 1, select('#', ...) do
+    local v = select(i, ...)
+    if type(v) == 'table' then
+      v = vim.inspect(v)
+    else
+      v = tostring(v)
+    end
+    parts[#parts + 1] = v
+  end
+  local msg = table.concat(parts, ' ')
+
+  -- Format: [LEVEL timestamp] file:line: message
+  local timestamp = os.date('%H:%M:%S')
+  return string.format('[%-5s %s] %s:%d: %s', level_name:upper(), timestamp, filename, line, msg)
+end
+
+-- Write log message to file
+local function write_to_file(log_config, formatted_msg)
+  -- Ensure log directory exists
+  local log_dir = vim.fn.fnamemodify(log_config.outfile, ':h')
+  if vim.fn.isdirectory(log_dir) == 0 then
+    vim.fn.mkdir(log_dir, 'p')
+  end
+
+  -- Append to log file
+  local file = io.open(log_config.outfile, 'a')
+  if file then
+    file:write(formatted_msg .. '\n')
+    file:close()
+  end
+end
+
+-- Log at specific level
+local function log_at_level(level_name, level_num, ...)
+  local log_config = init_log_config()
+
+  -- Skip if logging is disabled or level is too low
+  if level_num < log_config.level_num then
+    return
+  end
+
+  local formatted_msg = format_message(level_name, ...)
+  write_to_file(log_config, formatted_msg)
+end
+
+-- Public logging functions
+function H.log.trace(...)
+  log_at_level('trace', LOG_LEVELS.trace, ...)
+end
+
+function H.log.debug(...)
+  log_at_level('debug', LOG_LEVELS.debug, ...)
+end
+
+function H.log.info(...)
+  log_at_level('info', LOG_LEVELS.info, ...)
+end
+
+function H.log.warn(...)
+  log_at_level('warn', LOG_LEVELS.warn, ...)
+end
+
+function H.log.error(...)
+  log_at_level('error', LOG_LEVELS.error, ...)
 end
 
 ---==============================================================================
