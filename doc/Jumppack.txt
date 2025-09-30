@@ -237,50 +237,50 @@ have sensible defaults and are optional.
 Configuration Values ~
 
 
- Option              |  Default    |  Description                                |
-
- global_mappings     |  true       |  Override <C-o>/<C-i> with Jumppack        |
- cwd_only            |  false      |  Show only jumps in current directory      |
- wrap_edges          |  false      |  Wrap around list edges                    |
- default_view        |  'preview'  |  Initial view mode (list or preview)       |
- count_timeout_ms    |  1000       |  Timeout for count accumulation (ms)       |
+Option                | Default       | Description                                   |
+--------------------- | ------------- | --------------------------------------------- |
+global_mappings       | true          | Override <C-o>/<C-i> with Jumppack            |
+cwd_only              | false         | Show only jumps in current directory          |
+wrap_edges            | false         | Wrap around list edges                        |
+default_view          | 'preview'     | Initial view mode (list or preview)           |
+count_timeout_ms      | 1000          | Timeout for count accumulation (ms)           |
 
 Keymaps ~
 
 
- Key     |  Action              |  Description                              |
-
- <C-o>   |  jump_back           |  Navigate backward in jumplist           |
- <C-i>   |  jump_forward        |  Navigate forward in jumplist            |
- gg      |  jump_to_top         |  Jump to top of list                     |
- G       |  jump_to_bottom      |  Jump to bottom of list                  |
-
-
- Key     |  Action              |  Description                              |
-
- <CR>    |  choose              |  Go to selected jump location            |
- <C-s>   |  choose_in_split     |  Open in horizontal split                |
- <C-v>   |  choose_in_vsplit    |  Open in vertical split                  |
- <C-t>   |  choose_in_tabpage   |  Open in new tab                         |
+Key        | Action                 | Description                                 |
+---------- | ---------------------- | ------------------------------------------- |
+<C-o>      | jump_back              | Navigate backward in jumplist               |
+<C-i>      | jump_forward           | Navigate forward in jumplist                |
+gg         | jump_to_top            | Jump to top of list                         |
+G          | jump_to_bottom         | Jump to bottom of list                      |
 
 
- Key     |  Action              |  Description                              |
+Key        | Action                 | Description                                 |
+---------- | ---------------------- | ------------------------------------------- |
+<CR>       | choose                 | Go to selected jump location                |
+<C-s>      | choose_in_split        | Open in horizontal split                    |
+<C-v>      | choose_in_vsplit       | Open in vertical split                      |
+<C-t>      | choose_in_tabpage      | Open in new tab                             |
 
- <Esc>   |  stop                |  Close picker                            |
- p       |  toggle_preview      |  Toggle preview mode                     |
+
+Key        | Action                 | Description                                 |
+---------- | ---------------------- | ------------------------------------------- |
+<Esc>      | stop                   | Close picker                                |
+p          | toggle_preview         | Toggle preview mode                         |
 
 
- Key     |  Action              |  Description                              |
-
- f       |  toggle_file_filter  |  Toggle current file filter              |
- c       |  toggle_cwd_filter   |  Toggle current directory filter         |
- .       |  toggle_show_hidden  |  Toggle visibility of hidden items       |
- r       |  reset_filters       |  Clear all active filters                |
+Key        | Action                 | Description                                 |
+---------- | ---------------------- | ------------------------------------------- |
+f          | toggle_file_filter     | Toggle current file filter                  |
+c          | toggle_cwd_filter      | Toggle current directory filter             |
+.          | toggle_show_hidden     | Toggle visibility of hidden items           |
+r          | reset_filters          | Clear all active filters                    |
 
 Management:
- Key     |  Action              |  Description                              |
-
- x       |  toggle_hidden       |  Mark/unmark item as hidden              |
+Key        | Action                 | Description                                 |
+---------- | ---------------------- | ------------------------------------------- |
+x          | toggle_hidden          | Mark/unmark item as hidden                  |
 
 Persistence ~
 
