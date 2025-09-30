@@ -1,6 +1,10 @@
 .DS_Store
 doc/tags
 
+# env
+.envrc
+.env
+
 # Test artifacts
 tests/screenshots/*.actual
 /tmp/jumppack-doccheck/

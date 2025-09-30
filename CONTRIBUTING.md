@@ -46,6 +46,79 @@ H.utils.*       -- Shared utilities
 - Public API: `H.utils.error()` with context
 - Internal functions: return `nil/false` for expected failures
 
+## 🔍 Logging
+
+Jumppack includes comprehensive debug logging for troubleshooting issues.
+
+**Log Levels** (hierarchical):
+```lua
+H.log.trace(...)  -- Verbose internal state (selection changes, detailed flow)
+H.log.debug(...)  -- Key operations (API calls, jumplist processing, filters)
+H.log.info(...)   -- User-visible operations (picker started, navigation)
+H.log.warn(...)   -- Recoverable issues (empty jumplist, edge reached)
+H.log.error(...)  -- Critical failures (config errors, invalid state)
+```
+
+**Configuration:**
+```lua
+-- In config
+Jumppack.setup({ options = { log_level = 'debug' } })
+
+-- Or via environment variable (takes precedence)
+JUMPPACK_LOG_LEVEL=trace nvim
+```
+
+**When to Log:**
+
+Use **trace** for:
+- Internal state changes (selection index, filter counts)
+- Detailed flow tracking (function entry/exit with state)
+- Low-level operations (buffer/window IDs, item counts)
+
+Use **debug** for:
+- Public API entry points with parameters
+- Key operation results (jumplist size, filter results)
+- Internal function operations with context
+
+Use **info** for:
+- User-initiated actions (picker started, navigation)
+- State changes visible to user (filter enabled/disabled)
+- Successful completions
+
+Use **warn** for:
+- Expected edge cases (empty lists, boundaries reached)
+- Fallback behavior (missing icons, invalid indices)
+- Non-critical validation failures
+
+Use **error** for:
+- Configuration validation failures
+- Type check failures (already logged by `H.utils.error()`)
+- Unexpected state that prevents operation
+
+**Example:**
+```lua
+function H.filters.toggle_file(filters)
+  filters.file_only = not filters.file_only
+  H.log.debug('toggle_file: file_only=', filters.file_only)
+  H.log.info('File filter', filters.file_only and 'enabled' or 'disabled')
+  return filters
+end
+```
+
+**Testing with Logs:**
+```bash
+# View logs while developing
+tail -f ~/.local/state/nvim/jumppack.log
+
+# Run tests with logging
+JUMPPACK_LOG_LEVEL=debug make test
+
+# Clear log file
+rm ~/.local/state/nvim/jumppack.log
+```
+
+**Note:** Default `log_level='off'` ensures zero runtime cost in production.
+
 ## 📋 Before Submitting PR
 
 ```bash
