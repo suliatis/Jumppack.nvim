@@ -6,12 +6,12 @@
 -- Used in integration tests to create realistic jumplist entries with          
 -- meaningful line positions and content for testing navigation workflows.      
 ┌─────────────────────────────────────────────────┐                             
-│↑1  file.lua 18:3 │ another_long_name = 'anothe…│                             
-│↑2  file3.md 8:1                                │                             
-│↑3  nested/init.lua 15:5 │ function init.setup()│                             
-│↑4  file2.txt 12:1 │ Lorem ipsum dolor sit amet…│                             
-│↑5  file1.lua 6:3 │ -- Used in integration test…│                             
-│↑6  file1.lua 1:1 │ -- ========================…│                             
+│↑1  file.lua 18:3 │ another_long_name = 'another…│                             
+│↑2  file3.md 8:1                                 │                             
+│↑3  nested/init.lua 15:5 │ function init.setup() │                             
+│↑4  file2.txt 12:1 │ Lorem ipsum dolor sit amet,…│                             
+│↑5  file1.lua 6:3 │ -- Used in integration tests…│                             
+│↑6  file1.lua 1:1 │ -- =========================…│                             
 │                                                 │                             
 │                                                 │                             
 │                                                 │                             
