@@ -9,9 +9,7 @@ local Utils = require('Jumppack.utils')
 local Window = nil
 local Display = nil
 local Filters = nil
-local Hide = nil
 local Jumppack_config = nil
-local H_actions = nil
 local H_config = nil
 
 -- Event loop configuration
@@ -538,16 +536,8 @@ function H.set_filters(filters)
   Filters = filters
 end
 
-function H.set_hide(hide)
-  Hide = hide
-end
-
 function H.set_config(config)
   Jumppack_config = config
-end
-
-function H.set_actions(actions)
-  H_actions = actions
 end
 
 function H.set_config_module(config_module)

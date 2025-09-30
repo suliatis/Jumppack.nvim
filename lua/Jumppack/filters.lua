@@ -16,12 +16,14 @@ local FILTER_CWD = 'c' -- Current directory filter indicator
 local FILTER_HIDDEN = '.' -- Show hidden filter indicator
 
 -- Optional logging support (injected from main module)
+-- luacheck: push ignore 212
 local log = {
-  trace = function() end,
-  debug = function() end,
-  info = function() end,
-  warn = function() end,
+  trace = function(...) end,
+  debug = function(...) end,
+  info = function(...) end,
+  warn = function(...) end,
 }
+-- luacheck: pop
 
 --Set logger for this module (optional)
 -- logger: Logger implementation with trace, debug, info, warn functions

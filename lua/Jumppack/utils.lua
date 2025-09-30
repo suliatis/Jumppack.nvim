@@ -207,6 +207,7 @@ local Jumppack_config = nil
 -- Initialize logging configuration
 local function init_log_config()
   -- Check environment variable first, then fall back to config
+  ---@type string|nil
   local env_level = vim.fn.getenv('JUMPPACK_LOG_LEVEL')
   if env_level == vim.NIL then
     env_level = nil

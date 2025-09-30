@@ -10,7 +10,6 @@ local Instance = nil
 local Filters = nil
 local Hide = nil
 local Display = nil
-local Jumppack_config = nil
 
 -- Action handlers
 H.jump_back = function(instance, count)
@@ -189,10 +188,6 @@ end
 
 function H.set_display(display)
   Display = display
-end
-
-function H.set_config(config)
-  Jumppack_config = config
 end
 
 return H

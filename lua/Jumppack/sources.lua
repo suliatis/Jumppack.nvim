@@ -4,7 +4,6 @@
 local H = {}
 
 local Utils = require('Jumppack.utils')
-local Filters = require('Jumppack.filters')
 local Hide = require('Jumppack.hide')
 
 -- Forward declarations for injected dependencies

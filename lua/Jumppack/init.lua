@@ -1048,15 +1048,12 @@ H.sources.set_config(Jumppack.config)
 H.instance.set_window(H.window)
 H.instance.set_display(H.display)
 H.instance.set_filters(H.filters)
-H.instance.set_hide(H.hide)
 H.instance.set_config(Jumppack.config)
-H.instance.set_actions(H.actions)
 H.instance.set_config_module(H.config)
 H.actions.set_instance(H.instance)
 H.actions.set_filters(H.filters)
 H.actions.set_hide(H.hide)
 H.actions.set_display(H.display)
-H.actions.set_config(Jumppack.config)
 
 ---==============================================================================
 ---
