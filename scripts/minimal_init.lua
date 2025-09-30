@@ -16,4 +16,10 @@ if not vim.loop.fs_stat(mini_path) then
 end
 
 -- Add current plugin to runtime path
+local plugin_dir = vim.fn.getcwd()
 vim.cmd([[let &rtp.=','.getcwd()]])
+
+-- Add lua directory to package path for submodule loading
+-- This ensures jumppack.* modules can be required from lua/jumppack/
+local lua_path = plugin_dir .. '/lua/?.lua;' .. plugin_dir .. '/lua/?/init.lua'
+package.path = lua_path .. ';' .. package.path
