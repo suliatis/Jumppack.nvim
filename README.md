@@ -12,7 +12,7 @@
 - 🎨 **Fully customizable** - Configure window appearance, keymaps, and behavior
 - 📍 **Enhanced position display** - Format: `[indicator] [icon] [path/name] [lnum:col]` with line previews
 - 🔍 **Powerful filtering** - Filter by current file, working directory, or hide unwanted entries
-- 💾 **Persistent hide system** - Mark entries as hidden and remember across sessions
+- 💾 **Session-persistent hide system** - Mark entries as hidden, optionally persist with sessions
 - 🔀 **Multiple open modes** - Open jumps in splits, tabs, or current window
 
 ## 📼 Demo
