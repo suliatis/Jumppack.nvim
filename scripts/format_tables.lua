@@ -48,19 +48,6 @@ local function parse_table_line(line)
   return cells
 end
 
--- Check if line is a separator row
-local function is_separator_row(cells)
-  if not cells then
-    return false
-  end
-  for _, cell in ipairs(cells) do
-    if not cell:match('^%-+$') then
-      return false
-    end
-  end
-  return true
-end
-
 -- Format table line with proper column widths
 local function format_table_line(cells, widths)
   local parts = {}
