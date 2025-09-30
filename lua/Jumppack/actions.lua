@@ -2,8 +2,7 @@
 -- Handles user actions in the picker interface
 
 local H = {}
-
-local Utils = require('Jumppack.utils')
+H.utils = require('Jumppack.utils')
 
 -- Forward declarations for injected dependencies
 local Instance = nil
@@ -149,7 +148,7 @@ function H.choose_with_action(instance, pre_command)
     pre_command ~= nil
     and type(pre_command) == 'string'
     and pre_command ~= ''
-    and Utils.is_valid_win(win_id_target)
+    and H.utils.is_valid_win(win_id_target)
   then
     -- Work around Neovim not preserving cwd during `nvim_win_call`
     -- See: https://github.com/neovim/neovim/issues/32203
@@ -166,7 +165,7 @@ function H.choose_with_action(instance, pre_command)
   -- Delay error to have time to hide instance window
   if not ok then
     vim.schedule(function()
-      Utils.error('choose_with_action(): Error during choose action:\n' .. res)
+      H.utils.error('choose_with_action(): Error during choose action:\n' .. res)
     end)
   end
   -- Error or returning nothing, `nil`, or `false` should lead to instance stop

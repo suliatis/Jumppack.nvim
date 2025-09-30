@@ -1,15 +1,14 @@
-local Utils = require('Jumppack.utils')
+local H = {}
+H.utils = require('Jumppack.utils')
 
 -- Constants
 local GOLDEN_RATIO = 0.618 -- Golden ratio for default window sizing
 local WINDOW_ZINDEX = 251 -- Float window z-index for layering
 
-local H = {}
-
 --Create scratch buffer for picker
 -- returns: Buffer ID
 function H.create_buffer()
-  local buf_id = Utils.create_scratch_buf('main')
+  local buf_id = H.utils.create_scratch_buf('main')
   vim.bo[buf_id].filetype = 'minipick'
   return buf_id
 end
@@ -36,12 +35,12 @@ function H.create_window(buf_id, win_config, cwd, cache)
   vim.wo[win_id].listchars = 'extends:…'
   vim.wo[win_id].scrolloff = 0
   vim.wo[win_id].wrap = false
-  Utils.win_update_hl(win_id, 'NormalFloat', 'JumppackNormal')
-  Utils.win_update_hl(win_id, 'FloatBorder', 'JumppackBorder')
+  H.utils.win_update_hl(win_id, 'NormalFloat', 'JumppackNormal')
+  H.utils.win_update_hl(win_id, 'FloatBorder', 'JumppackBorder')
   vim.fn.clearmatches(win_id)
 
   -- Set window's local "current directory" for easier choose/preview/etc.
-  Utils.win_set_cwd(nil, cwd)
+  H.utils.win_set_cwd(nil, cwd)
 
   return win_id
 end
@@ -69,7 +68,7 @@ function H.compute_config(win_config, is_for_open)
     -- Use high enough value to be on top of built-in windows (pmenu, etc.)
     zindex = WINDOW_ZINDEX,
   }
-  local config = vim.tbl_deep_extend('force', default_config, Utils.expand_callable(win_config) or {})
+  local config = vim.tbl_deep_extend('force', default_config, H.utils.expand_callable(win_config) or {})
 
   -- Tweak config values to ensure they are proper
   if config.border == 'none' then

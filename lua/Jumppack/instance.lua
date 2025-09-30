@@ -2,8 +2,7 @@
 -- Handles lifecycle and state of the picker instance (singleton pattern)
 
 local H = {}
-
-local Utils = require('Jumppack.utils')
+H.utils = require('Jumppack.utils')
 
 -- Forward declarations for injected dependencies
 local Window = nil
@@ -49,7 +48,7 @@ end
 -- opts: Validated picker options
 -- returns: New picker instance
 function H.create(opts)
-  local log = Utils.get_logger()
+  local log = H.utils.get_logger()
   log.trace('Creating picker instance')
 
   -- Create buffer
@@ -126,7 +125,7 @@ function H.run_loop(instance)
   for _ = 1, LOOP_MAX_ITERATIONS do
     H.update(instance)
 
-    local char = Utils.getcharstr(INPUT_DELAY_MS, cache, timers.getcharstr, active)
+    local char = H.utils.getcharstr(INPUT_DELAY_MS, cache, timers.getcharstr, active)
     is_aborted = char == nil
     if is_aborted then
       break
@@ -197,13 +196,13 @@ function H.update(instance, update_window)
   end
   Display.update_border(instance)
   Display.update_lines(instance)
-  Utils.redraw()
+  H.utils.redraw()
 end
 
 --Track focus loss for picker instance
 -- instance: Picker instance
 function H.track_focus(instance)
-  local log = Utils.get_logger()
+  local log = H.utils.get_logger()
   log.trace('Starting focus tracking')
   local track = vim.schedule_wrap(function()
     local is_cur_win = vim.api.nvim_get_current_win() == instance.windows.main
@@ -226,7 +225,7 @@ end
 -- items: Jump items
 -- initial_selection: Initial selection index
 function H.set_items(instance, items, initial_selection)
-  local log = Utils.get_logger()
+  local log = H.utils.get_logger()
   log.trace('set_items: items_count=', #items, 'initial_selection=', initial_selection)
 
   -- Store original items before any filtering for session state
@@ -391,7 +390,7 @@ end
 -- ind: Selection index
 -- force_update: Force visible range update
 function H.set_selection(instance, ind, force_update)
-  local log = Utils.get_logger()
+  local log = H.utils.get_logger()
   -- Early validation - guard clause
   if not instance or not instance.items or #instance.items == 0 then
     log.trace('set_selection: empty items or invalid instance')
@@ -412,7 +411,7 @@ function H.set_selection(instance, ind, force_update)
   -- (Re)Compute visible range (centers current index if it is currently outside)
   local from, to = instance.visible_range.from, instance.visible_range.to
   local needs_update = not from or not to or not (from <= ind and ind <= to)
-  if (force_update or needs_update) and Utils.is_valid_win(instance.windows.main) then
+  if (force_update or needs_update) and H.utils.is_valid_win(instance.windows.main) then
     local win_height = vim.api.nvim_win_get_height(instance.windows.main)
     to = math.min(n_matches, math.floor(ind + 0.5 * win_height))
     from = math.max(1, to - win_height + 1)
@@ -429,7 +428,7 @@ end
 -- by: Movement offset
 -- to: Target position
 function H.move_selection(instance, by, to)
-  local log = Utils.get_logger()
+  local log = H.utils.get_logger()
   -- Early validation - guard clauses
   if not instance or not instance.items or #instance.items == 0 then
     log.trace('move_selection: empty items or invalid instance')
@@ -490,7 +489,7 @@ end
 --Destroy picker instance and cleanup
 -- instance: Picker instance
 function H.destroy(instance)
-  local log = Utils.get_logger()
+  local log = H.utils.get_logger()
   log.debug('destroy: cleaning up instance')
   log.info('Picker closed')
 
@@ -515,7 +514,7 @@ function H.destroy(instance)
   vim.api.nvim_exec_autocmds('User', { pattern = 'JumppackStop' })
   active = nil
 
-  Utils.set_curwin(instance.windows.target)
+  H.utils.set_curwin(instance.windows.target)
   pcall(vim.api.nvim_win_close, instance.windows.main, true)
   pcall(vim.api.nvim_buf_delete, instance.buffers.main, { force = true })
   instance.windows, instance.buffers = {}, {}

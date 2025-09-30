@@ -4,8 +4,8 @@
 --- This module depends on utils, window, filters, and instance namespaces.
 ---@brief ]]
 
-local Utils = require('Jumppack.utils')
 local H = {}
+H.utils = require('Jumppack.utils')
 
 -- Highlight priority constants
 local PRIORITY_CURRENT_MATCH = 201
@@ -94,8 +94,8 @@ function H.smart_filename(filepath, cwd)
   end
 
   -- Handle non-cwd files
-  local full_path = Utils.full_path(filepath)
-  local full_cwd = Utils.full_path(cwd)
+  local full_path = H.utils.full_path(filepath)
+  local full_cwd = H.utils.full_path(cwd)
 
   if not vim.startswith(full_path, full_cwd) then
     -- Use ~ for home directory
@@ -220,7 +220,7 @@ function H.update_lines(instance)
   end
 
   local buf_id, win_id = instance.buffers.main, instance.windows.main
-  if not (Utils.is_valid_buf(buf_id) and Utils.is_valid_win(win_id)) then
+  if not (H.utils.is_valid_buf(buf_id) and H.utils.is_valid_win(win_id)) then
     return
   end
 
@@ -259,7 +259,7 @@ function H.update_lines(instance)
   instance.opts.source.show(buf_id, items_to_show)
 
   local ranges_ns = ns_id.ranges
-  Utils.clear_namespace(buf_id, ranges_ns)
+  H.utils.clear_namespace(buf_id, ranges_ns)
 
   -- Update current item
   if cur_line > vim.api.nvim_buf_line_count(buf_id) then
@@ -273,14 +273,14 @@ function H.update_lines(instance)
     hl_group = 'JumppackMatchCurrent',
     priority = PRIORITY_CURRENT_MATCH,
   }
-  Utils.set_extmark(buf_id, ranges_ns, cur_line - 1, 0, cur_opts)
+  H.utils.set_extmark(buf_id, ranges_ns, cur_line - 1, 0, cur_opts)
 end
 
 --Update window border text
 -- instance: Picker instance
 function H.update_border(instance)
   local win_id = instance.windows.main
-  if not Utils.is_valid_win(win_id) then
+  if not H.utils.is_valid_win(win_id) then
     return
   end
 
@@ -303,7 +303,7 @@ function H.update_border(instance)
         }) or ''
         -- Sanitize title
         stritem_cur = stritem_cur:gsub('%z', SYMBOL_SEPARATOR):gsub('%s', ' ')
-        config = { title = { { Utils.fit_to_width(' ' .. stritem_cur .. ' ', win_width), 'JumppackBorderText' } } }
+        config = { title = { { H.utils.fit_to_width(' ' .. stritem_cur .. ' ', win_width), 'JumppackBorderText' } } }
       end
     end
   else
@@ -334,10 +334,10 @@ function H.compute_footer(instance, win_id)
   local source_width = vim.fn.strchars(source_name)
   local status_width = vim.fn.strchars(status_text)
 
-  local footer = { { Utils.fit_to_width(source_name, win_width), 'JumppackBorderText' } }
+  local footer = { { H.utils.fit_to_width(source_name, win_width), 'JumppackBorderText' } }
   local n_spaces_between = win_width - (source_width + status_width)
   if n_spaces_between > 0 then
-    footer[2] = { Utils.win_get_bottom_border(win_id):rep(n_spaces_between), 'JumppackBorder' }
+    footer[2] = { H.utils.win_get_bottom_border(win_id):rep(n_spaces_between), 'JumppackBorder' }
     footer[3] = { status_text, 'JumppackBorderText' }
   end
   return footer
@@ -346,7 +346,7 @@ end
 --Render list buffer view
 -- instance: Picker instance
 function H.render_list(instance)
-  Utils.set_winbuf(instance.windows.main, instance.buffers.main)
+  H.utils.set_winbuf(instance.windows.main, instance.buffers.main)
   instance.view_state = 'list'
   H.update_border(instance)
 end
@@ -423,9 +423,9 @@ function H.render_preview(instance)
 
   local preview = instance.opts.source.preview
 
-  local win_id, buf_id = instance.windows.main, Utils.create_scratch_buf('preview')
+  local win_id, buf_id = instance.windows.main, H.utils.create_scratch_buf('preview')
   vim.bo[buf_id].bufhidden = 'wipe'
-  Utils.set_winbuf(win_id, buf_id)
+  H.utils.set_winbuf(win_id, buf_id)
   preview(buf_id, item)
   instance.buffers.preview = buf_id
   instance.view_state = 'preview'
@@ -438,7 +438,7 @@ end
 -- returns: Icon data with text and highlight
 function H.get_icon(item, icons)
   local path = item.path or ''
-  local path_type = Utils.get_fs_type(path)
+  local path_type = H.utils.get_fs_type(path)
   if path_type == 'none' then
     return { text = icons.none, hl = 'JumppackNormal' }
   end
@@ -467,7 +467,7 @@ end
 -- extra: Extra info with lnum, col, end_lnum, end_col, filetype, path
 function H.preview_set_lines(buf_id, lines, extra)
   -- Lines
-  Utils.set_buflines(buf_id, lines)
+  H.utils.set_buflines(buf_id, lines)
 
   -- Highlighting
   H.preview_highlight_region(buf_id, extra.lnum, extra.col, extra.end_lnum, extra.end_col)
@@ -493,7 +493,7 @@ function H.preview_set_lines(buf_id, lines, extra)
   if win_id == -1 then
     return
   end
-  Utils.set_cursor(win_id, extra.lnum, extra.col)
+  H.utils.set_cursor(win_id, extra.lnum, extra.col)
   local pos_keys = ({ top = 'zt', center = 'zz', bottom = 'zb' })[extra.line_position] or 'zt'
   pcall(vim.api.nvim_win_call, win_id, function()
     vim.cmd('normal! ' .. pos_keys)
@@ -524,7 +524,7 @@ function H.preview_highlight_region(buf_id, lnum, col, end_lnum, end_col)
   end
   local hl_line_opts =
     { end_row = lnum, end_col = 0, hl_eol = true, hl_group = 'JumppackPreviewLine', priority = PRIORITY_PREVIEW_LINE }
-  Utils.set_extmark(buf_id, ns_id.preview, lnum - 1, 0, hl_line_opts)
+  H.utils.set_extmark(buf_id, ns_id.preview, lnum - 1, 0, hl_line_opts)
 
   -- Highlight position/region
   if col == nil then
@@ -536,11 +536,11 @@ function H.preview_highlight_region(buf_id, lnum, col, end_lnum, end_col)
     ext_end_row, ext_end_col = end_lnum - 1, end_col - 1
   end
   local bufline = vim.fn.getbufline(buf_id, ext_end_row + 1)[1]
-  ext_end_col = Utils.get_next_char_bytecol(bufline, ext_end_col)
+  ext_end_col = H.utils.get_next_char_bytecol(bufline, ext_end_col)
 
   local hl_region_opts = { end_row = ext_end_row, end_col = ext_end_col, priority = PRIORITY_REGION }
   hl_region_opts.hl_group = 'JumppackPreviewRegion'
-  Utils.set_extmark(buf_id, ns_id.preview, lnum - 1, col - 1, hl_region_opts)
+  H.utils.set_extmark(buf_id, ns_id.preview, lnum - 1, col - 1, hl_region_opts)
 end
 
 return H

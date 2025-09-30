@@ -2,9 +2,8 @@
 -- Handles retrieving, processing, and creating jump items from Vim's jumplist
 
 local H = {}
-
-local Utils = require('Jumppack.utils')
-local Hide = require('Jumppack.hide')
+H.utils = require('Jumppack.utils')
+H.hide = require('Jumppack.hide')
 
 -- Forward declarations for injected dependencies
 local Jumppack_config = nil
@@ -15,7 +14,7 @@ local Jumppack_config = nil
 function H.create_source(opts)
   opts = vim.tbl_deep_extend('force', { offset = -1 }, opts)
 
-  local log = Utils.get_logger()
+  local log = H.utils.get_logger()
   log.debug('create_source: requested offset=', opts.offset)
 
   local all_jumps = H.get_all(Jumppack_config)
@@ -49,7 +48,7 @@ function H.get_all(config)
 
   config = config or Jumppack_config
   local cwd_only = config.options and config.options.cwd_only
-  local current_cwd = cwd_only and Utils.full_path(vim.fn.getcwd()) or nil
+  local current_cwd = cwd_only and H.utils.full_path(vim.fn.getcwd()) or nil
 
   local all_jumps = {}
 
@@ -61,7 +60,7 @@ function H.get_all(config)
       if jump_item then
         -- Filter by cwd if cwd_only is enabled
         if cwd_only then
-          local jump_path = Utils.full_path(jump_item.path)
+          local jump_path = H.utils.full_path(jump_item.path)
           if vim.startswith(jump_path, current_cwd) then
             table.insert(all_jumps, jump_item)
           end
@@ -79,7 +78,7 @@ function H.get_all(config)
   end
 
   -- Mark items with hide status
-  Hide.mark_items(reversed_jumps)
+  H.hide.mark_items(reversed_jumps)
 
   return reversed_jumps
 end

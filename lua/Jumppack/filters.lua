@@ -4,8 +4,8 @@
 --- This module depends only on utils.
 ---@brief ]]
 
-local Utils = require('Jumppack.utils')
 local H = {}
+H.utils = require('Jumppack.utils')
 
 -- Filter status symbols
 local FILTER_BRACKET_OPEN = '[' -- Filter status opening bracket
@@ -61,13 +61,13 @@ function H.apply(items, filters, filter_context)
   local cwd = filter_context and filter_context.original_cwd or vim.fn.getcwd()
 
   -- Normalize current file path for robust comparison
-  current_file = Utils.full_path(current_file)
+  current_file = H.utils.full_path(current_file)
 
   for _, item in ipairs(items) do
     local should_include = true
 
     -- File filter: only show jumps in current file
-    local item_path = Utils.full_path(item.path)
+    local item_path = H.utils.full_path(item.path)
     if filters.file_only and item_path ~= current_file then
       should_include = false
     end
@@ -75,7 +75,7 @@ function H.apply(items, filters, filter_context)
     -- CWD filter: only show jumps in current directory
     if should_include and filters.cwd_only then
       local item_dir = vim.fn.fnamemodify(item_path, ':h')
-      if not vim.startswith(Utils.full_path(item_dir), Utils.full_path(cwd)) then
+      if not vim.startswith(H.utils.full_path(item_dir), H.utils.full_path(cwd)) then
         should_include = false
       end
     end
